@@ -350,7 +350,7 @@ class converter {
 };
 
 template <>
-void converter::extract_one<std::string>(std::string& dst,
+inline void converter::extract_one<std::string>(std::string& dst,
         const string_range msg, size_t) {
         SS_RETURN_ON_INVALID;
         extract(msg.first, msg.second, dst);
