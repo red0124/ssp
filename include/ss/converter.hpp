@@ -307,15 +307,6 @@ class converter {
                 }
         }
 
-        template <>
-        void extract_one<std::string>(std::string& dst, const string_range msg,
-                                      size_t) {
-                SS_RETURN_ON_INVALID;
-                extract(msg.first, msg.second, dst);
-        }
-
-#undef SS_RETURN_ON_INVALID
-
         template <size_t ArgN, size_t TupN, typename... Ts>
         void extract_multiple(no_void_validator_tup_t<Ts...>& tup,
                               const split_input& elems) {
@@ -357,5 +348,14 @@ class converter {
         std::vector<string_range> input_;
         std::string error_;
 };
+
+template <>
+void converter::extract_one<std::string>(std::string& dst,
+        const string_range msg, size_t) {
+        SS_RETURN_ON_INVALID;
+        extract(msg.first, msg.second, dst);
+}
+
+#undef SS_RETURN_ON_INVALID
 
 } /* ss */
