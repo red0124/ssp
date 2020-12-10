@@ -341,20 +341,18 @@ inline bool extract(const char* begin, const char* end, bool& value) {
         if (end == begin + 1) {
                 if (*begin == '1') {
                         value = true;
-                        return true;
                 } else if (*begin == '0') {
                         value = false;
-                        return true;
                 }
+                return true;
         } else {
                 size_t size = end - begin;
                 if (size == 4 && strncmp(begin, "true", size) == 0) {
                         value = true;
-                        return true;
                 } else if (size == 5 && strncmp(begin, "false", size) == 0) {
                         value = false;
-                        return true;
                 }
+                return true;
         }
 
         return false;
