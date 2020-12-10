@@ -7,14 +7,6 @@
 #include <stdexcept>
 #include <string>
 
-#ifdef SS_THROW_ON_INVALID
-#define SS_THROW_OR_NULL(x) throw std::invalid_argument(x)
-#define SS_THROW_OR_FALSE(x) throw std::invalid_argument(x)
-#else
-#define SS_THROW_OR_NULL(x) return std::nullopt
-#define SS_THROW_OR_FALSE(x) return false
-#endif
-
 namespace ss {
 
 // todo
@@ -47,7 +39,7 @@ template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* begin, const char* const end) {
         if (begin == end) {
-                SS_THROW_OR_NULL("floating point");
+                return std::nullopt;
         }
         int sign = 1;
         T int_part = 0.0;
@@ -73,7 +65,7 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
                         ++begin;
                         break;
                 } else {
-                        SS_THROW_OR_NULL("floating point");
+                        return std::nullopt;
                 }
                 ++begin;
         }
@@ -90,7 +82,7 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
                                 ++begin;
                                 break;
                         } else {
-                                SS_THROW_OR_NULL("floating point");
+                                return std::nullopt;
                         }
                         ++begin;
                 }
@@ -117,7 +109,7 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
         }
 
         if (begin != end) {
-                SS_THROW_OR_NULL("floating point");
+                return std::nullopt;
         }
 
         return sign * (int_part + frac_part) * exp_part;
@@ -127,7 +119,7 @@ inline std::optional<short> from_char(char c) {
         if (c >= '0' && c <= '9') {
                 return c - '0';
         }
-        SS_THROW_OR_NULL("integral");
+        return std::nullopt;
 }
 
 #if defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)
@@ -279,7 +271,7 @@ template <typename T>
 std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     const char* begin, const char* end) {
         if (begin == end) {
-                SS_THROW_OR_NULL("integral");
+                return std::nullopt;
         }
         bool is_negative = false;
         if constexpr (std::is_signed_v<T>) {
@@ -302,7 +294,7 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
                     !digit ||
                     shift_and_add_overflow<T>(value, digit.value(),
                                               add_last_digit_owerflow)) {
-                        SS_THROW_OR_NULL("integral");
+                        return std::nullopt;
                 }
         }
 
@@ -337,11 +329,9 @@ template <typename T>
 std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, bool>
 extract(const char* begin, const char* end, T& value) {
         auto optional_value = to_num<T>(begin, end);
-#ifndef SS_THROW_ON_INVALID
         if (!optional_value) {
                 return false;
         }
-#endif
         value = optional_value.value();
         return true;
 }
@@ -367,16 +357,13 @@ inline bool extract(const char* begin, const char* end, bool& value) {
                 }
         }
 
-        SS_THROW_OR_FALSE("boolean");
+        return false;
 }
 
 template <>
 inline bool extract(const char* begin, const char* end, char& value) {
         value = *begin;
-        if (end != begin + 1) {
-                SS_THROW_OR_FALSE("character");
-        }
-        return true;
+        return (end == begin + 1);
 }
 
 template <>
@@ -384,8 +371,5 @@ inline bool extract(const char* begin, const char* end, std::string& value) {
         value = std::string(begin, end);
         return true;
 }
-
-#undef SS_THROW_OR_NULL
-#undef SS_THROW_OR_FALSE
 
 } /* ss */

@@ -274,19 +274,12 @@ class converter {
         // conversion
         ////////////////
 
-#ifdef SS_THROW_ON_INVALID
-#define SS_RETURN_ON_INVALID // nop
-#else
-#define SS_RETURN_ON_INVALID                                                   \
-        if (!valid()) {                                                        \
-                return;                                                        \
-        }
-#endif
-
         template <typename T>
         void extract_one(no_validator_t<T>& dst, const string_range msg,
                          size_t pos) {
-                SS_RETURN_ON_INVALID;
+                if (!valid()) {
+                        return;
+                }
 
                 if (!extract(msg.first, msg.second, dst)) {
                         set_error_invalid_conversion(msg, pos);
@@ -351,11 +344,13 @@ class converter {
 
 template <>
 inline void converter::extract_one<std::string>(std::string& dst,
-        const string_range msg, size_t) {
-        SS_RETURN_ON_INVALID;
+                                                const string_range msg,
+                                                size_t) {
+        if (!valid()) {
+                return;
+        }
+
         extract(msg.first, msg.second, dst);
 }
-
-#undef SS_RETURN_ON_INVALID
 
 } /* ss */
