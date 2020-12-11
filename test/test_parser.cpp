@@ -43,14 +43,16 @@ template <typename T>
 static void make_and_write(const std::string& file_name,
                            const std::vector<T>& data) {
         std::ofstream out{file_name};
-        for (const auto& i : data) {
-                out << i.to_string() << std::endl;
+        std::vector<const char*> new_lines = {"\n", "\r\n"};
+        for (size_t i = 0; i < data.size(); ++i) {
+                out << data[i].to_string() << new_lines[i % new_lines.size()];
         }
 }
 
 TEST_CASE("testing parser") {
         unique_file_name f;
-        std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"}, {5, 6, "z"}};
+        std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
+                               {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
         make_and_write(f.name, data);
         {
                 ss::parser p{f.name, ","};
@@ -101,17 +103,20 @@ TEST_CASE("testing parser") {
         }
 
         {
+                constexpr int excluded = 3;
                 ss::parser p{f.name, ","};
                 std::vector<X> i;
 
                 while (!p.eof()) {
-                        auto a = p.get_struct<X, ss::ax<int, 3>, double,
+                        auto a = p.get_struct<X, ss::ax<int, excluded>, double,
                                               std::string>();
                         if (p.valid()) {
                                 i.push_back(a);
                         }
                 }
-                std::vector<X> expected = {{1, 2, "x"}, {5, 6, "z"}};
+                std::vector<X> expected = data;
+                std::remove_if(expected.begin(), expected.end(),
+                               [](const X& x) { return x.i == excluded; });
                 CHECK(std::equal(i.begin(), i.end(), expected.begin()));
         }
 

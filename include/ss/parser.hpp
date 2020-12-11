@@ -14,7 +14,7 @@ class parser {
     public:
         parser(const std::string& file_name, const std::string& delimiter)
             : file_name_{file_name}, delim_{delimiter},
-              file_{fopen(file_name_.c_str(), "r")} {
+              file_{fopen(file_name_.c_str(), "rb")} {
                 if (file_) {
                         read_line();
                 } else {
@@ -82,11 +82,17 @@ class parser {
 
                 bool read(FILE* file) {
                         ssize_t size = getline(&buffer_, &size_, file);
+                        size_t string_end = size - 1;
+
                         if (size == -1) {
                                 return false;
                         }
 
-                        buffer_[size - 1] = '\0';
+                        if (size >= 2 && buffer_[size - 2] == '\r') {
+                                string_end--;
+                        }
+
+                        buffer_[string_end] = '\0';
                         return true;
                 }
 
