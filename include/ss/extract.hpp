@@ -1,5 +1,6 @@
 #pragma once
 
+#include "type_traits.hpp"
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -313,17 +314,14 @@ struct unsupported_type {
 } /* namespace */
 
 template <typename T>
-std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T>, bool>
+std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
+                     !is_instance_of<T, std::optional>::value,
+                 bool>
 extract(const char*, const char*, T&) {
-
         static_assert(error::unsupported_type<T>::value,
                       "Conversion for given type is not defined, an "
                       "\'extract\' function needs to be defined!");
 }
-
-////////////////
-// extract specialization
-////////////////
 
 template <typename T>
 std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, bool>
@@ -335,6 +333,22 @@ extract(const char* begin, const char* end, T& value) {
         value = optional_value.value();
         return true;
 }
+
+template <typename T>
+std::enable_if_t<is_instance_of<T, std::optional>::value, bool> extract(
+    const char* begin, const char* end, T& value) {
+        typename T::value_type raw_value;
+        if (extract(begin, end, raw_value)) {
+                value = raw_value;
+        } else {
+                value = std::nullopt;
+        }
+        return true;
+}
+
+////////////////
+// extract specialization
+////////////////
 
 template <>
 inline bool extract(const char* begin, const char* end, bool& value) {

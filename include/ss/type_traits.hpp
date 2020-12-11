@@ -309,6 +309,20 @@ struct none_of<Trait, std::tuple<Ts...>> {
 };
 
 ////////////////
+// is instance of
+////////////////
+
+template <typename, template <class> class>
+struct is_instance_of {
+        constexpr static bool value = false;
+};
+
+template <typename T, template <class> class U>
+struct is_instance_of<U<T>, U> {
+        constexpr static bool value = true;
+};
+
+////////////////
 // tuple to struct
 ////////////////
 
