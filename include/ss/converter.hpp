@@ -99,16 +99,20 @@ struct tied_class {
 template <typename... Ts>
 constexpr bool tied_class_v = tied_class<Ts...>::value;
 
+// the error can be set inside a string, or a bool
+enum class error_mode { String, Bool };
+
 ////////////////
 // converter
 ////////////////
 
 class converter {
         using string_range = std::pair<const char*, const char*>;
-        using split_input = std::vector<string_range>;
         constexpr static auto default_delimiter = ',';
 
     public:
+        using split_input = std::vector<string_range>;
+
         // parses line with given delimiter, returns a 'T' object created with
         // extracted values of type 'Ts'
         template <typename T, typename... Ts>
@@ -154,11 +158,17 @@ class converter {
         }
 
         bool valid() const {
-                return error_.empty();
+                return (error_mode_ == error_mode::String)
+                           ? string_error_.empty()
+                           : bool_error_ == false;
         }
 
-        const std::string& error() const {
-                return error_;
+        const std::string& error_msg() const {
+                return string_error_;
+        }
+
+        void set_error_mode(error_mode mode) {
+                error_mode_ = mode;
         }
 
         // 'splits' string by given delimiter, returns vector of pairs which
@@ -185,6 +195,11 @@ class converter {
         // error
         ////////////////
 
+        void clear_error() {
+                string_error_.clear();
+                bool_error_ = false;
+        }
+
         std::string error_sufix(const string_range msg, size_t pos) const {
                 std::string error;
                 error.reserve(32);
@@ -197,22 +212,38 @@ class converter {
         }
 
         void set_error_invalid_conversion(const string_range msg, size_t pos) {
-                error_.clear();
-                error_.append("invalid conversion for parameter ")
-                    .append(error_sufix(msg, pos));
+                if (error_mode_ == error_mode::String) {
+                        string_error_.clear();
+                        string_error_
+                            .append("invalid conversion for parameter ")
+                            .append(error_sufix(msg, pos));
+                } else {
+                        bool_error_ = true;
+                }
         }
 
         void set_error_validate(const char* const error, const string_range msg,
                                 size_t pos) {
-                error_.clear();
-                error_.append(error).append(" ").append(error_sufix(msg, pos));
+                if (error_mode_ == error_mode::String) {
+                        string_error_.clear();
+                        string_error_.append(error).append(" ").append(
+                            error_sufix(msg, pos));
+                } else {
+                        bool_error_ = true;
+                }
         }
 
         void set_error_number_of_colums(size_t expected_pos, size_t pos) {
-                error_.append("invalid number of columns, expected: ")
-                    .append(std::to_string(expected_pos))
-                    .append(", got: ")
-                    .append(std::to_string(pos));
+                if (error_mode_ == error_mode::String) {
+                        string_error_.clear();
+                        string_error_
+                            .append("invalid number of columns, expected: ")
+                            .append(std::to_string(expected_pos))
+                            .append(", got: ")
+                            .append(std::to_string(pos));
+                } else {
+                        bool_error_ = true;
+                }
         }
 
         ////////////////
@@ -221,7 +252,7 @@ class converter {
 
         template <typename... Ts>
         no_void_validator_tup_t<Ts...> convert_impl(const split_input& elems) {
-                error_.clear();
+                clear_error();
                 no_void_validator_tup_t<Ts...> ret{};
                 if (sizeof...(Ts) != elems.size()) {
                         set_error_number_of_colums(sizeof...(Ts), elems.size());
@@ -339,7 +370,9 @@ class converter {
         ////////////////
 
         std::vector<string_range> input_;
-        std::string error_;
+        std::string string_error_;
+        bool bool_error_;
+        enum error_mode error_mode_ { error_mode::String };
 };
 
 template <>
