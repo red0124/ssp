@@ -90,6 +90,12 @@ class parser {
                     : values_{values}, parser_{parser} {
                 }
 
+                // tries to convert the same line as different output if the 
+                // previous conversion was not successful, returns composite
+                // containing itself and the new output as optional
+                // if a parameter is passed which can be invoked with
+                // the new output, it will be invoked if the returned value
+                // of the conversion is valid
                 template <typename... Us, typename Fun = None>
                 composite<Ts..., std::optional<no_void_validator_tup_t<Us...>>>
                 or_else(Fun&& fun = None{}) {
@@ -112,6 +118,8 @@ class parser {
                         return {std::move(values), parser_};
                 }
 
+                auto values() { return values_; }
+
             private:
                 template <typename U, typename... Us>
                 no_void_validator_tup_t<U, Us...> try_same() {
@@ -128,6 +136,8 @@ class parser {
                 parser& parser_;
         };
 
+        // tries to convert a line, but returns a composite which is
+        // able to chain additional conversions in case of failure
         template <typename... Ts, typename Fun = None>
         composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
             Fun&& fun = None{}) {
