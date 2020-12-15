@@ -60,7 +60,7 @@ TEST_CASE("testing parser") {
 
                 while (!p.eof()) {
                         auto a = p.get_next<int, double, std::string>();
-                        i.emplace_back(ss::to_struct<X>(a));
+                        i.emplace_back(ss::to_object<X>(a));
                 }
 
                 CHECK(std::equal(i.begin(), i.end(), data.begin()));
@@ -73,7 +73,7 @@ TEST_CASE("testing parser") {
                 p.ignore_next();
                 while (!p.eof()) {
                         auto a = p.get_next<int, double, std::string>();
-                        i.emplace_back(ss::to_struct<X>(a));
+                        i.emplace_back(ss::to_object<X>(a));
                 }
 
                 CHECK(std::equal(i.begin(), i.end(), data.begin() + 1));
@@ -85,7 +85,7 @@ TEST_CASE("testing parser") {
 
                 while (!p.eof()) {
                         i.push_back(
-                            p.get_struct<X, int, double, std::string>());
+                            p.get_object<X, int, double, std::string>());
                 }
 
                 CHECK(std::equal(i.begin(), i.end(), data.begin()));
@@ -108,7 +108,7 @@ TEST_CASE("testing parser") {
                 std::vector<X> i;
 
                 while (!p.eof()) {
-                        auto a = p.get_struct<X, ss::ax<int, excluded>, double,
+                        auto a = p.get_object<X, ss::ax<int, excluded>, double,
                                               std::string>();
                         if (p.valid()) {
                                 i.push_back(a);
@@ -125,7 +125,7 @@ TEST_CASE("testing parser") {
                 std::vector<X> i;
 
                 while (!p.eof()) {
-                        auto a = p.get_struct<X, ss::nx<int, 3>, double,
+                        auto a = p.get_object<X, ss::nx<int, 3>, double,
                                               std::string>();
                         if (p.valid()) {
                                 i.push_back(a);
@@ -223,7 +223,7 @@ TEST_CASE("testing the moving of parsed values") {
 
         {
                 ss::parser p{f.name, ","};
-                auto x = p.get_struct<Y, my_string, my_string, my_string>();
+                auto x = p.get_object<Y, my_string, my_string, my_string>();
                 CHECK(copy_called == 0);
                 CHECK(move_called == 6 * move_called_one_col);
                 move_called = copy_called = 0;

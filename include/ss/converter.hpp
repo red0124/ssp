@@ -88,7 +88,7 @@ using no_void_validator_tup_t = typename no_void_validator_tup<Ts...>::type;
 // tied class
 ////////////////
 
-// check if parameter pack is only one element which is a class and has
+// check if the parameter pack is only one element which is a class and has
 // the 'tied' method which is to be used for type deduction when converting
 template <typename T, typename... Ts>
 struct tied_class {
@@ -116,9 +116,9 @@ class converter {
         // parses line with given delimiter, returns a 'T' object created with
         // extracted values of type 'Ts'
         template <typename T, typename... Ts>
-        T convert_struct(const char* const line,
+        T convert_object(const char* const line,
                          const std::string& delim = "") {
-                return to_struct<T>(convert<Ts...>(line, delim));
+                return to_object<T>(convert<Ts...>(line, delim));
         }
 
         // parses line with given delimiter, returns tuple of objects with
@@ -132,8 +132,8 @@ class converter {
 
         // parses already split line, returns 'T' object with extracted values
         template <typename T, typename... Ts>
-        T convert_struct(const split_input& elems) {
-                return to_struct<T>(convert<Ts...>(elems));
+        T convert_object(const split_input& elems) {
+                return to_object<T>(convert<Ts...>(elems));
         }
 
         // parses already split line, returns either a tuple of objects with
@@ -150,7 +150,7 @@ class converter {
                             typename apply_trait<std::decay,
                                                  arg_ref_tuple>::type;
 
-                        return to_struct<T>(
+                        return to_object<T>(
                             convert_impl(elems, (arg_tuple*){}));
                 } else {
                         return convert_impl<T, Ts...>(elems);

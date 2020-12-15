@@ -56,8 +56,8 @@ class parser {
         }
 
         template <typename T, typename... Ts>
-        T get_struct() {
-                return to_struct<T>(get_next<Ts...>());
+        T get_object() {
+                return to_object<T>(get_next<Ts...>());
         }
 
         template <typename T, typename... Ts>
@@ -90,37 +90,74 @@ class parser {
                     : values_{values}, parser_{parser} {
                 }
 
-                // tries to convert the same line as different output if the 
-                // previous conversion was not successful, returns composite
-                // containing itself and the new output as optional
-                // if a parameter is passed which can be invoked with
-                // the new output, it will be invoked if the returned value
-                // of the conversion is valid
+                // tries to convert the same line with a different output type
+                // only if the previous conversion was not successful,
+                // returns composite containing itself and the new output
+                // as optional, additionally, if a parameter is passed, and
+                // that parameter can be invoked using the converted value,
+                // than it will be invoked in the case of a valid conversion
                 template <typename... Us, typename Fun = None>
                 composite<Ts..., std::optional<no_void_validator_tup_t<Us...>>>
                 or_else(Fun&& fun = None{}) {
-                        std::optional<no_void_validator_tup_t<Us...>> value;
-
-                        if (!parser_.valid()) {
-                                auto new_value = try_same<Us...>();
-                                if (parser_.valid()) {
-                                        value = new_value;
-                                        if constexpr (!std::is_same_v<Fun,
-                                                                      None>) {
-                                                fun(*value);
-                                        }
-                                }
-                        }
-
-                        auto values =
-                            std::tuple_cat(std::move(values_),
-                                           std::tuple{std::move(value)});
-                        return {std::move(values), parser_};
+                        using Value = no_void_validator_tup_t<Us...>;
+                        std::optional<Value> value;
+                        try_convert_and_invoke<Value, Us...>(value, fun);
+                        return composite_with(std::move(value));
                 }
 
-                auto values() { return values_; }
+                // same as or_else, but saves the result into a 'U' object
+                // instead of a tuple
+                template <typename U, typename... Us, typename Fun = None>
+                composite<Ts..., std::optional<U>> or_else_object(
+                    Fun&& fun = None{}) {
+                        std::optional<U> value;
+                        try_convert_and_invoke<U, Us...>(value, fun);
+                        return composite_with(std::move(value));
+                }
+
+                auto values() {
+                        return values_;
+                }
+
+                template <typename Fun>
+                auto on_error(Fun fun) {
+                        if (!parser_.valid()) {
+                                fun(parser_.error_msg());
+                        }
+                        return *this;
+                }
 
             private:
+                template <typename T>
+                composite<Ts..., T> composite_with(T&& new_value) {
+                        auto merged_values =
+                            std::tuple_cat(std::move(values_),
+                                           std::tuple{
+                                               std::forward<T>(new_value)});
+                        return {std::move(merged_values), parser_};
+                }
+
+                template <typename U, typename... Us, typename Fun = None>
+                void try_convert_and_invoke(std::optional<U>& value,
+                                            Fun&& fun) {
+                        if (!parser_.valid()) {
+                                std::optional<U> new_value;
+                                auto tuple_output = try_same<Us...>();
+                                if constexpr (!std::is_same_v<
+                                                  U, decltype(tuple_output)>) {
+                                        new_value = to_object<U>(tuple_output);
+                                } else {
+                                        new_value = tuple_output;
+                                }
+                                if (parser_.valid()) {
+                                        value = new_value;
+                                        parser_.try_invoke(*value,
+                                                           std::forward<Fun>(
+                                                               fun));
+                                }
+                        }
+                }
+
                 template <typename U, typename... Us>
                 no_void_validator_tup_t<U, Us...> try_same() {
                         parser_.clear_error();
@@ -136,8 +173,8 @@ class parser {
                 parser& parser_;
         };
 
-        // tries to convert a line, but returns a composite which is
-        // able to chain additional conversions in case of failure
+        // tries to convert a line and returns a composite which is
+        // able to try additional conversions in case of failure
         template <typename... Ts, typename Fun = None>
         composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
             Fun&& fun = None{}) {
@@ -145,9 +182,7 @@ class parser {
                 auto new_value = get_next<Ts...>();
                 if (valid()) {
                         value = new_value;
-                        if constexpr (!std::is_same_v<Fun, None>) {
-                                fun(*value);
-                        }
+                        try_invoke(*value, std::forward<Fun>(fun));
                 }
                 return {value, *this};
         };
@@ -155,6 +190,47 @@ class parser {
     private:
         template <typename...>
         friend class composite;
+
+        // tries to invoke the given function (see below), if the function
+        // returns a value which can be used as a conditional, and it returns
+        // false, the function sets an error, and allows the invoke of the
+        // next possible conversion as if the validation of the current one
+        // failed
+        template <typename Arg, typename Fun = None>
+        void try_invoke(Arg&& arg, Fun&& fun) {
+                if constexpr (!std::is_same_v<std::decay_t<Fun>, None>) {
+                        using Ret = decltype(
+                            try_invoke_impl(arg, std::forward<Fun>(fun)));
+                        if constexpr (!std::is_same_v<Ret, void>) {
+                                if (!try_invoke_impl(arg,
+                                                     std::forward<Fun>(fun))) {
+                                        set_error_failed_check();
+                                }
+                        } else {
+                                try_invoke_impl(arg, std::forward<Fun>(fun));
+                        }
+                }
+        }
+
+        // tries to invoke the function if not None
+        // it first tries to invoke the function without arguments,
+        // than with one argument if the function accepts the whole tuple
+        // as an argument, and finally tries to invoke it with the tuple
+        // laid out as a parameter pack
+        template <typename Arg, typename Fun = None>
+        auto try_invoke_impl(Arg&& arg, Fun&& fun) {
+                if constexpr (!std::is_same_v<Fun, None>) {
+                        if constexpr (std::is_invocable_v<Fun>) {
+                                return fun();
+                        } else if constexpr (std::is_invocable_v<Fun, Arg>) {
+                                return std::invoke(std::forward<Fun>(fun),
+                                                   std::forward<Arg>(arg));
+                        } else {
+                                return std::apply(std::forward<Fun>(fun),
+                                                  std::forward<Arg>(arg));
+                        }
+                }
+        }
 
         ////////////////
         // line reading
@@ -208,6 +284,15 @@ class parser {
         void clear_error() {
                 string_error_.clear();
                 bool_error_ = false;
+        }
+
+        void set_error_failed_check() {
+                if (error_mode_ == error_mode::String) {
+                        string_error_.append(file_name_)
+                            .append(" failed check.");
+                } else {
+                        bool_error_ = true;
+                }
         }
 
         void set_error_file_not_open() {

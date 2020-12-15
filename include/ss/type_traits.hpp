@@ -327,16 +327,15 @@ struct is_instance_of<U<T>, U> {
 ////////////////
 
 template <class S, std::size_t... Is, class Tup>
-S to_struct(std::index_sequence<Is...>, Tup&& tup) {
+S to_object(std::index_sequence<Is...>, Tup&& tup) {
         using std::get;
         return {get<Is>(std::forward<Tup>(tup))...};
 }
 
 template <class S, class Tup>
-S to_struct(Tup&& tup) {
+S to_object(Tup&& tup) {
         using T = std::remove_reference_t<Tup>;
-
-        return to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{},
+        return to_object<S>(std::make_index_sequence<std::tuple_size<T>{}>{},
                             std::forward<Tup>(tup));
 }
 
