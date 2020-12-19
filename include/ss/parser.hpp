@@ -115,7 +115,7 @@ class parser {
                         return composite_with(std::move(value));
                 }
 
-                auto values() {
+                std::tuple<Ts...> values() {
                         return values_;
                 }
 
@@ -198,10 +198,13 @@ class parser {
         // failed
         template <typename Arg, typename Fun = None>
         void try_invoke(Arg&& arg, Fun&& fun) {
-                if constexpr (!std::is_same_v<std::decay_t<Fun>, None>) {
+                constexpr bool is_none =
+                    std::is_same_v<std::decay_t<Fun>, None>;
+                if constexpr (!is_none) {
                         using Ret = decltype(
                             try_invoke_impl(arg, std::forward<Fun>(fun)));
-                        if constexpr (!std::is_same_v<Ret, void>) {
+                        constexpr bool returns_void = std::is_same_v<Ret, void>;
+                        if constexpr (!returns_void) {
                                 if (!try_invoke_impl(arg,
                                                      std::forward<Fun>(fun))) {
                                         set_error_failed_check();
@@ -219,7 +222,9 @@ class parser {
         // laid out as a parameter pack
         template <typename Arg, typename Fun = None>
         auto try_invoke_impl(Arg&& arg, Fun&& fun) {
-                if constexpr (!std::is_same_v<Fun, None>) {
+                constexpr bool is_none =
+                    std::is_same_v<std::decay_t<Fun>, None>;
+                if constexpr (!is_none) {
                         if constexpr (std::is_invocable_v<Fun>) {
                                 return fun();
                         } else if constexpr (std::is_invocable_v<Fun, Arg>) {

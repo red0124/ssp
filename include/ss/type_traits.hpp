@@ -312,13 +312,13 @@ struct none_of<Trait, std::tuple<Ts...>> {
 // is instance of
 ////////////////
 
-template <typename, template <class> class>
+template <typename T, template <typename...> class Template>
 struct is_instance_of {
         constexpr static bool value = false;
 };
 
-template <typename T, template <class> class U>
-struct is_instance_of<U<T>, U> {
+template <typename ...Ts, template <typename...> class Template>
+struct is_instance_of<Template<Ts...>, Template> {
         constexpr static bool value = true;
 };
 

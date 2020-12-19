@@ -217,7 +217,7 @@ TEST_CASE("testing the moving of parsed values") {
                 ss::parser p{f.name, ","};
                 auto x = p.get_next<my_string, my_string, my_string>();
                 CHECK(copy_called == 0);
-                CHECK(move_called == 3 * move_called_one_col);
+                CHECK(move_called <= 3 * move_called_one_col);
                 move_called = copy_called = 0;
         }
 
@@ -225,7 +225,8 @@ TEST_CASE("testing the moving of parsed values") {
                 ss::parser p{f.name, ","};
                 auto x = p.get_object<Y, my_string, my_string, my_string>();
                 CHECK(copy_called == 0);
-                CHECK(move_called == 6 * move_called_one_col);
+                CHECK(move_called <= 6 * move_called_one_col);
+                std::cout << move_called << std::endl;
                 move_called = copy_called = 0;
         }
 
@@ -233,7 +234,7 @@ TEST_CASE("testing the moving of parsed values") {
                 ss::parser p{f.name, ","};
                 auto x = p.get_next<Y>();
                 CHECK(copy_called == 0);
-                CHECK(move_called == 6 * move_called_one_col);
+                CHECK(move_called <= 6 * move_called_one_col);
                 move_called = copy_called = 0;
         }
 }

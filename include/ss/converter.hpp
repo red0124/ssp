@@ -82,6 +82,11 @@ struct no_void_validator_tup {
 };
 
 template <typename... Ts>
+struct no_void_validator_tup<std::tuple<Ts...>> {
+        using type = no_validator_tup_t<no_void_tup_t<Ts...>>;
+};
+
+template <typename... Ts>
 using no_void_validator_tup_t = typename no_void_validator_tup<Ts...>::type;
 
 ////////////////
@@ -152,6 +157,10 @@ class converter {
 
                         return to_object<T>(
                             convert_impl(elems, (arg_tuple*){}));
+                } else if constexpr (sizeof...(Ts) == 0 &&
+                                     is_instance_of<T, std::tuple>::value) {
+                        return convert_impl(elems, (T*){});
+
                 } else {
                         return convert_impl<T, Ts...>(elems);
                 }
@@ -337,11 +346,11 @@ class converter {
                 using elem_t = std::tuple_element_t<ArgN, std::tuple<Ts...>>;
 
                 constexpr bool not_void = !std::is_void_v<elem_t>;
-                constexpr bool not_tuple =
+                constexpr bool one_element =
                     count_not<std::is_void, Ts...>::size == 1;
 
                 if constexpr (not_void) {
-                        if constexpr (not_tuple) {
+                        if constexpr (one_element) {
                                 extract_one<elem_t>(tup, elems[ArgN], ArgN);
                         } else {
                                 auto& el = std::get<TupN>(tup);
@@ -359,7 +368,6 @@ class converter {
         no_void_validator_tup_t<Ts...> extract_tuple(const split_input& elems) {
                 static_assert(!all_of<std::is_void, Ts...>::value,
                               "at least one parameter must be non void");
-
                 no_void_validator_tup_t<Ts...> ret;
                 extract_multiple<0, 0, Ts...>(ret, elems);
                 return ret;
