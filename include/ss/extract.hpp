@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace ss {
 
@@ -315,7 +316,8 @@ struct unsupported_type {
 
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
-                     !is_instance_of<T, std::optional>::value,
+                     !is_instance_of<T, std::optional>::value &&
+                     !is_instance_of<T, std::variant>::value,
                  bool>
 extract(const char*, const char*, T&) {
         static_assert(error::unsupported_type<T>::value,
@@ -344,6 +346,25 @@ std::enable_if_t<is_instance_of<T, std::optional>::value, bool> extract(
                 value = std::nullopt;
         }
         return true;
+}
+
+template <typename T, size_t I>
+bool extract_variant(const char* begin, const char* end, T& value) {
+        using IthType = std::variant_alternative_t<I, std::decay_t<T>>;
+        IthType ithValue;
+        if (extract<IthType>(begin, end, ithValue)) {
+                value = ithValue;
+                return true;
+        } else if constexpr (I + 1 < std::variant_size_v<T>) {
+                return extract_variant<T, I + 1>(begin, end, value);
+        }
+        return false;
+}
+
+template <typename T>
+std::enable_if_t<is_instance_of<T, std::variant>::value, bool> extract(
+    const char* begin, const char* end, T& value) {
+        return extract_variant<T, 0>(begin, end, value);
 }
 
 ////////////////
