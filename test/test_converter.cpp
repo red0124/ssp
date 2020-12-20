@@ -58,6 +58,14 @@ TEST_CASE("testing valid conversions") {
                 CHECK(tup == 5);
         }
         {
+                auto tup =
+                    c.convert<void, void, std::optional<int>>("junk\tjunk\t5",
+                                                              "\t");
+                REQUIRE(c.valid());
+                REQUIRE(tup.has_value());
+                CHECK(tup == 5);
+        }
+        {
                 auto tup = c.convert<int, double, void>("5,6.6,junk");
                 REQUIRE(c.valid());
                 CHECK(tup == std::tuple{5, 6.6});
@@ -71,6 +79,36 @@ TEST_CASE("testing valid conversions") {
                 auto tup = c.convert<void, int, double>("junk;5;6.6", ";");
                 REQUIRE(c.valid());
                 CHECK(tup == std::tuple{5, 6.6});
+        }
+        {
+                auto tup =
+                    c.convert<void, std::optional<int>, double>("junk;5;6.6",
+                                                                ";");
+                REQUIRE(c.valid());
+                REQUIRE(std::get<0>(tup).has_value());
+                CHECK(tup == std::tuple{5, 6.6});
+        }
+        {
+                auto tup =
+                    c.convert<void, std::optional<int>, double>("junk;5.4;6.6",
+                                                                ";");
+                REQUIRE(c.valid());
+                REQUIRE(!std::get<0>(tup).has_value());
+                CHECK(tup == std::tuple{std::nullopt, 6.6});
+        }
+        {
+                auto tup = c.convert<void, std::variant<int, double>,
+                                     double>("junk;5;6.6", ";");
+                REQUIRE(c.valid());
+                REQUIRE(std::holds_alternative<int>(std::get<0>(tup)));
+                CHECK(tup == std::tuple{std::variant<int, double>{5}, 6.6});
+        }
+        {
+                auto tup = c.convert<void, std::variant<int, double>,
+                                     double>("junk;5.5;6.6", ";");
+                REQUIRE(c.valid());
+                REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
+                CHECK(tup == std::tuple{std::variant<int, double>{5.5}, 6.6});
         }
 }
 
@@ -99,6 +137,9 @@ TEST_CASE("testing invalid conversions") {
         REQUIRE(!c.valid());
 
         c.convert<void, int>("junk,x");
+        REQUIRE(!c.valid());
+
+        c.convert<void, std::variant<int, double>, double>("junk;.5.5;6", ";");
         REQUIRE(!c.valid());
 }
 
@@ -276,7 +317,8 @@ TEST_CASE("testing ss:ne restriction (not empty)") {
                 CHECK(tup == "s");
         }
         {
-                auto tup = c.convert<int, ss::ne<std::string>>("1,s");
+                auto tup =
+                    c.convert<std::optional<int>, ss::ne<std::string>>("1,s");
                 REQUIRE(c.valid());
                 CHECK(tup == std::tuple{1, "s"});
         }

@@ -175,3 +175,159 @@ TEST_CASE("testing extract functions for char values") {
                 REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), v));
         }
 }
+
+TEST_CASE("testing extract functions for std::optional") {
+        for (const auto& [i, s] :
+             {std::pair<std::optional<int>, std::string>{1, "1"},
+              {69, "69"},
+              {-4, "-4"}}) {
+                std::optional<int> v;
+                REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
+                REQUIRE(v.has_value());
+                CHECK(*v == i);
+        }
+
+        for (const auto& [c, s] :
+             {std::pair<std::optional<char>, std::string>{'a', "a"},
+              {'x', "x"},
+              {' ', " "}}) {
+                std::optional<char> v;
+                REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
+                REQUIRE(v.has_value());
+                CHECK(*v == c);
+        }
+
+        for (const std::string& s : {"aa", "xxx", ""}) {
+                std::optional<int> v;
+                REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
+                REQUIRE(!v.has_value());
+        }
+
+        for (const std::string& s : {"aa", "xxx", ""}) {
+                std::optional<char> v;
+                REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
+                REQUIRE(!v.has_value());
+        }
+}
+
+#define REQUIRE_VARIANT(var, el, type)                                         \
+        {                                                                      \
+                auto ptr = std::get_if<type>(&var);                            \
+                REQUIRE(ptr);                                                  \
+                REQUIRE(el == *ptr);                                           \
+        }
+
+#define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
+
+TEST_CASE("testing extract functions for std::variant") {
+        {
+                std::string s = "22";
+                {
+                        std::variant<int, double, std::string> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, double);
+                        CHECK_NOT_VARIANT(var, std::string);
+                        REQUIRE_VARIANT(var, 22, int);
+                }
+                {
+                        std::variant<double, int, std::string> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, std::string);
+                        REQUIRE_VARIANT(var, 22, double);
+                }
+                {
+                        std::variant<std::string, double, int> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, double);
+                        REQUIRE_VARIANT(var, "22", std::string);
+                }
+                {
+                        std::variant<int> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        REQUIRE_VARIANT(var, 22, int);
+                }
+        }
+        {
+                std::string s = "22.2";
+                {
+                        std::variant<int, double, std::string> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, std::string);
+                        REQUIRE_VARIANT(var, 22.2, double);
+                }
+                {
+                        std::variant<double, int, std::string> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, std::string);
+                        REQUIRE_VARIANT(var, 22.2, double);
+                }
+                {
+                        std::variant<std::string, double, int> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, double);
+                        REQUIRE_VARIANT(var, "22.2", std::string);
+                }
+        }
+        {
+                std::string s = "2.2.2";
+                {
+                        std::variant<int, double, std::string> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, double);
+                        REQUIRE_VARIANT(var, "2.2.2", std::string);
+                }
+                {
+                        std::variant<double, std::string, int> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, double);
+                        REQUIRE_VARIANT(var, "2.2.2", std::string);
+                }
+                {
+                        std::variant<std::string, double, int> var;
+                        REQUIRE(
+                            ss::extract(s.c_str(), s.c_str() + s.size(), var));
+                        CHECK_NOT_VARIANT(var, int);
+                        CHECK_NOT_VARIANT(var, double);
+                        REQUIRE_VARIANT(var, "2.2.2", std::string);
+                }
+                {
+                        std::variant<int, double> var;
+                        REQUIRE(
+                            !ss::extract(s.c_str(), s.c_str() + s.size(), var));
+
+                        REQUIRE_VARIANT(var, int{}, int);
+                        CHECK_NOT_VARIANT(var, double);
+                }
+                {
+                        std::variant<double, int> var;
+                        REQUIRE(
+                            !ss::extract(s.c_str(), s.c_str() + s.size(), var));
+
+                        REQUIRE_VARIANT(var, double{}, double);
+                        CHECK_NOT_VARIANT(var, int);
+                }
+                {
+                        std::variant<int> var;
+                        REQUIRE(
+                            !ss::extract(s.c_str(), s.c_str() + s.size(), var));
+
+                        REQUIRE_VARIANT(var, int{}, int);
+                }
+        }
+}
