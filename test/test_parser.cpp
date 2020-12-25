@@ -189,7 +189,6 @@ TEST_CASE("testing composite conversion") {
 
         ss::parser p{f.name, ","};
         auto fail = [] { FAIL(""); };
-        auto fail_if_error = [](auto& error) { CHECK(error.empty()); };
         auto expect_error = [](auto error) { CHECK(!error.empty()); };
 
         REQUIRE(p.valid());
@@ -203,7 +202,7 @@ TEST_CASE("testing composite conversion") {
                         .or_else<test_struct>(fail)
                         .or_else<int, char, double>(
                             [](auto&& data) { CHECK(data == expectedData); })
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .or_else<test_tuple>(fail)
                         .values();
 
@@ -224,11 +223,11 @@ TEST_CASE("testing composite conversion") {
                          [](auto& i1, auto i2, double d) {
                                  CHECK(std::tie(i1, i2, d) == expectedData);
                          })
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .or_else_object<test_struct, int, double, char>(fail)
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .or_else<test_tuple>(fail)
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .or_else<int, char, double>(fail)
                         .values();
 
@@ -313,9 +312,9 @@ TEST_CASE("testing composite conversion") {
                 REQUIRE(!p.eof());
 
                 auto [d1, d2] = p.try_next<int, std::optional<int>>()
-                                    .on_error(fail_if_error)
+                                    .on_error(fail)
                                     .or_else<std::tuple<int, std::string>>(fail)
-                                    .on_error(fail_if_error)
+                                    .on_error(fail)
                                     .values();
 
                 REQUIRE(p.valid());
@@ -329,9 +328,9 @@ TEST_CASE("testing composite conversion") {
 
                 auto [d1, d2] =
                     p.try_next<int, std::variant<int, std::string>>()
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .or_else<std::tuple<int, std::string>>(fail)
-                        .on_error(fail_if_error)
+                        .on_error(fail)
                         .values();
 
                 REQUIRE(p.valid());

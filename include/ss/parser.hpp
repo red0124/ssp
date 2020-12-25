@@ -120,9 +120,14 @@ class parser {
                 }
 
                 template <typename Fun>
-                auto on_error(Fun fun) {
+                auto on_error(Fun&& fun) {
                         if (!parser_.valid()) {
-                                fun(parser_.error_msg());
+                                if constexpr (std::is_invocable_v<Fun>) {
+                                        fun();
+                                } else {
+                                        std::invoke(std::forward<Fun>(fun),
+                                                    parser_.error_msg());
+                                }
                         }
                         return *this;
                 }
