@@ -14,12 +14,12 @@ struct tup_cat;
 
 template <typename... Ts, typename... Us>
 struct tup_cat<std::tuple<Ts...>, std::tuple<Us...>> {
-        using type = std::tuple<Ts..., Us...>;
+    using type = std::tuple<Ts..., Us...>;
 };
 
 template <typename T, typename... Ts>
 struct tup_cat<T, std::tuple<Ts...>> {
-        using type = std::tuple<T, Ts...>;
+    using type = std::tuple<T, Ts...>;
 };
 
 template <typename... Ts>
@@ -34,14 +34,14 @@ struct left_of_impl;
 
 template <size_t N, typename T, typename... Ts>
 struct left_of_impl {
-        static_assert(N < 128, "recursion limit reached");
-        static_assert(N != 0, "cannot take the whole tuple");
-        using type = tup_cat_t<T, typename left_of_impl<N - 1, Ts...>::type>;
+    static_assert(N < 128, "recursion limit reached");
+    static_assert(N != 0, "cannot take the whole tuple");
+    using type = tup_cat_t<T, typename left_of_impl<N - 1, Ts...>::type>;
 };
 
 template <typename T, typename... Ts>
 struct left_of_impl<0, T, Ts...> {
-        using type = std::tuple<T>;
+    using type = std::tuple<T>;
 };
 
 template <size_t N, typename... Ts>
@@ -62,12 +62,12 @@ struct right_of_impl;
 
 template <size_t N, typename T, typename... Ts>
 struct right_of_impl {
-        using type = typename right_of_impl<N - 1, Ts...>::type;
+    using type = typename right_of_impl<N - 1, Ts...>::type;
 };
 
 template <typename T, typename... Ts>
 struct right_of_impl<0, T, Ts...> {
-        using type = std::tuple<T, Ts...>;
+    using type = std::tuple<T, Ts...>;
 };
 
 template <size_t N, typename... Ts>
@@ -88,19 +88,19 @@ struct apply_trait;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct apply_trait<Trait, std::tuple<T, Ts...>> {
-        using type =
-            tup_cat_t<typename Trait<T>::type,
-                      typename apply_trait<Trait, std::tuple<Ts...>>::type>;
+    using type =
+        tup_cat_t<typename Trait<T>::type,
+                  typename apply_trait<Trait, std::tuple<Ts...>>::type>;
 };
 
 template <template <typename...> class Trait, typename T>
 struct apply_trait {
-        using type = std::tuple<typename Trait<T>::type>;
+    using type = std::tuple<typename Trait<T>::type>;
 };
 
 template <template <typename...> class Trait, typename T>
 struct apply_trait<Trait, std::tuple<T>> {
-        using type = std::tuple<typename Trait<T>::type>;
+    using type = std::tuple<typename Trait<T>::type>;
 };
 
 ////////////////
@@ -113,12 +113,12 @@ struct optional_trait;
 
 template <typename U>
 struct optional_trait<std::true_type, U> {
-        using type = U;
+    using type = U;
 };
 
 template <typename U>
 struct optional_trait<std::false_type, U> {
-        using type = std::false_type;
+    using type = std::false_type;
 };
 
 template <template <typename...> class Trait, typename T>
@@ -126,21 +126,21 @@ struct apply_optional_trait;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct apply_optional_trait<Trait, std::tuple<T, Ts...>> {
-        using type = tup_cat_t<
-            typename optional_trait<typename Trait<T>::type, T>::type,
-            typename apply_optional_trait<Trait, std::tuple<Ts...>>::type>;
+    using type = tup_cat_t<
+        typename optional_trait<typename Trait<T>::type, T>::type,
+        typename apply_optional_trait<Trait, std::tuple<Ts...>>::type>;
 };
 
 template <template <typename...> class Trait, typename T>
 struct apply_optional_trait {
-        using type = std::tuple<
-            typename optional_trait<typename Trait<T>::type, T>::type>;
+    using type =
+        std::tuple<typename optional_trait<typename Trait<T>::type, T>::type>;
 };
 
 template <template <typename...> class Trait, typename T>
 struct apply_optional_trait<Trait, std::tuple<T>> {
-        using type = std::tuple<
-            typename optional_trait<typename Trait<T>::type, T>::type>;
+    using type =
+        std::tuple<typename optional_trait<typename Trait<T>::type, T>::type>;
 };
 
 ////////////////
@@ -149,37 +149,37 @@ struct apply_optional_trait<Trait, std::tuple<T>> {
 
 template <typename T, typename... Ts>
 struct remove_false {
-        using type = tup_cat_t<T, typename remove_false<Ts...>::type>;
+    using type = tup_cat_t<T, typename remove_false<Ts...>::type>;
 };
 
 template <typename... Ts>
 struct remove_false<std::false_type, Ts...> {
-        using type = typename remove_false<Ts...>::type;
+    using type = typename remove_false<Ts...>::type;
 };
 
 template <typename T, typename... Ts>
 struct remove_false<std::tuple<T, Ts...>> {
-        using type = tup_cat_t<T, typename remove_false<Ts...>::type>;
+    using type = tup_cat_t<T, typename remove_false<Ts...>::type>;
 };
 
 template <typename... Ts>
 struct remove_false<std::tuple<std::false_type, Ts...>> {
-        using type = typename remove_false<Ts...>::type;
+    using type = typename remove_false<Ts...>::type;
 };
 
 template <typename T>
 struct remove_false<T> {
-        using type = std::tuple<T>;
+    using type = std::tuple<T>;
 };
 
 template <typename T>
 struct remove_false<std::tuple<T>> {
-        using type = std::tuple<T>;
+    using type = std::tuple<T>;
 };
 
 template <>
 struct remove_false<std::false_type> {
-        using type = std::tuple<>;
+    using type = std::tuple<>;
 };
 
 ////////////////
@@ -188,8 +188,8 @@ struct remove_false<std::false_type> {
 
 template <template <typename...> class Trait>
 struct negate_impl {
-        template <typename... Ts>
-        using type = std::integral_constant<bool, !Trait<Ts...>::value>;
+    template <typename... Ts>
+    using type = std::integral_constant<bool, !Trait<Ts...>::value>;
 };
 
 ////////////////
@@ -198,14 +198,14 @@ struct negate_impl {
 
 template <template <typename...> class Trait, typename... Ts>
 struct filter_if {
-        using type = typename filter_if<Trait, std::tuple<Ts...>>::type;
+    using type = typename filter_if<Trait, std::tuple<Ts...>>::type;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct filter_if<Trait, std::tuple<Ts...>> {
 
-        using type = typename remove_false<typename apply_optional_trait<
-            Trait, std::tuple<Ts...>>::type>::type;
+    using type = typename remove_false<
+        typename apply_optional_trait<Trait, std::tuple<Ts...>>::type>::type;
 };
 
 template <template <typename...> class Trait, typename... Ts>
@@ -213,14 +213,14 @@ using filter_if_t = typename filter_if<Trait, Ts...>::type;
 
 template <template <typename...> class Trait, typename... Ts>
 struct filter_not {
-        using type = typename filter_not<Trait, std::tuple<Ts...>>::type;
+    using type = typename filter_not<Trait, std::tuple<Ts...>>::type;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct filter_not<Trait, std::tuple<Ts...>> {
 
-        using type = typename remove_false<typename apply_optional_trait<
-            negate_impl<Trait>::template type, std::tuple<Ts...>>::type>::type;
+    using type = typename remove_false<typename apply_optional_trait<
+        negate_impl<Trait>::template type, std::tuple<Ts...>>::type>::type;
 };
 
 template <template <typename...> class Trait, typename... Ts>
@@ -235,13 +235,13 @@ struct count;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct count {
-        static constexpr size_t size =
-            std::tuple_size<filter_if_t<Trait, T, Ts...>>::value;
+    static constexpr size_t size =
+        std::tuple_size<filter_if_t<Trait, T, Ts...>>::value;
 };
 
 template <template <typename...> class Trait, typename T>
 struct count<Trait, T> {
-        static constexpr size_t size = Trait<T>::value;
+    static constexpr size_t size = Trait<T>::value;
 };
 
 ////////////////
@@ -253,13 +253,13 @@ struct count;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct count_not {
-        static constexpr size_t size =
-            std::tuple_size<filter_not_t<Trait, T, Ts...>>::value;
+    static constexpr size_t size =
+        std::tuple_size<filter_not_t<Trait, T, Ts...>>::value;
 };
 
 template <template <typename...> class Trait, typename T>
 struct count_not<Trait, T> {
-        static constexpr size_t size = !Trait<T>::value;
+    static constexpr size_t size = !Trait<T>::value;
 };
 
 ////////////////
@@ -268,14 +268,12 @@ struct count_not<Trait, T> {
 
 template <template <typename...> class Trait, typename... Ts>
 struct all_of {
-        static constexpr bool value =
-            count<Trait, Ts...>::size == sizeof...(Ts);
+    static constexpr bool value = count<Trait, Ts...>::size == sizeof...(Ts);
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct all_of<Trait, std::tuple<Ts...>> {
-        static constexpr bool value =
-            count<Trait, Ts...>::size == sizeof...(Ts);
+    static constexpr bool value = count<Trait, Ts...>::size == sizeof...(Ts);
 };
 
 ////////////////
@@ -284,14 +282,14 @@ struct all_of<Trait, std::tuple<Ts...>> {
 
 template <template <typename...> class Trait, typename... Ts>
 struct any_of {
-        static_assert(sizeof...(Ts) > 0);
-        static constexpr bool value = count<Trait, Ts...>::size > 0;
+    static_assert(sizeof...(Ts) > 0);
+    static constexpr bool value = count<Trait, Ts...>::size > 0;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct any_of<Trait, std::tuple<Ts...>> {
-        static_assert(sizeof...(Ts) > 0);
-        static constexpr bool value = count<Trait, Ts...>::size > 0;
+    static_assert(sizeof...(Ts) > 0);
+    static constexpr bool value = count<Trait, Ts...>::size > 0;
 };
 
 ////////////////
@@ -300,12 +298,12 @@ struct any_of<Trait, std::tuple<Ts...>> {
 
 template <template <typename...> class Trait, typename... Ts>
 struct none_of {
-        static constexpr bool value = count<Trait, Ts...>::size == 0;
+    static constexpr bool value = count<Trait, Ts...>::size == 0;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct none_of<Trait, std::tuple<Ts...>> {
-        static constexpr bool value = count<Trait, Ts...>::size == 0;
+    static constexpr bool value = count<Trait, Ts...>::size == 0;
 };
 
 ////////////////
@@ -314,12 +312,12 @@ struct none_of<Trait, std::tuple<Ts...>> {
 
 template <typename T, template <typename...> class Template>
 struct is_instance_of {
-        constexpr static bool value = false;
+    constexpr static bool value = false;
 };
 
-template <typename ...Ts, template <typename...> class Template>
+template <typename... Ts, template <typename...> class Template>
 struct is_instance_of<Template<Ts...>, Template> {
-        constexpr static bool value = true;
+    constexpr static bool value = true;
 };
 
 ////////////////
@@ -328,14 +326,14 @@ struct is_instance_of<Template<Ts...>, Template> {
 
 template <class S, std::size_t... Is, class Tup>
 S to_object(std::index_sequence<Is...>, Tup&& tup) {
-        return {std::get<Is>(std::forward<Tup>(tup))...};
+    return {std::get<Is>(std::forward<Tup>(tup))...};
 }
 
 template <class S, class Tup>
 S to_object(Tup&& tup) {
-        using T = std::remove_reference_t<Tup>;
-        return to_object<S>(std::make_index_sequence<std::tuple_size<T>{}>{},
-                            std::forward<Tup>(tup));
+    using T = std::remove_reference_t<Tup>;
+    return to_object<S>(std::make_index_sequence<std::tuple_size<T>{}>{},
+                        std::forward<Tup>(tup));
 }
 
 } /* trait */
