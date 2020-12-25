@@ -11,7 +11,7 @@
 
 namespace ss {
 
-struct None {};
+struct none {};
 template <typename...>
 class composite;
 
@@ -95,9 +95,9 @@ public:
         // as optional, additionally, if a parameter is passed, and
         // that parameter can be invoked using the converted value,
         // than it will be invoked in the case of a valid conversion
-        template <typename... Us, typename Fun = None>
+        template <typename... Us, typename Fun = none>
         composite<Ts..., std::optional<no_void_validator_tup_t<Us...>>> or_else(
-            Fun&& fun = None{}) {
+            Fun&& fun = none{}) {
             using Value = no_void_validator_tup_t<Us...>;
             std::optional<Value> value;
             try_convert_and_invoke<Value, Us...>(value, fun);
@@ -106,8 +106,8 @@ public:
 
         // same as or_else, but saves the result into a 'U' object
         // instead of a tuple
-        template <typename U, typename... Us, typename Fun = None>
-        composite<Ts..., std::optional<U>> or_else_object(Fun&& fun = None{}) {
+        template <typename U, typename... Us, typename Fun = none>
+        composite<Ts..., std::optional<U>> or_else_object(Fun&& fun = none{}) {
             std::optional<U> value;
             try_convert_and_invoke<U, Us...>(value, fun);
             return composite_with(std::move(value));
@@ -138,7 +138,7 @@ public:
             return {std::move(merged_values), parser_};
         }
 
-        template <typename U, typename... Us, typename Fun = None>
+        template <typename U, typename... Us, typename Fun = none>
         void try_convert_and_invoke(std::optional<U>& value, Fun&& fun) {
             if (!parser_.valid()) {
                 std::optional<U> new_value;
@@ -172,9 +172,9 @@ public:
 
     // tries to convert a line and returns a composite which is
     // able to try additional conversions in case of failure
-    template <typename... Ts, typename Fun = None>
+    template <typename... Ts, typename Fun = none>
     composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
-        Fun&& fun = None{}) {
+        Fun&& fun = none{}) {
         std::optional<no_void_validator_tup_t<Ts...>> value;
         auto new_value = get_next<Ts...>();
         if (valid()) {
@@ -193,9 +193,9 @@ private:
     // false, the function sets an error, and allows the invoke of the
     // next possible conversion as if the validation of the current one
     // failed
-    template <typename Arg, typename Fun = None>
+    template <typename Arg, typename Fun = none>
     void try_invoke(Arg&& arg, Fun&& fun) {
-        constexpr bool is_none = std::is_same_v<std::decay_t<Fun>, None>;
+        constexpr bool is_none = std::is_same_v<std::decay_t<Fun>, none>;
         if constexpr (!is_none) {
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
@@ -209,14 +209,14 @@ private:
         }
     }
 
-    // tries to invoke the function if not None
+    // tries to invoke the function if not none
     // it first tries to invoke the function without arguments,
     // than with one argument if the function accepts the whole tuple
     // as an argument, and finally tries to invoke it with the tuple
     // laid out as a parameter pack
-    template <typename Arg, typename Fun = None>
+    template <typename Arg, typename Fun = none>
     auto try_invoke_impl(Arg&& arg, Fun&& fun) {
-        constexpr bool is_none = std::is_same_v<std::decay_t<Fun>, None>;
+        constexpr bool is_none = std::is_same_v<std::decay_t<Fun>, none>;
         if constexpr (!is_none) {
             if constexpr (std::is_invocable_v<Fun>) {
                 return fun();
