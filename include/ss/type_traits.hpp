@@ -328,8 +328,7 @@ struct is_instance_of<Template<Ts...>, Template> {
 
 template <class S, std::size_t... Is, class Tup>
 S to_object(std::index_sequence<Is...>, Tup&& tup) {
-        using std::get;
-        return {get<Is>(std::forward<Tup>(tup))...};
+        return {std::get<Is>(std::forward<Tup>(tup))...};
 }
 
 template <class S, class Tup>

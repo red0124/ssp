@@ -86,8 +86,8 @@ class parser {
         template <typename... Ts>
         class composite {
             public:
-                composite(std::tuple<Ts...> values, parser& parser)
-                    : values_{values}, parser_{parser} {
+                composite(std::tuple<Ts...>&& values, parser& parser)
+                    : values_{std::move(values)}, parser_{parser} {
                 }
 
                 // tries to convert the same line with a different output type
@@ -145,12 +145,13 @@ class parser {
                                 auto tuple_output = try_same<Us...>();
                                 if constexpr (!std::is_same_v<
                                                   U, decltype(tuple_output)>) {
-                                        new_value = to_object<U>(tuple_output);
+                                        new_value = to_object<U>(
+                                            std::move(tuple_output));
                                 } else {
-                                        new_value = tuple_output;
+                                        new_value = std::move(tuple_output);
                                 }
                                 if (parser_.valid()) {
-                                        value = new_value;
+                                        value = std::move(new_value);
                                         parser_.try_invoke(*value,
                                                            std::forward<Fun>(
                                                                fun));
@@ -181,10 +182,10 @@ class parser {
                 std::optional<no_void_validator_tup_t<Ts...>> value;
                 auto new_value = get_next<Ts...>();
                 if (valid()) {
-                        value = new_value;
+                        value = std::move(new_value);
                         try_invoke(*value, std::forward<Fun>(fun));
                 }
-                return {value, *this};
+                return {std::move(value), *this};
         };
 
     private:
