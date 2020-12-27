@@ -438,3 +438,26 @@ TEST_CASE("testing the moving of parsed composite values") {
         .or_else<std::tuple<my_string, my_string, my_string>>(
             [](auto&, auto&, auto&) {});
 }
+
+TEST_CASE("testing error mode") {
+    unique_file_name f;
+    {
+        std::ofstream out{f.name};
+        out << "junk" << std::endl;
+        out << "junk" << std::endl;
+    }
+
+    ss::parser p(f.name, ",");
+
+    REQUIRE(!p.eof());
+    p.get_next<int>();
+    CHECK(!p.valid());
+    CHECK(!p.error_msg().empty());
+
+    p.set_error_mode(ss::error_mode::Bool);
+
+    REQUIRE(!p.eof());
+    p.get_next<int>();
+    CHECK(!p.valid());
+    CHECK(p.error_msg().empty());
+}

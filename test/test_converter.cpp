@@ -322,3 +322,16 @@ TEST_CASE("testing ss:ne restriction (not empty)") {
         CHECK(tup == extracted_vector);
     }
 }
+
+TEST_CASE("testing error mode") {
+    ss::converter c;
+
+    c.convert<int>("junk");
+    CHECK(!c.valid());
+    CHECK(!c.error_msg().empty());
+
+    c.set_error_mode(ss::error_mode::Bool);
+    c.convert<int>("junk");
+    CHECK(!c.valid());
+    CHECK(c.error_msg().empty());
+}
