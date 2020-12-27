@@ -9,12 +9,13 @@ Example, lets say we have a csv file containing students in the
 following format <name,age,grade>:
 
 ```
+$ cat students.csv
 James Bailey,65,2.5
 Brian S. Wolfe,40,11.9
 Nathan Fielder,37,Really good grades
 Bill (Heath) Gates,65,3.3
 ```
-```
+```cpp
 #include <iostream>
 #include <ss/parser.hpp>
 
@@ -36,10 +37,10 @@ int main() {
 }
 ```
 
-And if we execute the program we get the following output:
+And if we compile and execute the program we get the following output:
 
 ```
-$ ./program
+$ ./a.out
 James Bailey 65 2.5
 Brian S. Wolfe 40 11.9
 Bill (Heath) Gates 65 3.3
