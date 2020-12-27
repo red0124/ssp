@@ -11,10 +11,6 @@
 
 namespace ss {
 
-// todo
-// taken from
-// https://gist.github.com/oschonrock/67fc870ba067ebf0f369897a9d52c2dd
-
 ////////////////
 // number converters
 ////////////////
