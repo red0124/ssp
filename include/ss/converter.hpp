@@ -370,7 +370,7 @@ private:
     std::vector<string_range> input_;
     std::string string_error_;
     bool bool_error_;
-    enum error_mode error_mode_ { error_mode::String };
+    enum error_mode error_mode_ { error_mode::Bool };
 };
 
 template <>

@@ -186,6 +186,7 @@ TEST_CASE("testing composite conversion") {
     }
 
     ss::parser p{f.name, ","};
+    p.set_error_mode(ss::error_mode::String);
     auto fail = [] { FAIL(""); };
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
 
@@ -452,12 +453,12 @@ TEST_CASE("testing error mode") {
     REQUIRE(!p.eof());
     p.get_next<int>();
     CHECK(!p.valid());
-    CHECK(!p.error_msg().empty());
+    CHECK(p.error_msg().empty());
 
-    p.set_error_mode(ss::error_mode::Bool);
+    p.set_error_mode(ss::error_mode::String);
 
     REQUIRE(!p.eof());
     p.get_next<int>();
     CHECK(!p.valid());
-    CHECK(p.error_msg().empty());
+    CHECK(!p.error_msg().empty());
 }

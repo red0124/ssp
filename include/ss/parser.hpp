@@ -331,7 +331,7 @@ private:
     const std::string delim_;
     std::string string_error_;
     bool bool_error_;
-    error_mode error_mode_{error_mode::String};
+    error_mode error_mode_{error_mode::Bool};
     converter converter_;
     converter::split_input split_input_;
     FILE* file_{nullptr};

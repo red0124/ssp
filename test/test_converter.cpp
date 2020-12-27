@@ -328,10 +328,10 @@ TEST_CASE("testing error mode") {
 
     c.convert<int>("junk");
     CHECK(!c.valid());
-    CHECK(!c.error_msg().empty());
+    CHECK(c.error_msg().empty());
 
-    c.set_error_mode(ss::error_mode::Bool);
+    c.set_error_mode(ss::error_mode::String);
     c.convert<int>("junk");
     CHECK(!c.valid());
-    CHECK(c.error_msg().empty());
+    CHECK(!c.error_msg().empty());
 }
