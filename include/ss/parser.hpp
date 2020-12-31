@@ -293,11 +293,8 @@ private:
     }
 
     void set_error_file_not_open() {
-        if (error_mode_ == error_mode::String) {
-            string_error_.append(file_name_).append(" could not be not open.");
-        } else {
-            bool_error_ = true;
-        }
+        string_error_.append(file_name_).append(" could not be not open.");
+        bool_error_ = true;
     }
 
     void set_error_eof_reached() {
