@@ -145,7 +145,11 @@ public:
     // method which returns a tuple, returns that type
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> convert(const split_input& elems) {
-        if constexpr (tied_class_v<T, Ts...>) {
+        if constexpr (sizeof...(Ts) == 0 &&
+                      is_instance_of<T, std::tuple>::value) {
+            return convert_impl(elems, (T*){});
+
+        } else if constexpr (tied_class_v<T, Ts...>) {
             using arg_ref_tuple =
                 typename std::result_of_t<decltype (&T::tied)(T)>;
 
@@ -153,10 +157,6 @@ public:
                 typename apply_trait<std::decay, arg_ref_tuple>::type;
 
             return to_object<T>(convert_impl(elems, (arg_tuple*){}));
-        } else if constexpr (sizeof...(Ts) == 0 &&
-                             is_instance_of<T, std::tuple>::value) {
-            return convert_impl(elems, (T*){});
-
         } else {
             return convert_impl<T, Ts...>(elems);
         }
