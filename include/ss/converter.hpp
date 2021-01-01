@@ -104,7 +104,7 @@ template <typename... Ts>
 constexpr bool tied_class_v = tied_class<Ts...>::value;
 
 // the error can be set inside a string, or a bool
-enum class error_mode { String, Bool };
+enum class error_mode { error_string, error_bool };
 
 ////////////////
 // converter
@@ -163,8 +163,8 @@ public:
     }
 
     bool valid() const {
-        return (error_mode_ == error_mode::String) ? string_error_.empty()
-                                                   : bool_error_ == false;
+        return (error_mode_ == error_mode::error_string) ? string_error_.empty()
+                                                         : bool_error_ == false;
     }
 
     const std::string& error_msg() const {
@@ -216,7 +216,7 @@ private:
     }
 
     void set_error_invalid_conversion(const string_range msg, size_t pos) {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
             string_error_.append("invalid conversion for parameter ")
                 .append(error_sufix(msg, pos));
@@ -227,7 +227,7 @@ private:
 
     void set_error_validate(const char* const error, const string_range msg,
                             size_t pos) {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
             string_error_.append(error).append(" ").append(
                 error_sufix(msg, pos));
@@ -237,7 +237,7 @@ private:
     }
 
     void set_error_number_of_colums(size_t expected_pos, size_t pos) {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
             string_error_.append("invalid number of columns, expected: ")
                 .append(std::to_string(expected_pos))
@@ -370,7 +370,7 @@ private:
     std::vector<string_range> input_;
     std::string string_error_;
     bool bool_error_;
-    enum error_mode error_mode_ { error_mode::Bool };
+    enum error_mode error_mode_ { error_mode::error_bool };
 };
 
 template <>

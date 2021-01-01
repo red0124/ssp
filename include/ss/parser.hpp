@@ -33,8 +33,8 @@ public:
     }
 
     bool valid() const {
-        return (error_mode_ == error_mode::String) ? string_error_.empty()
-                                                   : bool_error_ == false;
+        return (error_mode_ == error_mode::error_string) ? string_error_.empty()
+                                                         : bool_error_ == false;
     }
 
     void set_error_mode(error_mode mode) {
@@ -285,7 +285,7 @@ private:
     }
 
     void set_error_failed_check() {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.append(file_name_).append(" failed check.");
         } else {
             bool_error_ = true;
@@ -298,7 +298,7 @@ private:
     }
 
     void set_error_eof_reached() {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.append(file_name_).append(" reached end of file.");
         } else {
             bool_error_ = true;
@@ -306,7 +306,7 @@ private:
     }
 
     void set_error_invalid_conversion() {
-        if (error_mode_ == error_mode::String) {
+        if (error_mode_ == error_mode::error_string) {
             string_error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(line_number_))
@@ -328,7 +328,7 @@ private:
     const std::string delim_;
     std::string string_error_;
     bool bool_error_;
-    error_mode error_mode_{error_mode::Bool};
+    error_mode error_mode_{error_mode::error_bool};
     converter converter_;
     converter::split_input split_input_;
     FILE* file_{nullptr};

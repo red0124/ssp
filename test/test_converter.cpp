@@ -330,7 +330,7 @@ TEST_CASE("testing error mode") {
     CHECK(!c.valid());
     CHECK(c.error_msg().empty());
 
-    c.set_error_mode(ss::error_mode::String);
+    c.set_error_mode(ss::error_mode::error_string);
     c.convert<int>("junk");
     CHECK(!c.valid());
     CHECK(!c.error_msg().empty());

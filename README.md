@@ -79,7 +79,7 @@ $ make test
 ## Error handling
 
 Detailed error messages can be accessed via the **error_msg** method, and to   
-enable them the error mode has to be changed to **error_mode::String** using   
+enable them the error mode has to be changed to **error_mode::error_string** using   
 the **set_error_mode** method:  
 ```cpp
 void parser::set_error_mode(ss::error_mode);
@@ -88,7 +88,7 @@ bool parser::valid();
 bool parser::eof();
 ```
 Error messages can always be disabled by setting the error mode to  
-**error_mode::Bool**. An error can be detected using the **valid** method which   
+**error_mode::error_bool**. An error can be detected using the **valid** method which   
 would return **false** if the file could not be opened, or if the conversion   
 could not be made (invalid types, invalid number of columns, ...).  
 The **eof** method can be used to detect if the end of the file was reached.  
@@ -238,9 +238,10 @@ struct even {
         return "number not even";
     }
 };
-
-// ...
+```
+```cpp
 // only even numbers will pass
 // returns std::tuple<std::string, int>
 auto [name, age] = p.get_next<std::string, even<int>, void>();
-
+```
+## Custom conversions
