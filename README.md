@@ -245,3 +245,28 @@ struct even {
 auto [name, age] = p.get_next<std::string, even<int>, void>();
 ```
 ## Custom conversions
+
+Custom types can be used when converting values. An override of the **ss::extract**  
+function needs to be made and you are good to go. Custom conversion for an enum  
+would look like this: 
+```cpp
+enum class shape { circle, rectangle, triangle };
+
+template <>
+inline bool ss::extract(const char* begin, const char* end, shape& dst) {
+    const static std::unordered_map<std::string, shape>
+        shapes{{"circle", shape::circle},
+               {"rectangle", shape::rectangle},
+               {"triangle", shape::triangle}};
+
+    if (auto it = shapes.find(std::string(begin, end)); it != shapes.end()) {
+        dst = it->second;
+        return true;
+    }
+    return false;
+}
+```
+The shape enum will be in an example below. The **inline** is there just to prevent   
+multiple definition errors. The function returns **true** if the conversion was  
+a success, and **false** otherwise. The function uses **const char*** begin and end  
+for performance reasons.

@@ -179,8 +179,9 @@ TEST_CASE("testing composite conversion") {
     unique_file_name f;
     {
         std::ofstream out{f.name};
-        for (auto& i : {"10,a,11.1", "10,20,11.1", "junk", "10,11.1",
-                        "1,11.1,a", "junk", "10,junk", "11,junk"}) {
+        for (auto& i :
+             {"10,a,11.1", "10,20,11.1", "junk", "10,11.1", "1,11.1,a", "junk",
+              "10,junk", "11,junk", "10,11.1,c"}) {
             out << i << std::endl;
         }
     }
@@ -241,9 +242,9 @@ TEST_CASE("testing composite conversion") {
         REQUIRE(!p.eof());
 
         auto [d1, d2, d3, d4, d5] =
-            p.try_next<int, int, double>(fail)
+            p.try_object<test_struct, int, double, char>(fail)
                 .on_error(expect_error)
-                .or_else_object<test_struct, int, double, char>(fail)
+                .or_else<int, char, char>(fail)
                 .or_else<test_struct>(fail)
                 .or_else<test_tuple>(fail)
                 .or_else<int, char, double>(fail)
@@ -334,6 +335,20 @@ TEST_CASE("testing composite conversion") {
         REQUIRE(!d2);
         CHECK(*d1 == std::tuple{11, std::variant<int, std::string>{"junk"}});
     }
+
+    {
+        REQUIRE(!p.eof());
+
+        auto [d1, d2] = p.try_object<test_struct, int, double, char>()
+                            .or_else<int>(fail)
+                            .values();
+        REQUIRE(p.valid());
+        REQUIRE(d1);
+        REQUIRE(!d2);
+        CHECK(d1->tied() == std::tuple{10, 11.1, 'c'});
+    }
+
+    CHECK(p.eof());
 }
 
 size_t move_called = 0;

@@ -184,6 +184,19 @@ public:
         return {std::move(value), *this};
     };
 
+    // identical to try_next but returns composite with object instead of a
+    // tuple
+    template <typename T, typename... Ts, typename Fun = none>
+    composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+        std::optional<T> value;
+        auto new_value = get_object<T, Ts...>();
+        if (valid()) {
+            value = std::move(new_value);
+            try_invoke(*value, std::forward<Fun>(fun));
+        }
+        return {std::move(value), *this};
+    };
+
 private:
     template <typename...>
     friend class composite;
@@ -327,7 +340,7 @@ private:
     const std::string file_name_;
     const std::string delim_;
     std::string string_error_;
-    bool bool_error_;
+    bool bool_error_{false};
     error_mode error_mode_{error_mode::error_bool};
     converter converter_;
     converter::split_input split_input_;
