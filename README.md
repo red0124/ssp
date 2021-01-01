@@ -165,6 +165,13 @@ of only 2 parameters would be retuned:
 // returns std::tuple<std::string, double>
 auto [name, grade] = p.get_next<std::string, void, double>();
 ```
+Works with different types of conversions too:
+```cpp
+using student = std::tuple<std::string, void, double>;
+
+// returns std::tuple<std::string, double>
+auto [name, grade] = p.get_next<student>();
+```
 To ignore a whole row, **ignore_next** could be used, returns **false** if **eof**: 
 ```cpp
 bool parser::ignore_next();
