@@ -223,7 +223,7 @@ TEST_CASE("testing composite conversion") {
                  CHECK(std::tie(i1, i2, d) == expectedData);
              })
                 .on_error(fail)
-                .or_else_object<test_struct, int, double, char>(fail)
+                .or_object<test_struct, int, double, char>(fail)
                 .on_error(fail)
                 .or_else<test_tuple>(fail)
                 .on_error(fail)
@@ -291,7 +291,7 @@ TEST_CASE("testing composite conversion") {
 
         auto [d1, d2, d3, d4, d5] =
             p.try_next<int, int, double>(fail)
-                .or_else_object<test_struct, int, double, char>()
+                .or_object<test_struct, int, double, char>()
                 .or_else<test_struct>(expect_test_struct)
                 .or_else<test_tuple>(fail)
                 .or_else<std::tuple<int, double>>(fail)
@@ -450,7 +450,7 @@ TEST_CASE("testing the moving of parsed composite values") {
         .or_else<my_string, my_string, my_string, my_string>([](auto&&) {})
         .or_else<my_string>([](auto&) {})
         .or_else<xyz>([](auto&&) {})
-        .or_else_object<xyz, my_string, my_string, my_string>([](auto&&) {})
+        .or_object<xyz, my_string, my_string, my_string>([](auto&&) {})
         .or_else<std::tuple<my_string, my_string, my_string>>(
             [](auto&, auto&, auto&) {});
 }

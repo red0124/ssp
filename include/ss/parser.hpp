@@ -107,7 +107,7 @@ public:
         // same as or_else, but saves the result into a 'U' object
         // instead of a tuple
         template <typename U, typename... Us, typename Fun = none>
-        composite<Ts..., std::optional<U>> or_else_object(Fun&& fun = none{}) {
+        composite<Ts..., std::optional<U>> or_object(Fun&& fun = none{}) {
             std::optional<U> value;
             try_convert_and_invoke<U, Us...>(value, fun);
             return composite_with(std::move(value));
@@ -306,7 +306,7 @@ private:
     }
 
     void set_error_file_not_open() {
-        string_error_.append(file_name_).append(" could not be not open.");
+        string_error_.append(file_name_).append(" could not be opened.");
         bool_error_ = true;
     }
 

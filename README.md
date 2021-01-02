@@ -270,3 +270,69 @@ The shape enum will be in an example below. The **inline** is there just to prev
 multiple definition errors. The function returns **true** if the conversion was  
 a success, and **false** otherwise. The function uses **const char*** begin and end  
 for performance reasons.
+
+## Substitute conversions
+
+The parser can also be used to effectively parse files whose rows are not  
+always in the same format (not a classical csv but still csv-like).  
+An example would be the best way to demonstrate such a scenario.  
+
+Supposing we have a file containing different shapes in given formats: 
+    * circle radius
+    * rectangle side_a side_b
+    * triangle side_a side_b side_c
+
+The delimiter is " ", and the number of columns varies depending on which  
+shape it is. We are required to read the file and to store information   
+(shape and area) of the shapes into a data structure in the same order  
+as they are in the file. 
+
+```cpp
+ss::parser p{"shapes.txt", " "};
+if (!p.valid()) {
+    std::cout << p.error_msg() << std::endl;
+    exit(EXIT_FAILURE);
+}
+
+p.set_error_mode(ss::error_mode::error_string);
+std::vector<std::pair<shape, double>> shapes;
+
+auto insert_circle = [&shapes](shape s, double r) {
+    if (s != shape::circle) {
+        return false;
+    }
+
+    shapes.emplace_back(s, r * r * M_PI);
+    return true;
+};
+
+auto insert_rectangle = [&shapes](shape s, double a, double b) {
+    if (s != shape::rectangle) {
+        return false;
+    }
+
+    shapes.emplace_back(s, a * b);
+    return true;
+};
+
+auto insert_triangle = [&shapes](shape s, double a, double b, double c) {
+    if (s != shape::triangle) {
+        return false;
+    }
+
+    double sh = (a + b + c) / 2;
+    shapes.emplace_back(s, sqrt(sh * (sh - a) * (sh - b) * (sh - c)));
+    return true;
+};
+
+while (!p.eof()) {
+    p.try_next<shape, double>(insert_circle)
+        .or_else<shape, double, double>(insert_rectangle)
+        .or_else<shape, double, double, double>(insert_triangle)
+        .on_error([](const std::string& error) {
+            std::cout << error << std::endl;
+        });
+}
+
+// do something with the stored data ...
+```
