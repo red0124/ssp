@@ -287,7 +287,6 @@ The delimiter is " ", and the number of columns varies depending on which
 shape it is. We are required to read the file and to store information   
 (shape and area) of the shapes into a data structure in the same order  
 as they are in the file. 
-
 ```cpp
 ss::parser p{"shapes.txt", " "};
 if (!p.valid()) {
@@ -300,6 +299,7 @@ std::vector<std::pair<shape, double>> shapes;
 while (!p.eof()) {
     // non negative double
     using udbl = ss::gte<double, 0>;
+
     auto [circle_or_square, rectangle, triangle] =
         p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>()
             .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>()
@@ -343,7 +343,6 @@ of the previous conversions and an **optional** to the **tuple** to the new conv
 To fetch the **tuple** from the **composite** the **values** method is used.
 The value of the above used conversion would look something like this
 (with the restrictions applied to the values of shape - ss::nx)
-
 ```cpp
 std::tuple<
     std::optional<std::tuple<shape, double>>,
@@ -351,15 +350,48 @@ std::tuple<
     std::optional<std::tuple<shape, double, double, double>>
     >
 ```
-
 Similar to the way that **get_next** has a **get_object** alternative, **try_next** has a **try_object**  
 alternative, and **or_else** has a **or_object** alternative. Also all rules applied  
 to **get_next** also work with **try_next** , **or_else**, and all the other **composite** conversions.  
 
 Each of those **composite** conversions can accept a lambda (or anything callable) as  
 an argument and invoke it in case of a valid conversion. That lambda   
-itself need not have any arguments, but if they do, they must either  
-accept the whole **tuple**/object as one argument or the elements of the tuple  
-separately. If the lambda returns something that can be interpreted as **false**,  
-The conversion will fail, and the next conversion will try to apply. 
+itself need not have any arguments, but if it does, it must either  
+accept the whole **tuple**/object as one argument or all the elements of the tuple  
+separately. If the lambda returns something that can be interpreted as **false**  
+the conversion will fail, and the next conversion will try to apply. 
 Rewriting the whole while loop using lambdas would look like this:  
+```cpp
+// non negative double
+using udbl = ss::gte<double, 0>;
+
+p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
+     [&](const auto& data) {
+         const auto& [s, x] = data;
+         double area = (s == shape::circle) ? x * x * M_PI : x * x;
+         shapes.emplace_back(s, area);
+     })
+    .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>(
+        [&](const shape s, const double a, const double b) {
+            shapes.emplace_back(s, a * b);
+        })
+    .or_else<ss::nx<shape, shape::triangle>, udbl, udbl, udbl>(
+        [&](auto&& s, auto& a, const double& b, double& c) {
+            double sh = (a + b + c) / 2;
+            if (sh >= a && sh >= b && sh >= c) {
+                double area = sqrt(sh * (sh - a) * (sh - b) * (sh - c));
+                shapes.emplace_back(s, area);
+            }
+        });
+```
+It is a bit less readable, but it removes the need to check which conversion  
+was invoked. The **composite** also has a **on_error** method which accepts a lambda  
+will be invoked if none previous conversions were successful. The lambda may  
+take no arguments or one argument , a **std::string**, in which the error message  
+is stored if **error_mode** is set to **error_mode::error_string**: 
+```cpp
+p.try_next<int>()
+    .on_error([](const std::string& e) { /* int conversion failed */ })
+    .or_object<x, double>()
+    .on_error([] { /* int and x (all) conversions failed */ });
+```
