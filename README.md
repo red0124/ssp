@@ -76,7 +76,7 @@ $ make test
 ## Conversions
 The above example will be used to show some of the features of the library. As seen above, the **get_next** method returns a tuple of objects specified inside the template type list.
 
-If a conversion could not be applied, the method would return a tuple of default constructed objects, and **valid** would return **false**, for example if the third (grade) column in our csv could not be converted to a double the conversion would fail. 
+If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a double the conversion would fail. 
 
 If **get_next** is called with a **tuple** it would behave identically to passing the same tuple parameters to **get_next**:
 ```cpp
