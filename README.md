@@ -279,10 +279,17 @@ always in the same format (not a classical csv but still csv-like).
 A more complicated example would be the best way to demonstrate such a scenario.  
 
 Supposing we have a file containing different shapes in given formats: 
- * circle radius
- * square side
- * rectangle side_a side_b
- * triangle side_a side_b side_c
+ * circle RADIUS
+ * square SIDE
+ * rectangle SIDE_A SIDE_B
+ * triangle SIDE_A SIDE_B SIDE_C
+
+```
+rectangle 2 3
+circle 10
+triangle 3 4 5
+...
+```
 
 The delimiter is " ", and the number of columns varies depending on which  
 shape it is. We are required to read the file and to store information   
