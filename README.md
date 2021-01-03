@@ -200,7 +200,7 @@ auto [name, age] = p.get_next<std::string, even<int>, void>();
 ```
 ## Custom conversions
 
-Custom types can be used when converting values. A specialization of the **ss::extract** function needs to be made and you are good to go. Custom conversion for an enum would look like this: 
+Custom types can be used when converting values. A specialization of the **ss::extract** function needs to be made and you are good to go. A custom conversion for an enum would look like this: 
 ```cpp
 enum class shape { circle, square, rectangle, triangle };
 
@@ -295,11 +295,9 @@ while (!p.eof()) {
 ```
 It is quite hard to make an error this way since most things will be checked at compile time.
 
-The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like tl::expected) which is able to try additional conversions if the previous failed. It also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** to the new conversion.
+The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like tl::expected) which is able to try additional conversions if the previous failed. **or_else** also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** of the new conversion. (sounds more complicated than it is.
 
-To fetch the **tuple** from the **composite** the **values** method is used.
-The value of the above used conversion would look something like this
-(with the restrictions applied to the values of shape - ss::nx)
+To fetch the **tuple** from the **composite** the **values** method is used. The value of the above used conversion would look something like this:
 ```cpp
 std::tuple<
     std::optional<std::tuple<shape, double>>,
@@ -333,7 +331,7 @@ p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
             }
         });
 ```
-It is a bit less readable, but it removes the need to check which conversion was invoked. The **composite** also has an **on_error** method which accepts a lambda will be invoked if none previous conversions were successful. The lambda may take no arguments or one argument , a **std::string**, in which the error message is stored if **error_mode** is set to **error_mode::error_string**: 
+It is a bit less readable, but it removes the need to check which conversion was invoked. The **composite** also has an **on_error** method which accepts a lambda which will be invoked if no previous conversions were successful. The lambda can take no arguments or just one argument, an **std::string**, in which the error message is stored if **error_mode** is set to **error_mode::error_string**: 
 ```cpp
 p.try_next<int>()
     .on_error([](const std::string& e) { /* int conversion failed */ })
@@ -367,7 +365,7 @@ if (c.valid()) {
 All special types and restrictions work on the converter too. Error handling is
 also identical to error handling of the parser.
 
-The converter has also the ability to just split the line, tho it does not change it (kinda statically), hence the name of the library. It returns an **std::vector** of pairs of pointers, begin and end, each **std::pair** representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
+The converter has also the ability to just split the line, tho it does not change it (kinda statically), hence the name of the library. It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
 ```cpp
 ss::converter c;
 auto split_line = c.split("circle 10", " ");
