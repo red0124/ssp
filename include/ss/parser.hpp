@@ -134,24 +134,25 @@ public:
         composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
-                               std::tuple{std::forward<T>(new_value)});
+                               std::tuple{parser_.valid()
+                                              ? std::forward<T>(new_value)
+                                              : std::nullopt});
             return {std::move(merged_values), parser_};
         }
 
         template <typename U, typename... Us, typename Fun = none>
         void try_convert_and_invoke(std::optional<U>& value, Fun&& fun) {
             if (!parser_.valid()) {
-                std::optional<U> new_value;
                 auto tuple_output = try_same<Us...>();
+                if (!parser_.valid()) {
+                    return;
+                }
                 if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
-                    new_value = to_object<U>(std::move(tuple_output));
+                    value = to_object<U>(std::move(tuple_output));
                 } else {
-                    new_value = std::move(tuple_output);
+                    value = std::move(tuple_output);
                 }
-                if (parser_.valid()) {
-                    value = std::move(new_value);
-                    parser_.try_invoke(*value, std::forward<Fun>(fun));
-                }
+                parser_.try_invoke(*value, std::forward<Fun>(fun));
             }
         }
 
@@ -175,26 +176,17 @@ public:
     template <typename... Ts, typename Fun = none>
     composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
         Fun&& fun = none{}) {
-        std::optional<no_void_validator_tup_t<Ts...>> value;
-        auto new_value = get_next<Ts...>();
-        if (valid()) {
-            value = std::move(new_value);
-            try_invoke(*value, std::forward<Fun>(fun));
-        }
-        return {std::move(value), *this};
+        using Ret = no_void_validator_tup_t<Ts...>;
+        return try_invoke_and_make_composite<
+            std::optional<Ret>>(get_next<Ts...>(), std::forward<Fun>(fun));
     };
 
     // identical to try_next but returns composite with object instead of a
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
     composite<std::optional<T>> try_object(Fun&& fun = none{}) {
-        std::optional<T> value;
-        auto new_value = get_object<T, Ts...>();
-        if (valid()) {
-            value = std::move(new_value);
-            try_invoke(*value, std::forward<Fun>(fun));
-        }
-        return {std::move(value), *this};
+        return try_invoke_and_make_composite<
+            std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
     };
 
 private:
@@ -241,6 +233,14 @@ private:
                                   std::forward<Arg>(arg));
             }
         }
+    }
+
+    template <typename T, typename Fun = none>
+    composite<T> try_invoke_and_make_composite(T&& value, Fun&& fun) {
+        if (valid()) {
+            try_invoke(*value, std::forward<Fun>(fun));
+        }
+        return {valid() ? std::move(value) : std::nullopt, *this};
     }
 
     ////////////////

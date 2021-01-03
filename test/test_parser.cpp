@@ -181,7 +181,7 @@ TEST_CASE("testing composite conversion") {
         std::ofstream out{f.name};
         for (auto& i :
              {"10,a,11.1", "10,20,11.1", "junk", "10,11.1", "1,11.1,a", "junk",
-              "10,junk", "11,junk", "10,11.1,c"}) {
+              "10,junk", "11,junk", "10,11.1,c", "10,20", "10,22.2,f"}) {
             out << i << std::endl;
         }
     }
@@ -346,6 +346,42 @@ TEST_CASE("testing composite conversion") {
         REQUIRE(d1);
         REQUIRE(!d2);
         CHECK(d1->tied() == std::tuple{10, 11.1, 'c'});
+    }
+
+    {
+        REQUIRE(!p.eof());
+
+        auto [d1, d2, d3, d4] =
+            p.try_next<int, int>([] { return false; })
+                .or_else<int, double>([](auto&) { return false; })
+                .or_else<int, int>()
+                .or_else<int, int>(fail)
+                .values();
+
+        REQUIRE(p.valid());
+        REQUIRE(!d1);
+        REQUIRE(!d2);
+        REQUIRE(d3);
+        REQUIRE(!d4);
+        CHECK(d3.value() == std::tuple{10, 20});
+    }
+
+    {
+        REQUIRE(!p.eof());
+
+        auto [d1, d2, d3, d4] =
+            p.try_object<test_struct, int, double, char>([] { return false; })
+                .or_else<int, double>([](auto&) { return false; })
+                .or_object<test_struct, int, double, char>()
+                .or_else<int, int>(fail)
+                .values();
+
+        REQUIRE(p.valid());
+        REQUIRE(!d1);
+        REQUIRE(!d2);
+        REQUIRE(d3);
+        REQUIRE(!d4);
+        CHECK(d3->tied() == std::tuple{10, 22.2, 'f'});
     }
 
     CHECK(p.eof());

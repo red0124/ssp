@@ -395,3 +395,4 @@ p.try_next<int>()
     .or_object<x, double>()
     .on_error([] { /* int and x (all) conversions failed */ });
 ```
+*See unit tests for more examples.*
