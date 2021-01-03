@@ -250,12 +250,13 @@ Custom types can be used when converting values. An override of the **ss::extrac
 function needs to be made and you are good to go. Custom conversion for an enum  
 would look like this: 
 ```cpp
-enum class shape { circle, rectangle, triangle };
+enum class shape { circle, square, rectangle, triangle };
 
 template <>
 inline bool ss::extract(const char* begin, const char* end, shape& dst) {
     const static std::unordered_map<std::string, shape>
         shapes{{"circle", shape::circle},
+               {"square", shape::square},
                {"rectangle", shape::rectangle},
                {"triangle", shape::triangle}};
 
@@ -298,15 +299,16 @@ std::vector<std::pair<shape, double>> shapes;
 
 while (!p.eof()) {
     using ss::nx;
-    auto [circle, rectangle, triangle] =
-        p.try_next<nx<shape, shape::circle>, double>()
+    auto [circle_or_square, rectangle, triangle] =
+        p.try_next<nx<shape, shape::circle, shape::square>, double>()
             .or_else<nx<shape, shape::rectangle>, double, double>()
             .or_else<nx<shape, shape::triangle>, double, double, double>()
             .values();
 
-    if (circle) {
-        auto& [s, r] = circle.value();
-        shapes.emplace_back(s, r * r * M_PI);
+    if (circle_or_square) {
+        auto& [s, x] = circle_or_square.value();
+        double area = (s == shape::circle) ? x * x * M_PI : x * x;
+        shapes.emplace_back(s, area);
     }
 
     if (rectangle) {
