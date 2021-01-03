@@ -253,7 +253,7 @@ inline bool ss::extract(const char* begin, const char* end, shape& dst) {
 The shape enum will be used in an example below. The **inline** is there just to prevent   
 multiple definition errors. The function returns **true** if the conversion was  
 a success, and **false** otherwise. The function uses **const char*** begin and end  
-for performance reasons.
+for performance reasons. 
 
 ## Error handling
 
@@ -404,3 +404,54 @@ p.try_next<int>()
     .on_error([] { /* int and x (all) conversions failed */ });
 ```
 *See unit tests for more examples.*
+
+# Rest of the library
+
+First of all, *type_traits.hpp* and *function_traits.hpp* contain many handy  
+traits used for the parser. Most of them are operating on tuples of elements  
+and can be utilized in projects. 
+
+## The converter
+
+**ss::parser** is used to manipulate on files. It has a builtin file reader, but  
+the conversions themselves are executed using **ss::converter**.
+
+To convert a string the **convert** method can be used. It accepts a c-string as  
+input and a delimiter, as **std::string**, and retruns a **tuple** of objects in   
+the same way as **get_next** does it for the parser. A whole object can be returned  
+too using the **convert_object** method, again in an identical way **get_object**  
+doest it for the parser.  
+```cpp
+ss::converter c;
+
+auto [x, y, z] = c.convert<int, double, char>("10::2.2::3", "::");
+if (c.valid()) {
+    // do something with x y z
+}
+
+auto s = c.convert_object<student, std::string, int, double>("name,20,10", ",");
+if (c.valid()) {
+    // do something with s
+}
+```
+All special types and restrictions work on the converter too. Error handling is
+also identical to error handling of the parser.
+
+The converter has also the ability to just split the line, tho it does not  
+change it, statically, hence the name of the library. It returns an **std::vector**  
+of pairs of pointers, each **std::pair** representing a split segment of the string.  
+The vector can then be used in a overloaded **convert** method. This allows the  
+reuse of the same line without splitting it on every conversion. 
+```cpp
+ss::converter c;
+auto split_line = c.split("circle 10", " ");
+auto [s, r] = c.convert<shape, int>(split_line);
+```
+Using the converter is also an easy and fast way to convert single values.
+
+```cpp
+ss::converter c;
+std::string s;
+std::cin >> s;
+int num = c.convert<int>(s.c_str());
+```
