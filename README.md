@@ -275,7 +275,7 @@ for performance reasons.
 
 The parser can also be used to effectively parse files whose rows are not  
 always in the same format (not a classical csv but still csv-like).  
-An example would be the best way to demonstrate such a scenario.  
+A more complicated example would be the best way to demonstrate such a scenario.  
 
 Supposing we have a file containing different shapes in given formats: 
     * circle radius
@@ -294,45 +294,33 @@ if (!p.valid()) {
     exit(EXIT_FAILURE);
 }
 
-p.set_error_mode(ss::error_mode::error_string);
 std::vector<std::pair<shape, double>> shapes;
 
-auto insert_circle = [&shapes](shape s, double r) {
-    if (s != shape::circle) {
-        return false;
-    }
-
-    shapes.emplace_back(s, r * r * M_PI);
-    return true;
-};
-
-auto insert_rectangle = [&shapes](shape s, double a, double b) {
-    if (s != shape::rectangle) {
-        return false;
-    }
-
-    shapes.emplace_back(s, a * b);
-    return true;
-};
-
-auto insert_triangle = [&shapes](shape s, double a, double b, double c) {
-    if (s != shape::triangle) {
-        return false;
-    }
-
-    double sh = (a + b + c) / 2;
-    shapes.emplace_back(s, sqrt(sh * (sh - a) * (sh - b) * (sh - c)));
-    return true;
-};
-
 while (!p.eof()) {
-    p.try_next<shape, double>(insert_circle)
-        .or_else<shape, double, double>(insert_rectangle)
-        .or_else<shape, double, double, double>(insert_triangle)
-        .on_error([](const std::string& error) {
-            std::cout << error << std::endl;
-        });
+    using ss::nx;
+    auto [circle, rectangle, triangle] =
+        p.try_next<nx<shape, shape::circle>, double>()
+            .or_else<nx<shape, shape::rectangle>, double, double>()
+            .or_else<nx<shape, shape::triangle>, double, double, double>()
+            .values();
+
+    if (circle) {
+        auto& [s, r] = circle.value();
+        shapes.emplace_back(s, r * r * M_PI);
+    }
+
+    if (rectangle) {
+        auto& [s, a, b] = rectangle.value();
+        shapes.emplace_back(s, a * b);
+    }
+
+    if (triangle) {
+        auto& [s, a, b, c] = triangle.value();
+        double sh = (a + b + c) / 2;
+        shapes.emplace_back(s, sqrt(sh * (sh - a) * (sh - b) * (sh - c)));
+    }
 }
 
-// do something with the stored data ...
+/* do something with the stored shapes */
+/* ... */
 ```
