@@ -195,7 +195,7 @@ auto [name, age, grade] =
 ```
 If the restrictions are not met, the conversion will fail.  
 Other predefined restrictions are **ss::ax** (all except), **ss::nx** (none except)   
-and **ss::oor** (out of range), ss::lt (less than), ...(see *restrictions.hpp*):
+and **ss::oor** (out of range), **ss::lt** (less than), ...(see *restrictions.hpp*):
 ```cpp
 // all ints exept 10 and 20
 ss::ax<int, 10, 20>
@@ -279,9 +279,10 @@ always in the same format (not a classical csv but still csv-like).
 A more complicated example would be the best way to demonstrate such a scenario.  
 
 Supposing we have a file containing different shapes in given formats: 
-    * circle radius
-    * rectangle side_a side_b
-    * triangle side_a side_b side_c
+ * circle radius
+ * square side
+ * rectangle side_a side_b
+ * triangle side_a side_b side_c
 
 The delimiter is " ", and the number of columns varies depending on which  
 shape it is. We are required to read the file and to store information   
@@ -335,7 +336,7 @@ at compile time.
 
 The **try_next** method works in a similar way as **get_next** but returns a **composit**  
 which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**.  
-This **composite** has a **or_else** method (looks a bit like tl::expected) which  
+This **composite** has an **or_else** method (looks a bit like tl::expected) which  
 is able to try additional conversions if the previous failed.  
 It also returns a **composite**, but in its tuple is the **optional** to the **tuple**   
 of the previous conversions and an **optional** to the **tuple** to the new conversion.   
@@ -385,7 +386,7 @@ p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
         });
 ```
 It is a bit less readable, but it removes the need to check which conversion  
-was invoked. The **composite** also has a **on_error** method which accepts a lambda  
+was invoked. The **composite** also has an **on_error** method which accepts a lambda  
 will be invoked if none previous conversions were successful. The lambda may  
 take no arguments or one argument , a **std::string**, in which the error message  
 is stored if **error_mode** is set to **error_mode::error_string**: 
