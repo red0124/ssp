@@ -53,6 +53,41 @@ public:
 };
 
 ////////////////
+// greater than or equal to
+// greater than
+// less than
+// less than or equal to
+////////////////
+
+template <typename T, auto N>
+struct gt {
+    bool ss_valid(const T& value) const {
+        return value > N;
+    }
+};
+
+template <typename T, auto N>
+struct gte {
+    bool ss_valid(const T& value) const {
+        return value >= N;
+    }
+};
+
+template <typename T, auto N>
+struct lt {
+    bool ss_valid(const T& value) const {
+        return value < N;
+    }
+};
+
+template <typename T, auto N>
+struct lte {
+    bool ss_valid(const T& value) const {
+        return value <= N;
+    }
+};
+
+////////////////
 // in range
 ////////////////
 
@@ -60,10 +95,6 @@ template <typename T, auto Min, auto Max>
 struct ir {
     bool ss_valid(const T& value) const {
         return value >= Min && value <= Max;
-    }
-
-    const char* error() const {
-        return "out of range";
     }
 };
 
@@ -75,10 +106,6 @@ template <typename T, auto Min, auto Max>
 struct oor {
     bool ss_valid(const T& value) const {
         return value < Min || value > Max;
-    }
-
-    const char* error() const {
-        return "in restricted range";
     }
 };
 

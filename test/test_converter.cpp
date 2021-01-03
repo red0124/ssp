@@ -323,6 +323,64 @@ TEST_CASE("testing ss:ne restriction (not empty)") {
     }
 }
 
+TEST_CASE("testing ss:lt ss::lte ss::gt ss::gte restriction (in range)") {
+    ss::converter c;
+
+    c.convert<ss::lt<int, 3>>("3");
+    REQUIRE(!c.valid());
+
+    c.convert<ss::lt<int, 2>>("3");
+    REQUIRE(!c.valid());
+
+    c.convert<ss::gt<int, 3>>("3");
+    REQUIRE(!c.valid());
+
+    c.convert<ss::gt<int, 4>>("3");
+    REQUIRE(!c.valid());
+
+    c.convert<ss::lte<int, 2>>("3");
+    REQUIRE(!c.valid());
+
+    c.convert<ss::gte<int, 4>>("3");
+    REQUIRE(!c.valid());
+
+    {
+        auto tup = c.convert<ss::lt<int, 4>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+
+    {
+        auto tup = c.convert<ss::gt<int, 2>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+
+    {
+        auto tup = c.convert<ss::lte<int, 4>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+
+    {
+        auto tup = c.convert<ss::lte<int, 3>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+
+    {
+        auto tup = c.convert<ss::gte<int, 2>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+
+    {
+        auto tup = c.convert<ss::gte<int, 3>>("3");
+        REQUIRE(c.valid());
+        CHECK(tup == 3);
+    }
+}
+
 TEST_CASE("testing error mode") {
     ss::converter c;
 

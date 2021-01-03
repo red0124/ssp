@@ -76,23 +76,6 @@ $ make test
 
 # Usage
 
-## Error handling
-
-Detailed error messages can be accessed via the **error_msg** method, and to   
-enable them the error mode has to be changed to **error_mode::error_string** using   
-the **set_error_mode** method:  
-```cpp
-void parser::set_error_mode(ss::error_mode);
-const std::string& parser::error_msg();
-bool parser::valid();
-bool parser::eof();
-```
-Error messages can always be disabled by setting the error mode to  
-**error_mode::error_bool**. An error can be detected using the **valid** method which   
-would return **false** if the file could not be opened, or if the conversion   
-could not be made (invalid types, invalid number of columns, ...).  
-The **eof** method can be used to detect if the end of the file was reached.  
-
 ## Conversions
 The above example will be used to show some of the features of the library.  
 As seen above, the **get_next** method returns a tuple of objects specified  
@@ -212,7 +195,7 @@ auto [name, age, grade] =
 ```
 If the restrictions are not met, the conversion will fail.  
 Other predefined restrictions are **ss::ax** (all except), **ss::nx** (none except)   
-and **ss::oor** (out of range): 
+and **ss::oor** (out of range), ss::lt (less than), ...(see *restrictions.hpp*):
 ```cpp
 // all ints exept 10 and 20
 ss::ax<int, 10, 20>
@@ -246,7 +229,7 @@ auto [name, age] = p.get_next<std::string, even<int>, void>();
 ```
 ## Custom conversions
 
-Custom types can be used when converting values. An override of the **ss::extract**  
+Custom types can be used when converting values. A specialization of the **ss::extract**  
 function needs to be made and you are good to go. Custom conversion for an enum  
 would look like this: 
 ```cpp
@@ -267,10 +250,27 @@ inline bool ss::extract(const char* begin, const char* end, shape& dst) {
     return false;
 }
 ```
-The shape enum will be in an example below. The **inline** is there just to prevent   
+The shape enum will be used in an example below. The **inline** is there just to prevent   
 multiple definition errors. The function returns **true** if the conversion was  
 a success, and **false** otherwise. The function uses **const char*** begin and end  
 for performance reasons.
+
+## Error handling
+
+Detailed error messages can be accessed via the **error_msg** method, and to   
+enable them the error mode has to be changed to **error_mode::error_string** using   
+the **set_error_mode** method:  
+```cpp
+void parser::set_error_mode(ss::error_mode);
+const std::string& parser::error_msg();
+bool parser::valid();
+bool parser::eof();
+```
+Error messages can always be disabled by setting the error mode to  
+**error_mode::error_bool**. An error can be detected using the **valid** method which   
+would return **false** if the file could not be opened, or if the conversion   
+could not be made (invalid types, invalid number of columns, ...).  
+The **eof** method can be used to detect if the end of the file was reached.  
 
 ## Substitute conversions
 
@@ -298,11 +298,12 @@ if (!p.valid()) {
 std::vector<std::pair<shape, double>> shapes;
 
 while (!p.eof()) {
-    using ss::nx;
+    // non negative double
+    using udbl = ss::gte<double, 0>;
     auto [circle_or_square, rectangle, triangle] =
-        p.try_next<nx<shape, shape::circle, shape::square>, double>()
-            .or_else<nx<shape, shape::rectangle>, double, double>()
-            .or_else<nx<shape, shape::triangle>, double, double, double>()
+        p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>()
+            .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>()
+            .or_else<ss::nx<shape, shape::triangle>, udbl, udbl, udbl>()
             .values();
 
     if (circle_or_square) {
@@ -319,10 +320,46 @@ while (!p.eof()) {
     if (triangle) {
         auto& [s, a, b, c] = triangle.value();
         double sh = (a + b + c) / 2;
-        shapes.emplace_back(s, sqrt(sh * (sh - a) * (sh - b) * (sh - c)));
+        if (sh >= a && sh >= b && sh >= c) {
+            double area = sqrt(sh * (sh - a) * (sh - b) * (sh - c));
+            shapes.emplace_back(s, area);
+        }
     }
 }
 
 /* do something with the stored shapes */
 /* ... */
 ```
+It is quite hard to make an error this way since most things will be checked  
+at compile time.  
+
+The **try_next** method works in a similar way as **get_next** but returns a **composit**  
+which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**.  
+This **composite** has a **or_else** method (looks a bit like tl::expected) which  
+is able to try additional conversions if the previous failed.  
+It also returns a **composite**, but in its tuple is the **optional** to the **tuple**   
+of the previous conversions and an **optional** to the **tuple** to the new conversion.   
+
+To fetch the **tuple** from the **composite** the **values** method is used.
+The value of the above used conversion would look something like this
+(with the restrictions applied to the values of shape - ss::nx)
+
+```cpp
+std::tuple<
+    std::optional<std::tuple<shape, double>>,
+    std::optional<std::tuple<shape, double, double>>,
+    std::optional<std::tuple<shape, double, double, double>>
+    >
+```
+
+Similar to the way that **get_next** has a **get_object** alternative, **try_next** has a **try_object**  
+alternative, and **or_else** has a **or_object** alternative. Also all rules applied  
+to **get_next** also work with **try_next** , **or_else**, and all the other **composite** conversions.  
+
+Each of those **composite** conversions can accept a lambda (or anything callable) as  
+an argument and invoke it in case of a valid conversion. That lambda   
+itself need not have any arguments, but if they do, they must either  
+accept the whole **tuple**/object as one argument or the elements of the tuple  
+separately. If the lambda returns something that can be interpreted as **false**,  
+The conversion will fail, and the next conversion will try to apply. 
+Rewriting the whole while loop using lambdas would look like this:  
