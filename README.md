@@ -408,17 +408,17 @@ p.try_next<int>()
 # Rest of the library
 
 First of all, *type_traits.hpp* and *function_traits.hpp* contain many handy  
-traits used for the parser. Most of them are operating on tuples of elements  
+traits used in the parser. Most of them are operating on tuples of elements  
 and can be utilized in projects. 
 
 ## The converter
 
 **ss::parser** is used to manipulate on files. It has a builtin file reader, but  
-the conversions themselves are executed using **ss::converter**.
+the conversions themselves are done using the **ss::converter**.
 
 To convert a string the **convert** method can be used. It accepts a c-string as  
 input and a delimiter, as **std::string**, and retruns a **tuple** of objects in   
-the same way as **get_next** does it for the parser. A whole object can be returned  
+the same way **get_next** does it for the parser. A whole object can be returned  
 too using the **convert_object** method, again in an identical way **get_object**  
 doest it for the parser.  
 ```cpp
@@ -438,8 +438,9 @@ All special types and restrictions work on the converter too. Error handling is
 also identical to error handling of the parser.
 
 The converter has also the ability to just split the line, tho it does not  
-change it, statically, hence the name of the library. It returns an **std::vector**  
-of pairs of pointers, each **std::pair** representing a split segment of the string.  
+change it (kinda statically), hence the name of the library.  
+It returns an **std::vector** of pairs of pointers, begin and end, 
+each **std::pair** representing a split segment (column) of the whole string.  
 The vector can then be used in a overloaded **convert** method. This allows the  
 reuse of the same line without splitting it on every conversion. 
 ```cpp
