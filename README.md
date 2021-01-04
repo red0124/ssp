@@ -105,7 +105,7 @@ This works with any object if the constructor could be invoked using the templat
 auto vec = p.get_object<std::vector<std::string>, std::string, std::string, 
                         std::string>();
 ```
-And finally, using something I personally like to do, a struct (class) with a **tied** method witch returns a tuple of references to to the members of the struct.
+And finally, using something I personally like to do, a struct (class) with a **tied** method which returns a tuple of references to to the members of the struct.
 ```cpp
 struct student {
     std::string name;
