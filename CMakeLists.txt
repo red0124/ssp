@@ -30,6 +30,13 @@ target_include_directories(
 
 target_compile_features(ssp INTERFACE cxx_std_17)
 
+target_link_libraries(
+    ssp
+    INTERFACE
+    "$<$<AND:$<CXX_COMPILER_ID:AppleClang,Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>"
+    "$<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>"
+)
+
 # ---- Install ----
 
 include(CMakePackageConfigHelpers)
