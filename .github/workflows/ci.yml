@@ -1,0 +1,99 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  clang_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    strategy:
+      matrix:
+        version: [12, 11, 10, 9, 8, 7]
+
+    runs-on: ubuntu-latest
+
+    name: Clang ${{ matrix.version }}
+
+    container:
+      image: teeks99/clang-ubuntu:${{ matrix.version }}
+
+      options: -v /usr/local:/host_usr_local
+
+    env:
+      CC: clang-${{ matrix.version }}
+      CXX: clang++-${{ matrix.version }}
+      CXXFLAGS: -stdlib=libc++
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: CMake
+        run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git
+          script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
+
+  gcc_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    strategy:
+      matrix:
+        version: [10, 9, 8]
+
+    runs-on: ubuntu-latest
+
+    name: GCC ${{ matrix.version }}
+
+    container:
+      image: gcc:${{ matrix.version }}
+
+      options: -v /usr/local:/host_usr_local
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: CMake
+        run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
