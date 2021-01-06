@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "../include/ss/converter.hpp"
 #include "doctest.h"
 #include <algorithm>

@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "../include/ss/parser.hpp"
 #include "doctest.h"
 #include <algorithm>
