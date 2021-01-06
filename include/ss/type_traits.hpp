@@ -57,6 +57,14 @@ using head_t = typename left_of_impl<0, Ts...>::type;
 // tup tail/last
 ////////////////
 
+template <size_t N, typename T, typename... Ts>
+struct right_of_impl;
+
+template <size_t N, typename T, typename... Ts>
+struct right_of_impl {
+    using type = typename right_of_impl<N - 1, Ts...>::type;
+};
+
 template <typename T, typename... Ts>
 struct right_of_impl<0, T, Ts...> {
     using type = std::tuple<T, Ts...>;
