@@ -58,7 +58,7 @@ Bill (Heath) Gates 65 3.3
  * Conversions can be chained if invalid
  * Fast
 
-# Instalation
+# Installation
 
 ```
 $ git clone https://github.com/red0124/ssp

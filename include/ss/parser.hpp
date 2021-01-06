@@ -5,7 +5,7 @@
 #include "restrictions.hpp"
 #include <cstring>
 #include <optional>
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 #include <vector>
 

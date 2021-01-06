@@ -57,14 +57,6 @@ using head_t = typename left_of_impl<0, Ts...>::type;
 // tup tail/last
 ////////////////
 
-template <size_t N, typename T, typename... Ts>
-struct right_of_impl;
-
-template <size_t N, typename T, typename... Ts>
-struct right_of_impl {
-    using type = typename right_of_impl<N - 1, Ts...>::type;
-};
-
 template <typename T, typename... Ts>
 struct right_of_impl<0, T, Ts...> {
     using type = std::tuple<T, Ts...>;
@@ -231,9 +223,6 @@ using filter_not_t = typename filter_not<Trait, Ts...>::type;
 ////////////////
 
 template <template <typename...> class Trait, typename T, typename... Ts>
-struct count;
-
-template <template <typename...> class Trait, typename T, typename... Ts>
 struct count {
     static constexpr size_t size =
         std::tuple_size<filter_if_t<Trait, T, Ts...>>::value;
@@ -247,9 +236,6 @@ struct count<Trait, T> {
 ////////////////
 // count not
 ////////////////
-
-template <template <typename...> class Trait, typename T, typename... Ts>
-struct count;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct count_not {
