@@ -1,5 +1,5 @@
-#include "../include/ss/parser.hpp"
-#include "doctest.h"
+#include <ss/parser.hpp>
+#include <doctest/doctest.h>
 #include <algorithm>
 #include <filesystem>
 

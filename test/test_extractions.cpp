@@ -1,5 +1,5 @@
-#include "../include/ss/extract.hpp"
-#include "doctest.h"
+#include <ss/extract.hpp>
+#include <doctest/doctest.h>
 #include <algorithm>
 
 constexpr auto eps = 0.000001;
