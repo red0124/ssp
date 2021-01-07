@@ -43,7 +43,7 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 set(ssp_directory "ssp-${PROJECT_VERSION}")
-set(ssp_include_directory "${CMAKE_INSTALL_INCLUDEDIR}/${ssp_directory}")
+set(ssp_include_directory "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(
     DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
