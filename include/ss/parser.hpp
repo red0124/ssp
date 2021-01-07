@@ -134,7 +134,7 @@ public:
         composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
-                               std::tuple{parser_.valid()
+                               std::tuple<T>{parser_.valid()
                                               ? std::forward<T>(new_value)
                                               : std::nullopt});
             return {std::move(merged_values), parser_};
