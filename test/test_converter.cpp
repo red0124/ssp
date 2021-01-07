@@ -1,19 +1,17 @@
-#include <ss/converter.hpp>
-#include <doctest/doctest.h>
 #include <algorithm>
+#include <doctest/doctest.h>
+#include <ss/converter.hpp>
 
 TEST_CASE("testing split") {
     ss::converter c;
     for (const auto& [s, expected, delim] :
-         // clang-format off
-                {std::tuple{"a,b,c,d", std::vector{"a", "b", "c", "d"}, ","},
-                {"", {}, " "},
-                {"a,b,c", {"a", "b", "c"}, ""},
-                {" x x x x | x ", {" x x x x ", " x "}, "|"},
-                {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
-                {"x\t-\ty", {"x", "y"}, "\t-\t"},
-                {"x", {"x"}, ","}} // clang-format on
-    ) {
+         {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
+          {"", {}, " "},
+          {"a,b,c", {"a", "b", "c"}, ""},
+          {" x x x x | x ", {" x x x x ", " x "}, "|"},
+          {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
+          {"x\t-\ty", {"x", "y"}, "\t-\t"},
+          {"x", {"x"}, ","}}) {
         auto split = c.split(s, delim);
         CHECK(split.size() == expected.size());
         for (size_t i = 0; i < split.size(); ++i) {
