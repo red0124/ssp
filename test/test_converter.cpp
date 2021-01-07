@@ -4,6 +4,7 @@
 
 TEST_CASE("testing split") {
     ss::converter c;
+
     for (const auto& [s, expected, delim] :
          {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
           {"", {}, " "},
