@@ -63,14 +63,9 @@ Bill (Heath) Gates 65 3.3
 ```
 $ git clone https://github.com/red0124/ssp
 $ cd ssp
+$ cmake --configure .
 $ sudo make install
 ```
-
-Run tests (optional):
-```
-$ make test
-```
-
 # Usage
 
 ## Conversions
