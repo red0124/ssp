@@ -1,6 +1,5 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "../include/ss/converter.hpp"
-#include "doctest.h"
+#include <ss/converter.hpp>
+#include <doctest/doctest.h>
 #include <algorithm>
 
 TEST_CASE("testing split") {

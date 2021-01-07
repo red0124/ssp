@@ -1,6 +1,5 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "../include/ss/extract.hpp"
-#include "doctest.h"
+#include <ss/extract.hpp>
+#include <doctest/doctest.h>
 #include <algorithm>
 
 constexpr auto eps = 0.000001;
