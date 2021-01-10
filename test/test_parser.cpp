@@ -481,8 +481,8 @@ TEST_CASE("testing the moving of parsed values") {
 TEST_CASE("testing the moving of parsed composite values") {
     // to compile is enough
     return;
-    ss::parser* p;
-    p->try_next<my_string, my_string, my_string>()
+    ss::parser p{"", ""};
+    p.try_next<my_string, my_string, my_string>()
         .or_else<my_string, my_string, my_string, my_string>([](auto&&) {})
         .or_else<my_string>([](auto&) {})
         .or_else<xyz>([](auto&&) {})

@@ -1,7 +1,122 @@
+#include <iostream>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "../include/ss/converter.hpp"
 #include "doctest.h"
 #include <algorithm>
+
+/* TODO
+TEST_CASE("testing quoting with escaping") {
+    std::vector<std::string> values{"10",          "he\\\"llo", "\\\"",
+                                    "\\\"a,a\\\"", "3.33",      "a\\\""};
+
+    // with quote
+    ss::converter c;
+    for (size_t i = 0; i < values.size() * values.size(); ++i) {
+        std::string input1;
+        std::string input2;
+        for (size_t j = 0; j < values.size(); ++j) {
+            if (i & (1 << j) && j != 2 && j != 3) {
+                input1.append(values[j]);
+                input2.append(values.at(values.size() - 1 - j));
+            } else {
+                input1.append("\"" + values[j] + "\"");
+                input2.append("\"" + values.at(values.size() - 1 - j) + "\"");
+            }
+            input1.push_back(',');
+            input2.push_back(',');
+        }
+        input1.pop_back();
+        input2.pop_back();
+        input1.append("\0\"");
+        input2.append("\0\"");
+
+        auto tup1 = c.convert<int, std::string, std::string, std::string,
+                              double, std::string>(input1.c_str(), ",");
+        if (!c.valid()) {
+            FAIL("invalid: " + input1);
+        } else {
+            auto [a, b, c, d, e, f] = tup1;
+            CHECK(a == 10);
+            CHECK(b == "he\"llo");
+            CHECK(c == "\"");
+            CHECK(d == "\"a,a\"");
+            CHECK(e == 3.33);
+            CHECK(f == "a\"");
+            std::cout << a << ' ' << b << ' ' << c << ' ' << d << ' ' << e
+                      << ' ' << f << std::endl;
+            CHECK(tup1 ==
+                  std::make_tuple(10, "he\"llo", "\"", "\"a,a\"", 3.33, "a\""));
+        }
+
+        auto tup2 = c.convert<std::string, double, std::string, std::string,
+                              std::string, int>(input2.c_str(), ",");
+        if (!c.valid()) {
+            FAIL("invalid: " + input2);
+        } else {
+            CHECK(tup2 ==
+                  std::make_tuple("a\"", 3.33, "\"a,a\"", "\"", "he\"llo", 10));
+        }
+    }
+}
+*/
+
+TEST_CASE("testing quoting without escaping") {
+    std::vector<std::string> values{"10", "hello", ",", "a,a", "3.33", "a"};
+
+    // with quote
+    ss::converter c;
+    for (size_t i = 0; i < values.size() * values.size(); ++i) {
+        std::string input1;
+        std::string input2;
+        for (size_t j = 0; j < values.size(); ++j) {
+            if (i & (1 << j) && j != 2 && j != 3) {
+                input1.append(values[j]);
+                input2.append(values.at(values.size() - 1 - j));
+            } else {
+                input1.append("\"" + values[j] + "\"");
+                input2.append("\"" + values.at(values.size() - 1 - j) + "\"");
+            }
+            input1.append("__");
+            input1.push_back(',');
+            input1.append("__");
+            input2.push_back(',');
+        }
+        input1.pop_back();
+        input1.pop_back();
+        input1.pop_back();
+        input2.pop_back();
+        input1.append("\0\"");
+        input2.append("\0\"");
+
+        auto tup1 = c.convert<int, std::string, std::string, std::string,
+                              double, char>(input1.c_str(), ",");
+        if (!c.valid()) {
+            FAIL("invalid: " + input1);
+        } else {
+            auto [a, b, c, d, e, f] = tup1;
+            CHECK(a == 10);
+            CHECK(b == "hello");
+            CHECK(c == ",");
+            CHECK(d == "a,a");
+            CHECK(e == 3.33);
+            CHECK(f == 'a');
+        }
+
+        auto tup2 = c.convert<char, double, std::string, std::string,
+                              std::string, int>(input2.c_str(), ",");
+        if (!c.valid()) {
+            FAIL("invalid: " + input2);
+        } else {
+            auto [f, e, d, c, b, a] = tup2;
+            CHECK(a == 10);
+            CHECK(b == "hello");
+            CHECK(c == ",");
+            CHECK(d == "a,a");
+            CHECK(e == 3.33);
+            CHECK(f == 'a');
+        }
+    }
+}
 
 TEST_CASE("testing split") {
     ss::converter c;
@@ -48,7 +163,8 @@ TEST_CASE("testing valid conversions") {
         CHECK(tup == 5);
     }
     {
-        auto tup = c.convert<void, int, void>("junk 5 junk", " ");
+        // TODO make \t -> ' '
+        auto tup = c.convert<void, int, void>("junk\t5\tjunk", "\t");
         REQUIRE(c.valid());
         CHECK(tup == 5);
     }

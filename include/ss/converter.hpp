@@ -1,5 +1,17 @@
 #pragma once
 
+// TODO remove
+#include <iostream>
+#ifndef DBG
+void log(const std::string& log) {
+    std::cout << log << std::endl;
+}
+#else
+void log(const std::string&) {
+}
+#endif
+//
+//
 #include "extract.hpp"
 #include "function_traits.hpp"
 #include "restrictions.hpp"
@@ -7,6 +19,10 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+
+constexpr auto space = '_';
+constexpr auto escaping = true;
+constexpr auto quote = '"';
 
 namespace ss {
 INIT_HAS_METHOD(tied);
@@ -21,7 +37,7 @@ INIT_HAS_METHOD(error);
 // eg. no_validator_tup_t<int, ss::nx<char, 'A', 'B'>> <=> std::tuple<int, char>
 // where ss::nx<char, 'A', 'B'> is a validator '(n)one e(x)cept' which
 // checks if the returned character is either 'A' or 'B', returns error if not
-// additionaly if one element is left in the pack, it will be unwraped from
+// additionally if one element is left in the pack, it will be unwrapped from
 // the tuple eg. no_void_validator_tup_t<int> <=> int instead of std::tuple<int>
 template <typename T, typename U = void>
 struct no_validator;
@@ -139,6 +155,12 @@ public:
         return to_object<T>(convert<Ts...>(elems));
     }
 
+    // same as above, but uses cached split line
+    template <typename T, typename... Ts>
+    T convert_object() {
+        return to_object<T>(convert<Ts...>());
+    }
+
     // parses already split line, returns either a tuple of objects with
     // parsed values (returns raw element (no tuple) if Ts is empty), or if
     // one argument is given which is a class which has a tied
@@ -162,6 +184,12 @@ public:
         }
     }
 
+    // same as above, but uses cached split line
+    template <typename T, typename... Ts>
+    no_void_validator_tup_t<T, Ts...> convert() {
+        return convert<T, Ts...>(input_);
+    }
+
     bool valid() const {
         return (error_mode_ == error_mode::error_string) ? string_error_.empty()
                                                          : bool_error_ == false;
@@ -176,7 +204,7 @@ public:
     }
 
     // 'splits' string by given delimiter, returns vector of pairs which
-    // contain the beginings and the ends of each column of the string
+    // contain the beginnings and the ends of each column of the string
     const split_input& split(const char* const line,
                              const std::string& delim = "") {
         input_.clear();
@@ -213,6 +241,24 @@ private:
             .append(msg.first, msg.second)
             .append("\'");
         return error;
+    }
+
+    void set_error_invalid_quotation() {
+        if (error_mode_ == error_mode::error_string) {
+            string_error_.clear();
+            string_error_.append("invalid quotation");
+        } else {
+            bool_error_ = true;
+        }
+    }
+
+    void set_error_unterminated_quote() {
+        if (error_mode_ == error_mode::error_string) {
+            string_error_.clear();
+            string_error_.append("unterminated quote");
+        } else {
+            bool_error_ = true;
+        }
     }
 
     void set_error_invalid_conversion(const string_range msg, size_t pos) {
@@ -277,30 +323,107 @@ private:
     template <typename Delim>
     const split_input& split_impl(const char* const line, Delim delim,
                                   size_t delim_size = 1) {
-        auto range = substring(line, delim);
+        auto [range, begin] = substring(line, delim);
         input_.push_back(range);
         while (range.second[0] != '\0') {
-            range = substring(range.second + delim_size, delim);
+            if constexpr (quote != '\0') {
+                if (*begin == quote) {
+                    ++begin;
+                }
+                if (*begin == '\0') {
+                    break;
+                }
+            }
+
+            std::tie(range, begin) = substring(begin + delim_size, delim);
+            log("-> " + std::string{range.first, range.second});
             input_.push_back(range);
         }
         return input_;
     }
 
-    bool no_match(const char* end, char delim) const {
-        return *end != delim;
+    size_t match(const char* begin, char delim) const {
+        const char* p = begin;
+        if constexpr (space == '\0') {
+            if (*p == delim) {
+                return 1;
+            }
+        } else {
+            while (*p == space) {
+                ++p;
+            }
+            if (*p == '\0') {
+                return p - begin;
+            }
+            if (*p != delim) {
+                return 0;
+            }
+            do
+                ++p;
+            while (*p == space);
+            return p - begin;
+        }
     }
 
-    bool no_match(const char* end, const std::string& delim) const {
+    size_t match(const char* end, const std::string& delim) const {
+        // TODO
+        log("ahamm");
         return strncmp(end, delim.c_str(), delim.size()) != 0;
     }
 
     template <typename Delim>
-    string_range substring(const char* const begin, Delim delim) const {
+    std::tuple<string_range, const char*> substring(const char* begin,
+                                                    Delim delim) {
         const char* end;
-        for (end = begin; *end != '\0' && no_match(end, delim); ++end)
+        const char* i;
+        for (i = begin; *i != '\0'; ++i)
             ;
+        log(">> " + std::string{begin, i});
+        if constexpr (quote != '\0') {
+            if (*begin == quote) {
+                ++begin;
 
-        return string_range{begin, end};
+                for (end = begin; true; ++end) {
+
+                    if (*end == '\0') {
+                        log("error");
+                        set_error_unterminated_quote();
+                        return {string_range{begin, end}, end};
+                    }
+
+                    if constexpr (escaping) {
+                        if (end[-1] == '\\') {
+                            continue;
+                        }
+                    }
+
+                    if (*end == quote) {
+                        break;
+                    }
+                }
+
+                // end is not \0
+                size_t to_ignore = match(end + 1, delim);
+                log(std::to_string(to_ignore));
+                if (to_ignore != 0) {
+                    return {string_range{begin, end}, end + to_ignore};
+                }
+
+                log("error");
+                set_error_invalid_quotation();
+                return {string_range{begin, end}, end};
+            }
+        }
+
+        for (end = begin; *end != '\0'; ++end) {
+            size_t to_ignore = match(end, delim);
+            log(std::to_string(to_ignore));
+            if (to_ignore != 0) {
+                return {string_range{begin, end}, end + to_ignore};
+            }
+        }
+
+        return {string_range{begin, end}, end};
     }
 
     ////////////////

@@ -3,9 +3,9 @@
 #include "converter.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
+#include <cstdlib>
 #include <cstring>
 #include <optional>
-#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -39,7 +39,7 @@ public:
 
     void set_error_mode(error_mode mode) {
         error_mode_ = mode;
-        converter_.set_error_mode(mode);
+        buff_.set_error_mode(mode);
     }
 
     const std::string& error_msg() const {
@@ -68,10 +68,9 @@ public:
             return {};
         }
 
-        split_input_ = converter_.split(buff_.get(), delim_);
-        auto value = converter_.convert<T, Ts...>(split_input_);
+        auto value = buff_.get_converter().convert<T, Ts...>();
 
-        if (!converter_.valid()) {
+        if (!buff_.get_converter().valid()) {
             set_error_invalid_conversion();
         }
 
@@ -134,7 +133,7 @@ public:
         composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
-                               std::tuple{parser_.valid()
+                               std::tuple<T>{parser_.valid()
                                               ? std::forward<T>(new_value)
                                               : std::nullopt});
             return {std::move(merged_values), parser_};
@@ -160,8 +159,8 @@ public:
         no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
-                parser_.converter_.convert<U, Us...>(parser_.split_input_);
-            if (!parser_.converter_.valid()) {
+                parser_.buff_.get_converter().template convert<U, Us...>();
+            if (!parser_.buff_.get_converter().valid()) {
                 parser_.set_error_invalid_conversion();
             }
             return value;
@@ -249,29 +248,48 @@ private:
 
     class buffer {
         char* buffer_{nullptr};
-        char* new_buffer_{nullptr};
+        char* next_line_buffer_{nullptr};
+
+        converter converter_;
+        converter next_line_converter_;
+
         size_t size_{0};
+        const std::string& delim_;
 
     public:
+        buffer(const std::string& delimiter) : delim_{delimiter} {
+        }
+
         ~buffer() {
             free(buffer_);
-            free(new_buffer_);
+            free(next_line_buffer_);
         }
 
         bool read(FILE* file) {
-            ssize_t size = getline(&new_buffer_, &size_, file);
+            ssize_t size = getline(&next_line_buffer_, &size_, file);
             size_t string_end = size - 1;
 
             if (size == -1) {
                 return false;
             }
 
-            if (size >= 2 && new_buffer_[size - 2] == '\r') {
+            if (size >= 2 && next_line_buffer_[size - 2] == '\r') {
                 string_end--;
             }
 
-            new_buffer_[string_end] = '\0';
+            next_line_buffer_[string_end] = '\0';
+            next_line_converter_.split(next_line_buffer_, delim_);
+
             return true;
+        }
+
+        void set_error_mode(error_mode mode) {
+            converter_.set_error_mode(mode);
+            next_line_converter_.set_error_mode(mode);
+        }
+
+        converter& get_converter() {
+            return converter_;
         }
 
         const char* get() const {
@@ -279,7 +297,8 @@ private:
         }
 
         void update() {
-            std::swap(buffer_, new_buffer_);
+            std::swap(buffer_, next_line_buffer_);
+            std::swap(converter_, next_line_converter_);
         }
     };
 
@@ -324,7 +343,7 @@ private:
                 .append(" ")
                 .append(std::to_string(line_number_))
                 .append(": ")
-                .append(converter_.error_msg())
+                .append(buff_.get_converter().error_msg())
                 .append(": \"")
                 .append(buff_.get())
                 .append("\"");
@@ -342,10 +361,8 @@ private:
     std::string string_error_;
     bool bool_error_{false};
     error_mode error_mode_{error_mode::error_bool};
-    converter converter_;
-    converter::split_input split_input_;
     FILE* file_{nullptr};
-    buffer buff_;
+    buffer buff_{delim_};
     size_t line_number_{0};
     bool eof_{false};
 };

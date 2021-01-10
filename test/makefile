@@ -1,6 +1,6 @@
-CXX=clang++
-CXXFLAGS=-Wall -Wextra -std=c++17 -lstdc++fs
-TESTS=test_parser test_converter test_extractions
+CXX=clang++-9
+CXXFLAGS=-Wall -Wextra -std=c++17 -O0 -lstdc++fs
+TESTS=test_converter
 
 all: $(TESTS)
 
