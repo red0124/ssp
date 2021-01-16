@@ -250,8 +250,8 @@ private:
         char* buffer_{nullptr};
         char* next_line_buffer_{nullptr};
 
-        converter converter_;
-        converter next_line_converter_;
+        converter<> converter_;
+        converter<> next_line_converter_;
 
         size_t size_{0};
         const std::string& delim_;
@@ -288,7 +288,7 @@ private:
             next_line_converter_.set_error_mode(mode);
         }
 
-        converter& get_converter() {
+        converter<>& get_converter() {
             return converter_;
         }
 

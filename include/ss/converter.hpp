@@ -1,17 +1,4 @@
 #pragma once
-
-// TODO remove
-#include <iostream>
-#ifndef DBG
-void log(const std::string& log) {
-    std::cout << log << std::endl;
-}
-#else
-void log(const std::string&) {
-}
-#endif
-//
-//
 #include "extract.hpp"
 #include "function_traits.hpp"
 #include "restrictions.hpp"
@@ -19,10 +6,6 @@ void log(const std::string&) {
 #include <string>
 #include <type_traits>
 #include <vector>
-
-constexpr auto space = '_';
-constexpr auto escaping = true;
-constexpr auto quote = '"';
 
 namespace ss {
 INIT_HAS_METHOD(tied);
@@ -122,29 +105,368 @@ constexpr bool tied_class_v = tied_class<Ts...>::value;
 // the error can be set inside a string, or a bool
 enum class error_mode { error_string, error_bool };
 
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+template <char... Cs>
+struct matcher {
+private:
+    template <char X, char... Xs>
+    static bool match_impl(char c) {
+        if constexpr (sizeof...(Xs) != 0) {
+            return (c == X) || match_impl<Xs...>(c);
+        }
+        return (c == X);
+    }
+
+public:
+    static bool match(char c) {
+        return match_impl<Cs...>(c);
+    }
+    constexpr static bool enabled = true;
+};
+
+template <>
+class matcher<'\0'> {
+public:
+    constexpr static bool enabled = false;
+    static bool match(char c) = delete;
+};
+
+////////////////
+// is instance of
+////////////////
+
+template <typename T, template <char...> class Template>
+struct is_instance_of_char {
+    constexpr static bool value = false;
+};
+
+template <char... Ts, template <char...> class Template>
+struct is_instance_of_char<Template<Ts...>, Template> {
+    constexpr static bool value = true;
+};
+
+///////////////////////////////////////////////////
+
+template <char... Cs>
+struct quote : matcher<Cs...> {};
+
+template <char... Cs>
+struct trim : matcher<Cs...> {};
+
+template <char... Cs>
+struct escape : matcher<Cs...> {};
+
+/////////////////////////////////////////////////
+// -> type traits
+template <bool B, typename T, typename U>
+struct if_then_else;
+
+template <typename T, typename U>
+struct if_then_else<true, T, U> {
+    using type = T;
+};
+
+template <typename T, typename U>
+struct if_then_else<false, T, U> {
+    using type = U;
+};
+
+//////////////////////////////////////////////
+template <template <char...> class Matcher, typename... Ts>
+struct get_matcher;
+
+template <template <char...> class Matcher, typename T, typename... Ts>
+struct get_matcher<Matcher, T, Ts...> {
+    using type =
+        typename if_then_else<is_instance_of_char<T, Matcher>::value, T,
+                              typename get_matcher<Matcher, Ts...>::type>::type;
+};
+
+template <template <char...> class Matcher>
+struct get_matcher<Matcher> {
+    using type = Matcher<'\0'>;
+};
+
+///////////////////////////////////////////////
+// TODO add restriction
+template <typename... Ts>
+struct setup {
+    using quote = typename get_matcher<quote, Ts...>::type;
+    using trim = typename get_matcher<trim, Ts...>::type;
+    using escape = typename get_matcher<escape, Ts...>::type;
+};
+
+template <typename... Ts>
+struct setup<setup<Ts...>> : setup<Ts...> {};
+
+/////////////////////////////////////////////////////////////////////////////
+
+enum class State { finished, begin, reading, quoting };
+using range = std::pair<const char*, const char*>;
+
+using string_range = std::pair<const char*, const char*>;
+using split_input = std::vector<string_range>;
+
+template <typename... Ts>
+class splitter {
+    using Setup = setup<Ts...>;
+    using quote = typename Setup::quote;
+    using trim = typename Setup::trim;
+    using escape = typename Setup::escape;
+
+    bool match(const char* end_i, char delim) {
+        return *end_i == delim;
+    };
+
+    bool match(const char* end_i, const std::string& delim) {
+        return strncmp(end_i, delim.c_str(), delim.size()) == 0;
+    };
+
+    size_t delimiter_size(char) {
+        return 1;
+    }
+    size_t delimiter_size(const std::string& delim) {
+        return delim.size();
+    }
+
+    void trim_if_enabled(char*& curr) {
+        if constexpr (trim::enabled) {
+            while (trim::match(*curr)) {
+                ++curr;
+            }
+        }
+    }
+
+    void shift_if_escaped(char*& curr_i) {
+        if constexpr (escape::enabled) {
+            if (escape::match(*curr_i)) {
+                *curr = end[1];
+                ++end;
+            }
+        }
+    }
+
+    void shift() {
+        *curr = *end;
+        ++end;
+        ++curr;
+    }
+
+    void shift(size_t n) {
+        memcpy(curr, end, n);
+        end += n;
+        curr += n;
+    }
+
+    template <typename Delim>
+    std::tuple<size_t, bool> match_delimiter(char* begin, const Delim& delim) {
+        char* end_i = begin;
+
+        trim_if_enabled(end_i);
+
+        // just spacing
+        if (*end_i == '\0') {
+            return {0, false};
+        }
+
+        // not a delimiter
+        if (!match(end_i, delim)) {
+            shift_if_escaped(end_i);
+            return {1 + end_i - begin, false};
+        }
+
+        end_i += delimiter_size(delim);
+        trim_if_enabled(end_i);
+
+        // delimiter
+        return {end_i - begin, true};
+    }
+
+public:
+    bool valid() {
+        return error_.empty();
+    }
+
+    split_input& split(char* new_line, const std::string& d = ",") {
+        line = new_line;
+        output_.clear();
+        switch (d.size()) {
+        case 0:
+            // set error
+            return output_;
+        case 1:
+            return split_impl(d[0]);
+        default:
+            return split_impl(d);
+        }
+    }
+
+    template <typename Delim>
+    std::vector<range>& split_impl(const Delim& delim) {
+        state = State::begin;
+        begin = line;
+
+        trim_if_enabled(begin);
+
+        while (state != State::finished) {
+            curr = end = begin;
+            switch (state) {
+            case (State::begin):
+                state_begin();
+                break;
+            case (State::reading):
+                state_reading(delim);
+                break;
+            case (State::quoting):
+                state_quoting(delim);
+                break;
+            default:
+                break;
+            };
+        }
+
+        return output_;
+    }
+
+    void state_begin() {
+        if constexpr (quote::enabled) {
+            if (quote::match(*begin)) {
+                ++begin;
+                state = State::quoting;
+                return;
+            }
+        }
+        state = State::reading;
+    }
+
+    template <typename Delim>
+    void state_reading(const Delim& delim) {
+        while (true) {
+            auto [width, valid] = match_delimiter(end, delim);
+
+            // not a delimiter
+            if (!valid) {
+                if (width == 0) {
+                    // eol
+                    output_.emplace_back(begin, curr);
+                    state = State::finished;
+                    break;
+                } else {
+                    shift(width);
+                    continue;
+                }
+            }
+
+            // found delimiter
+            push_and_start_next(width);
+            break;
+        }
+    }
+
+    template <typename Delim>
+    void state_quoting(const Delim& delim) {
+        if constexpr (quote::enabled) {
+            while (true) {
+                if (quote::match(*end)) {
+                    // double quote
+                    // eg: ...,"hel""lo,... -> hel"lo
+                    if (quote::match(end[1])) {
+                        ++end;
+                        shift();
+                        continue;
+                    }
+
+                    auto [width, valid] = match_delimiter(end + 1, delim);
+
+                    // not a delimiter
+                    if (!valid) {
+                        if (width == 0) {
+                            // eol
+                            // eg: ...,"hello"   \0 -> hello
+                            // eg no trim: ...,"hello"\0 -> hello
+                            output_.emplace_back(begin, curr);
+                        } else {
+                            // missmatched quote
+                            // eg: ...,"hel"lo,... -> error
+                        }
+                        state = State::finished;
+                        break;
+                    }
+
+                    // delimiter
+                    push_and_start_next(width + 1);
+                    break;
+                }
+
+                if constexpr (escape::enabled) {
+                    if (escape::match(*end)) {
+                        ++end;
+                        shift();
+                        continue;
+                    }
+                }
+
+                // unterminated error
+                // eg: ..."hell\0 -> quote not terminated
+                if (*end == '\0') {
+                    *curr = '\0';
+                    state = State::finished;
+                    break;
+                }
+                shift();
+            }
+        } else {
+            // set error impossible scenario
+            state = State::finished;
+        }
+    }
+
+    void push_and_start_next(size_t n) {
+        output_.emplace_back(begin, curr);
+        begin = end + n;
+        state = State::begin;
+    }
+
+private:
+    std::vector<range> output_;
+    std::string error_ = "";
+    State state;
+    char* curr;
+    char* end;
+    char* begin;
+    char* line;
+};
+
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+
 ////////////////
 // converter
 ////////////////
 
+template <typename... Matchers>
 class converter {
-    using string_range = std::pair<const char*, const char*>;
-    constexpr static auto default_delimiter = ',';
+    constexpr static auto default_delimiter = ",";
 
 public:
-    using split_input = std::vector<string_range>;
-
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(const char* const line, const std::string& delim = "") {
+    T convert_object(char* line, const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
     // parses line with given delimiter, returns tuple of objects with
     // extracted values of type 'Ts'
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert(const char* const line,
-                                           const std::string& delim = "") {
+    no_void_validator_tup_t<Ts...> convert(
+        char* line, const std::string& delim = default_delimiter) {
         input_ = split(line, delim);
         return convert<Ts...>(input_);
     }
@@ -205,21 +527,15 @@ public:
 
     // 'splits' string by given delimiter, returns vector of pairs which
     // contain the beginnings and the ends of each column of the string
-    const split_input& split(const char* const line,
-                             const std::string& delim = "") {
+    const split_input& split(char* line,
+                             const std::string& delim = default_delimiter) {
         input_.clear();
         if (line[0] == '\0') {
             return input_;
         }
 
-        switch (delim.size()) {
-        case 0:
-            return split_impl(line, ',');
-        case 1:
-            return split_impl(line, delim[0]);
-        default:
-            return split_impl(line, delim, delim.size());
-        };
+        input_ = splitter_.split(line, delim);
+        return input_;
     }
 
 private:
@@ -317,116 +633,6 @@ private:
     }
 
     ////////////////
-    // substring
-    ////////////////
-
-    template <typename Delim>
-    const split_input& split_impl(const char* const line, Delim delim,
-                                  size_t delim_size = 1) {
-        auto [range, begin] = substring(line, delim);
-        input_.push_back(range);
-        while (range.second[0] != '\0') {
-            if constexpr (quote != '\0') {
-                if (*begin == quote) {
-                    ++begin;
-                }
-                if (*begin == '\0') {
-                    break;
-                }
-            }
-
-            std::tie(range, begin) = substring(begin + delim_size, delim);
-            log("-> " + std::string{range.first, range.second});
-            input_.push_back(range);
-        }
-        return input_;
-    }
-
-    size_t match(const char* begin, char delim) const {
-        const char* p = begin;
-        if constexpr (space == '\0') {
-            if (*p == delim) {
-                return 1;
-            }
-        } else {
-            while (*p == space) {
-                ++p;
-            }
-            if (*p == '\0') {
-                return p - begin;
-            }
-            if (*p != delim) {
-                return 0;
-            }
-            do
-                ++p;
-            while (*p == space);
-            return p - begin;
-        }
-    }
-
-    size_t match(const char* end, const std::string& delim) const {
-        // TODO
-        log("ahamm");
-        return strncmp(end, delim.c_str(), delim.size()) != 0;
-    }
-
-    template <typename Delim>
-    std::tuple<string_range, const char*> substring(const char* begin,
-                                                    Delim delim) {
-        const char* end;
-        const char* i;
-        for (i = begin; *i != '\0'; ++i)
-            ;
-        log(">> " + std::string{begin, i});
-        if constexpr (quote != '\0') {
-            if (*begin == quote) {
-                ++begin;
-
-                for (end = begin; true; ++end) {
-
-                    if (*end == '\0') {
-                        log("error");
-                        set_error_unterminated_quote();
-                        return {string_range{begin, end}, end};
-                    }
-
-                    if constexpr (escaping) {
-                        if (end[-1] == '\\') {
-                            continue;
-                        }
-                    }
-
-                    if (*end == quote) {
-                        break;
-                    }
-                }
-
-                // end is not \0
-                size_t to_ignore = match(end + 1, delim);
-                log(std::to_string(to_ignore));
-                if (to_ignore != 0) {
-                    return {string_range{begin, end}, end + to_ignore};
-                }
-
-                log("error");
-                set_error_invalid_quotation();
-                return {string_range{begin, end}, end};
-            }
-        }
-
-        for (end = begin; *end != '\0'; ++end) {
-            size_t to_ignore = match(end, delim);
-            log(std::to_string(to_ignore));
-            if (to_ignore != 0) {
-                return {string_range{begin, end}, end + to_ignore};
-            }
-        }
-
-        return {string_range{begin, end}, end};
-    }
-
-    ////////////////
     // conversion
     ////////////////
 
@@ -434,6 +640,11 @@ private:
     void extract_one(no_validator_t<T>& dst, const string_range msg,
                      size_t pos) {
         if (!valid()) {
+            return;
+        }
+
+        if constexpr (std::is_same_v<T, std::string>) {
+            extract(msg.first, msg.second, dst);
             return;
         }
 
@@ -494,17 +705,7 @@ private:
     std::string string_error_;
     bool bool_error_;
     enum error_mode error_mode_ { error_mode::error_bool };
+    splitter<Matchers...> splitter_;
 };
-
-template <>
-inline void converter::extract_one<std::string>(std::string& dst,
-                                                const string_range msg,
-                                                size_t) {
-    if (!valid()) {
-        return;
-    }
-
-    extract(msg.first, msg.second, dst);
-}
 
 } /* ss */

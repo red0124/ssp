@@ -56,6 +56,7 @@ TEST_CASE("testing parser") {
     make_and_write(f.name, data);
     {
         ss::parser p{f.name, ","};
+        p.set_error_mode(ss::error_mode::error_string);
         std::vector<X> i;
 
         while (!p.eof()) {
