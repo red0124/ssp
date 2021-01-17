@@ -315,6 +315,23 @@ struct is_instance_of<Template<Ts...>, Template> {
 };
 
 ////////////////
+// ternary
+////////////////
+
+template <bool B, typename T, typename U>
+struct ternary;
+
+template <typename T, typename U>
+struct ternary<true, T, U> {
+    using type = T;
+};
+
+template <typename T, typename U>
+struct ternary<false, T, U> {
+    using type = U;
+};
+
+////////////////
 // tuple to struct
 ////////////////
 

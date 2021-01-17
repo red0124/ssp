@@ -1,4 +1,4 @@
-CXX=clang++
+CXX=g++
 CXXFLAGS=-Wall -Wextra -std=c++17 -lstdc++fs
 TESTS=test_parser test_converter test_extractions test_splitter
 

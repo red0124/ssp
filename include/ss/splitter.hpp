@@ -31,22 +31,6 @@ public:
     static bool match(char c) = delete;
 };
 
-////////////////
-// is instance of
-////////////////
-
-template <typename T, template <char...> class Template>
-struct is_instance_of_char {
-    constexpr static bool value = false;
-};
-
-template <char... Ts, template <char...> class Template>
-struct is_instance_of_char<Template<Ts...>, Template> {
-    constexpr static bool value = true;
-};
-
-///////////////////////////////////////////////////
-
 template <char... Cs>
 struct quote : matcher<Cs...> {};
 
@@ -56,30 +40,24 @@ struct trim : matcher<Cs...> {};
 template <char... Cs>
 struct escape : matcher<Cs...> {};
 
-/////////////////////////////////////////////////
-// -> type traits
-template <bool B, typename T, typename U>
-struct if_then_else;
-
-template <typename T, typename U>
-struct if_then_else<true, T, U> {
-    using type = T;
+template <typename T, template <char...> class Template>
+struct is_instance_of_matcher {
+    constexpr static bool value = false;
 };
 
-template <typename T, typename U>
-struct if_then_else<false, T, U> {
-    using type = U;
+template <char... Ts, template <char...> class Template>
+struct is_instance_of_matcher<Template<Ts...>, Template> {
+    constexpr static bool value = true;
 };
 
-//////////////////////////////////////////////
 template <template <char...> class Matcher, typename... Ts>
 struct get_matcher;
 
 template <template <char...> class Matcher, typename T, typename... Ts>
 struct get_matcher<Matcher, T, Ts...> {
     using type =
-        typename if_then_else<is_instance_of_char<T, Matcher>::value, T,
-                              typename get_matcher<Matcher, Ts...>::type>::type;
+        typename ternary<is_instance_of_matcher<T, Matcher>::value, T,
+                         typename get_matcher<Matcher, Ts...>::type>::type;
 };
 
 template <template <char...> class Matcher>
@@ -87,21 +65,21 @@ struct get_matcher<Matcher> {
     using type = Matcher<'\0'>;
 };
 
-///////////////////////////////////////////////
-// TODO add restriction
+template <template <char...> class Matcher, typename... Ts>
+using get_matcher_t = typename get_matcher<Matcher, Ts...>::type;
+
+// TODO add static asserts
 template <typename... Ts>
 struct setup {
-    using quote = typename get_matcher<quote, Ts...>::type;
-    using trim = typename get_matcher<trim, Ts...>::type;
-    using escape = typename get_matcher<escape, Ts...>::type;
+    using quote = get_matcher_t<quote, Ts...>;
+    using trim = get_matcher_t<trim, Ts...>;
+    using escape = get_matcher_t<escape, Ts...>;
 };
 
 template <typename... Ts>
 struct setup<setup<Ts...>> : setup<Ts...> {};
 
-/////////////////////////////////////////////////////////////////////////////
-
-enum class State { finished, begin, reading, quoting };
+enum class state { begin, reading, quoting, finished };
 using range = std::pair<const char*, const char*>;
 
 using string_range = std::pair<const char*, const char*>;
@@ -109,10 +87,9 @@ using split_input = std::vector<string_range>;
 
 template <typename... Ts>
 class splitter {
-    using Setup = setup<Ts...>;
-    using quote = typename Setup::quote;
-    using trim = typename Setup::trim;
-    using escape = typename Setup::escape;
+    using quote = typename setup<Ts...>::quote;
+    using trim = typename setup<Ts...>::trim;
+    using escape = typename setup<Ts...>::escape;
 
     bool match(const char* end_i, char delim) {
         return *end_i == delim;
@@ -187,6 +164,12 @@ class splitter {
         return {end_i - begin, true};
     }
 
+    void push_and_start_next(size_t n) {
+        output_.emplace_back(begin, curr);
+        begin = end + n;
+        state_ = state::begin;
+    }
+
 public:
     bool valid() {
         return error_.empty();
@@ -208,21 +191,21 @@ public:
 
     template <typename Delim>
     std::vector<range>& split_impl(const Delim& delim) {
-        state = State::begin;
+        state_ = state::begin;
         begin = line;
 
         trim_if_enabled(begin);
 
-        while (state != State::finished) {
+        while (state_ != state::finished) {
             curr = end = begin;
-            switch (state) {
-            case (State::begin):
+            switch (state_) {
+            case (state::begin):
                 state_begin();
                 break;
-            case (State::reading):
+            case (state::reading):
                 state_reading(delim);
                 break;
-            case (State::quoting):
+            case (state::quoting):
                 state_quoting(delim);
                 break;
             default:
@@ -237,11 +220,11 @@ public:
         if constexpr (quote::enabled) {
             if (quote::match(*begin)) {
                 ++begin;
-                state = State::quoting;
+                state_ = state::quoting;
                 return;
             }
         }
-        state = State::reading;
+        state_ = state::reading;
     }
 
     template <typename Delim>
@@ -254,7 +237,7 @@ public:
                 if (width == 0) {
                     // eol
                     output_.emplace_back(begin, curr);
-                    state = State::finished;
+                    state_ = state::finished;
                     break;
                 } else {
                     shift(width);
@@ -294,7 +277,7 @@ public:
                             // missmatched quote
                             // eg: ...,"hel"lo,... -> error
                         }
-                        state = State::finished;
+                        state_ = state::finished;
                         break;
                     }
 
@@ -315,27 +298,21 @@ public:
                 // eg: ..."hell\0 -> quote not terminated
                 if (*end == '\0') {
                     *curr = '\0';
-                    state = State::finished;
+                    state_ = state::finished;
                     break;
                 }
                 shift();
             }
         } else {
             // set error impossible scenario
-            state = State::finished;
+            state_ = state::finished;
         }
-    }
-
-    void push_and_start_next(size_t n) {
-        output_.emplace_back(begin, curr);
-        begin = end + n;
-        state = State::begin;
     }
 
 private:
     std::vector<range> output_;
     std::string error_ = "";
-    State state;
+    state state_;
     char* curr;
     char* end;
     char* begin;
