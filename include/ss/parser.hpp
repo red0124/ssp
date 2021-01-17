@@ -11,11 +11,10 @@
 
 namespace ss {
 
-struct none {};
-template <typename...>
-class composite;
-
+template <typename... Matchers>
 class parser {
+    struct none {};
+
 public:
     parser(const std::string& file_name, const std::string& delimiter)
         : file_name_{file_name}, delim_{delimiter},
@@ -29,7 +28,9 @@ public:
     }
 
     ~parser() {
-        fclose(file_);
+        if (file_) {
+            fclose(file_);
+        }
     }
 
     bool valid() const {
@@ -68,7 +69,7 @@ public:
             return {};
         }
 
-        auto value = buff_.get_converter().convert<T, Ts...>();
+        auto value = buff_.get_converter().template convert<T, Ts...>();
 
         if (!buff_.get_converter().valid()) {
             set_error_invalid_conversion();
@@ -134,8 +135,8 @@ public:
             auto merged_values =
                 std::tuple_cat(std::move(values_),
                                std::tuple<T>{parser_.valid()
-                                              ? std::forward<T>(new_value)
-                                              : std::nullopt});
+                                                 ? std::forward<T>(new_value)
+                                                 : std::nullopt});
             return {std::move(merged_values), parser_};
         }
 
@@ -189,9 +190,6 @@ public:
     };
 
 private:
-    template <typename...>
-    friend class composite;
-
     // tries to invoke the given function (see below), if the function
     // returns a value which can be used as a conditional, and it returns
     // false, the function sets an error, and allows the invoke of the
@@ -250,8 +248,8 @@ private:
         char* buffer_{nullptr};
         char* next_line_buffer_{nullptr};
 
-        converter<> converter_;
-        converter<> next_line_converter_;
+        converter<Matchers...> converter_;
+        converter<Matchers...> next_line_converter_;
 
         size_t size_{0};
         const std::string& delim_;
@@ -288,7 +286,7 @@ private:
             next_line_converter_.set_error_mode(mode);
         }
 
-        converter<>& get_converter() {
+        converter<Matchers...>& get_converter() {
             return converter_;
         }
 

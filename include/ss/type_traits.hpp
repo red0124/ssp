@@ -340,6 +340,7 @@ S to_object(std::index_sequence<Is...>, Tup&& tup) {
     return {std::get<Is>(std::forward<Tup>(tup))...};
 }
 
+// TODO Tup may not be a tuple ...
 template <class S, class Tup>
 S to_object(Tup&& tup) {
     using T = std::remove_reference_t<Tup>;
