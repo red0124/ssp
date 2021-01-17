@@ -3,9 +3,9 @@
 #include "converter.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
+#include <cstdlib>
 #include <cstring>
 #include <optional>
-#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -29,7 +29,9 @@ public:
     }
 
     ~parser() {
-        fclose(file_);
+        if (file_) {
+            fclose(file_);
+        }
     }
 
     bool valid() const {
@@ -135,8 +137,8 @@ public:
             auto merged_values =
                 std::tuple_cat(std::move(values_),
                                std::tuple<T>{parser_.valid()
-                                              ? std::forward<T>(new_value)
-                                              : std::nullopt});
+                                                 ? std::forward<T>(new_value)
+                                                 : std::nullopt});
             return {std::move(merged_values), parser_};
         }
 
