@@ -1,17 +1,15 @@
-#include <ss/parser.hpp>
-#include <doctest/doctest.h>
 #include <algorithm>
+#include <doctest.h>
 #include <filesystem>
+#include <fstream>
+#include <ss/parser.hpp>
 
 struct unique_file_name {
     const std::string name;
 
-    unique_file_name() : name{std::tmpnam(nullptr)} {
-    }
+    unique_file_name() : name{std::tmpnam(nullptr)} {}
 
-    ~unique_file_name() {
-        std::filesystem::remove(name);
-    }
+    ~unique_file_name() { std::filesystem::remove(name); }
 };
 
 struct X {
@@ -27,9 +25,7 @@ struct X {
             .append(delim)
             .append(s);
     }
-    auto tied() const {
-        return std::tie(i, d, s);
-    }
+    auto tied() const { return std::tie(i, d, s); }
 };
 
 template <typename T>
@@ -165,13 +161,10 @@ struct test_struct {
     int i;
     double d;
     char c;
-    auto tied() {
-        return std::tie(i, d, c);
-    }
+    auto tied() { return std::tie(i, d, c); }
 };
 
-void expect_test_struct(const test_struct&) {
-}
+void expect_test_struct(const test_struct&) {}
 
 // various scenarios
 TEST_CASE("testing composite conversion") {
@@ -393,9 +386,7 @@ struct my_string {
 
     my_string() = default;
 
-    ~my_string() {
-        delete[] data;
-    }
+    ~my_string() { delete[] data; }
 
     // make sure no object is copied
     my_string(const my_string&) = delete;
@@ -426,9 +417,7 @@ struct xyz {
     my_string x;
     my_string y;
     my_string z;
-    auto tied() {
-        return std::tie(x, y, z);
-    }
+    auto tied() { return std::tie(x, y, z); }
 };
 
 TEST_CASE("testing the moving of parsed values") {

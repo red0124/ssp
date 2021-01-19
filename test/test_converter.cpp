@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <doctest/doctest.h>
+#include <doctest.h>
 #include <ss/converter.hpp>
 
 TEST_CASE("testing split") {

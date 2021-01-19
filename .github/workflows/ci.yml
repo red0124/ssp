@@ -4,11 +4,12 @@ on:
   push:
     branches:
       - master
-      - testing
+      - /^feature/$/
 
   pull_request:
     branches:
       - master
+      - /^feature/$/
 
 jobs:
   clang_tests:

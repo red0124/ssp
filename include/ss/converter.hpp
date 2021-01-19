@@ -9,9 +9,9 @@
 #include <vector>
 
 namespace ss {
-INIT_HAS_METHOD(tied);
-INIT_HAS_METHOD(ss_valid);
-INIT_HAS_METHOD(error);
+INIT_HAS_METHOD(tied)
+INIT_HAS_METHOD(ss_valid)
+INIT_HAS_METHOD(error)
 
 ////////////////
 // replace validator
@@ -147,7 +147,7 @@ public:
     no_void_validator_tup_t<T, Ts...> convert(const split_input& elems) {
         if constexpr (sizeof...(Ts) == 0 &&
                       is_instance_of<T, std::tuple>::value) {
-            return convert_impl(elems, (T*){});
+            return convert_impl(elems, static_cast<T*>(nullptr));
 
         } else if constexpr (tied_class_v<T, Ts...>) {
             using arg_ref_tuple =
@@ -156,7 +156,8 @@ public:
             using arg_tuple =
                 typename apply_trait<std::decay, arg_ref_tuple>::type;
 
-            return to_object<T>(convert_impl(elems, (arg_tuple*){}));
+            return to_object<T>(
+                convert_impl(elems, static_cast<arg_tuple*>(nullptr)));
         } else {
             return convert_impl<T, Ts...>(elems);
         }
@@ -167,13 +168,9 @@ public:
                                                          : bool_error_ == false;
     }
 
-    const std::string& error_msg() const {
-        return string_error_;
-    }
+    const std::string& error_msg() const { return string_error_; }
 
-    void set_error_mode(error_mode mode) {
-        error_mode_ = mode;
-    }
+    void set_error_mode(error_mode mode) { error_mode_ = mode; }
 
     // 'splits' string by given delimiter, returns vector of pairs which
     // contain the beginings and the ends of each column of the string
@@ -286,9 +283,7 @@ private:
         return input_;
     }
 
-    bool no_match(const char* end, char delim) const {
-        return *end != delim;
-    }
+    bool no_match(const char* end, char delim) const { return *end != delim; }
 
     bool no_match(const char* end, const std::string& delim) const {
         return strncmp(end, delim.c_str(), delim.size()) != 0;
@@ -361,7 +356,7 @@ private:
         no_void_validator_tup_t<Ts...> ret;
         extract_multiple<0, 0, Ts...>(ret, elems);
         return ret;
-    };
+    }
 
     ////////////////
     // members
