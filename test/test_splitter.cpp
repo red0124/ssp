@@ -1,8 +1,13 @@
-#include <iostream>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "../include/ss/splitter.hpp"
-#include "doctest.h"
 #include <algorithm>
+#include <cstring>
+#include <iostream>
+#include <ss/splitter.hpp>
+
+#ifdef CMAKE_GITHUB_CI
+#include <doctest/doctest.h>
+#else
+#include <doctest.h>
+#endif
 
 TEST_CASE("testing splitter with escaping") {
     std::vector<std::string> values{"10",   "he\\\"llo",
