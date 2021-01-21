@@ -25,7 +25,7 @@ TEST_CASE("testing split") {
     ss::converter c;
     for (const auto& [s, expected, delim] :
          // clang-format off
-                {std::tuple{"a,b,c,d", std::vector{"a", "b", "c", "d"}, ","},
+                {std::make_tuple{"a,b,c,d", std::vector{"a", "b", "c", "d"}, ","},
                 {"", {}, " "},
                 {" x x x x | x ", {" x x x x ", " x "}, "|"},
                 {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
