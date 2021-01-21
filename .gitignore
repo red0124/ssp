@@ -2,3 +2,5 @@ compile_commands.json
 .clang-format
 experiment/
 build/
+subprojects/*
+!subprojects/*.wrap

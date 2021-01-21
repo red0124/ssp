@@ -179,7 +179,7 @@ public:
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
             std::optional<Ret>>(get_next<Ts...>(), std::forward<Fun>(fun));
-    };
+    }
 
     // identical to try_next but returns composite with object instead of a
     // tuple
@@ -187,7 +187,7 @@ public:
     composite<std::optional<T>> try_object(Fun&& fun = none{}) {
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
-    };
+    }
 
 private:
     // tries to invoke the given function (see below), if the function

@@ -1,8 +1,11 @@
-#include <iostream>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "../include/ss/converter.hpp"
-#include "doctest.h"
 #include <algorithm>
+#include <ss/converter.hpp>
+
+#ifdef CMAKE_GITHUB_CI
+#include <doctest/doctest.h>
+#else
+#include <doctest.h>
+#endif
 
 class buffer {
     constexpr static auto buff_size = 1024;
@@ -83,17 +86,17 @@ TEST_CASE("testing valid conversions") {
     {
         auto tup = c.convert<int, double, void>(buff("5,6.6,junk"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{5, 6.6});
+        CHECK(tup == std::make_tuple(5, 6.6));
     }
     {
         auto tup = c.convert<int, void, double>(buff("5,junk,6.6"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{5, 6.6});
+        CHECK(tup == std::make_tuple(5, 6.6));
     }
     {
         auto tup = c.convert<void, int, double>(buff("junk;5;6.6"), ";");
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{5, 6.6});
+        CHECK(tup == std::make_tuple(5, 6.6));
     }
     {
         auto tup =
@@ -101,7 +104,7 @@ TEST_CASE("testing valid conversions") {
                                                         ";");
         REQUIRE(c.valid());
         REQUIRE(std::get<0>(tup).has_value());
-        CHECK(tup == std::tuple{5, 6.6});
+        CHECK(tup == std::make_tuple(5, 6.6));
     }
     {
         auto tup =
@@ -109,21 +112,21 @@ TEST_CASE("testing valid conversions") {
                                                         ";");
         REQUIRE(c.valid());
         REQUIRE(!std::get<0>(tup).has_value());
-        CHECK(tup == std::tuple{std::nullopt, 6.6});
+        CHECK(tup == std::make_tuple(std::optional<int>{}, 6.6));
     }
     {
         auto tup = c.convert<void, std::variant<int, double>,
                              double>(buff("junk;5;6.6"), ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<int>(std::get<0>(tup)));
-        CHECK(tup == std::tuple{std::variant<int, double>{5}, 6.6});
+        CHECK(tup == std::make_tuple(std::variant<int, double>{5}, 6.6));
     }
     {
         auto tup = c.convert<void, std::variant<int, double>,
                              double>(buff("junk;5.5;6.6"), ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
-        CHECK(tup == std::tuple{std::variant<int, double>{5.5}, 6.6});
+        CHECK(tup == std::make_tuple(std::variant<int, double>{5.5}, 6.6));
     }
 }
 
@@ -182,13 +185,13 @@ TEST_CASE("testing ss:ax restriction (all except)") {
         std::tuple<char, int> tup =
             c.convert<char, ss::ax<int, 1>>(buff("c,3"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{'c', 3});
+        CHECK(tup == std::make_tuple('c', 3));
     }
     {
         std::tuple<int, char> tup =
             c.convert<ss::ax<int, 1>, char>(buff("3,c"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{3, 'c'});
+        CHECK(tup == std::make_tuple(3, 'c'));
     }
 }
 
@@ -218,12 +221,12 @@ TEST_CASE("testing ss:nx restriction (none except)") {
         auto tup =
             c.convert<char, void, ss::nx<int, 0, 1, 2>>(buff("c,junk,1"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{'c', 1});
+        CHECK(tup == std::make_tuple('c', 1));
     }
     {
         auto tup = c.convert<ss::nx<int, 1>, char>(buff("1,c"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{1, 'c'});
+        CHECK(tup == std::make_tuple(1, 'c'));
     }
 }
 
@@ -252,12 +255,12 @@ TEST_CASE("testing ss:ir restriction (in range)") {
     {
         auto tup = c.convert<char, void, ss::ir<int, 0, 1>>(buff("c,junk,1"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{'c', 1});
+        CHECK(tup == std::make_tuple('c', 1));
     }
     {
         auto tup = c.convert<ss::ir<int, 1, 20>, char>(buff("1,c"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{1, 'c'});
+        CHECK(tup == std::make_tuple(1, 'c'));
     }
 }
 
@@ -285,13 +288,13 @@ TEST_CASE("testing ss:oor restriction (out of range)") {
     {
         auto tup = c.convert<char, void, ss::oor<int, 4, 69>>(buff("c,junk,3"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{'c', 3});
+        CHECK(tup == std::make_tuple('c', 3));
     }
 
     {
         auto tup = c.convert<ss::oor<int, 1, 2>, char>(buff("3,c"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{3, 'c'});
+        CHECK(tup == std::make_tuple(3, 'c'));
     }
 }
 
@@ -335,7 +338,7 @@ TEST_CASE("testing ss:ne restriction (not empty)") {
         auto tup =
             c.convert<std::optional<int>, ss::ne<std::string>>(buff("1,s"));
         REQUIRE(c.valid());
-        CHECK(tup == std::tuple{1, "s"});
+        CHECK(tup == std::make_tuple(1, "s"));
     }
     {
         auto tup = c.convert<ss::ne<std::vector<int>>>(buff("{1 2 3}"));
