@@ -1,8 +1,13 @@
 #include <algorithm>
-#include <doctest.h>
 #include <filesystem>
 #include <fstream>
 #include <ss/parser.hpp>
+
+#ifdef CMAKE_GITHUB_CI
+#include <doctest/doctest.h>
+#else
+#include <doctest.h>
+#endif
 
 struct unique_file_name {
     const std::string name;

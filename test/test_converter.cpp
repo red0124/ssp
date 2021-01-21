@@ -1,6 +1,11 @@
 #include <algorithm>
-#include <doctest.h>
 #include <ss/converter.hpp>
+
+#ifdef CMAKE_GITHUB_CI
+#include <doctest/doctest.h>
+#else
+#include <doctest.h>
+#endif
 
 TEST_CASE("testing split") {
     ss::converter c;
