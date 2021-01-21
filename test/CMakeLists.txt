@@ -22,7 +22,7 @@ endif()
 
 find_package(doctest 2.4.4 CONFIG REQUIRED)
 # for doctest_discover_tests
-include(doctest/doctest)
+include(doctest)
 
 # ---- Test ----
 
