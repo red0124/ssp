@@ -1,11 +1,6 @@
-#include <ss/extract.hpp>
+#include "test_helpers.hpp"
 #include <algorithm>
-
-#ifdef CMAKE_GITHUB_CI
-#include <doctest/doctest.h>
-#else
-#include <doctest.h>
-#endif
+#include <ss/extract.hpp>
 
 constexpr auto eps = 0.000001;
 using ld = long double;
