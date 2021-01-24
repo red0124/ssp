@@ -416,7 +416,7 @@ TEST_CASE("testing splitter escape and trim") {
 }
 
 TEST_CASE("testing splitter quote and escape and trim") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_combinations_size(4);
     case_type case1 = spaced({R"("\"")", R"(\")", R"("""")"}, " ");
     case_type case2 =
         spaced({R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"}, " ");
