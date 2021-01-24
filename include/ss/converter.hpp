@@ -103,9 +103,6 @@ struct tied_class {
 template <typename... Ts>
 constexpr bool tied_class_v = tied_class<Ts...>::value;
 
-// the error can be set inside a string, or a bool
-enum class error_mode { error_string, error_bool };
-
 ////////////////
 // converter
 ////////////////
@@ -128,6 +125,12 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         char* line, const std::string& delim = default_delimiter) {
         input_ = split(line, delim);
+        /* TODO
+        if (!splitter_.valid()) {
+            // set error
+            return {};
+        }
+        */
         return convert<Ts...>(input_);
     }
 
@@ -178,9 +181,13 @@ public:
                                                          : bool_error_ == false;
     }
 
-    const std::string& error_msg() const { return string_error_; }
+    const std::string& error_msg() const {
+        return string_error_;
+    }
 
-    void set_error_mode(error_mode mode) { error_mode_ = mode; }
+    void set_error_mode(error_mode mode) {
+        error_mode_ = mode;
+    }
 
     // 'splits' string by given delimiter, returns vector of pairs which
     // contain the beginnings and the ends of each column of the string

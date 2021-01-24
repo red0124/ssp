@@ -416,7 +416,7 @@ TEST_CASE("testing splitter escape and trim") {
 }
 
 TEST_CASE("testing splitter quote and escape and trim") {
-    auto guard = set_combinations_size(4);
+    auto guard = set_combinations_size(3);
     case_type case1 = spaced({R"("\"")", R"(\")", R"("""")"}, " ");
     case_type case2 =
         spaced({R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"}, " ");
@@ -465,5 +465,99 @@ TEST_CASE("testing splitter quote and escape and trim") {
                        {case14, "\\#"}};
         test_combinations<ss::quote<'"'>, ss::escape<'\\', '#'>,
                           ss::trim<' ', '\t'>>(p, {","});
+    }
+}
+
+TEST_CASE("testing splitter constnes if quoting and escaping are disabled") {
+    // to compile is enough
+    return;
+    const char* const line{};
+    ss::splitter s1;
+    ss::splitter<ss::trim<' '>> s2;
+    s1.split(line);
+    s2.split(line);
+}
+
+TEST_CASE("testing error mode") {
+
+    {
+        // empty delimiter
+        ss::splitter s;
+        s.split(buff("just,some,strings"), "");
+        CHECK(!s.valid());
+        CHECK(!s.unterminated_quote());
+        CHECK(s.error_msg().empty());
+
+        s.set_error_mode(ss::error_mode::error_string);
+        s.split(buff("just,some,strings"), "");
+        CHECK(!s.valid());
+        CHECK(!s.unterminated_quote());
+        CHECK(!s.error_msg().empty());
+    }
+
+    {
+        // unterminated quote
+        ss::splitter<ss::quote<'"'>> s;
+        s.split(buff("\"just"));
+        CHECK(!s.valid());
+        CHECK(s.unterminated_quote());
+        CHECK(s.error_msg().empty());
+
+        s.set_error_mode(ss::error_mode::error_string);
+        s.split(buff("\"just"));
+        CHECK(!s.valid());
+        CHECK(s.unterminated_quote());
+        CHECK(!s.error_msg().empty());
+    }
+}
+
+template <typename Splitter>
+auto expect_unterminated_quote(Splitter& s, const std::string& line) {
+    auto vec = s.split(buff(line.c_str()));
+    CHECK(!s.valid());
+    CHECK(s.unterminated_quote());
+    return vec;
+}
+
+TEST_CASE("testing unterminated quote") {
+    {
+        ss::splitter<ss::quote<'"'>> s;
+        auto vec = expect_unterminated_quote(s, "\"just");
+        CHECK(vec.size() == 1);
+
+        char new_line[] = R"("just",strings)";
+        vec = s.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK(!s.unterminated_quote());
+        std::vector<std::string> expected{"just", "strings"};
+        CHECK(words(vec) == expected);
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>> s;
+        auto vec = expect_unterminated_quote(s, "just,some,\"random");
+        std::vector<std::string> expected{"just", "some", "just,some,\""};
+        CHECK(words(vec) == expected);
+
+        char new_line[] = R"(just,some,"random",strings)";
+        vec = s.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK(!s.unterminated_quote());
+        expected = {"just", "some", "random", "strings"};
+        CHECK(words(vec) == expected);
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>> s;
+        auto vec = expect_unterminated_quote(s, R"("just","some","ran)");
+        std::vector<std::string> expected{"just", "some", R"("just","some",")"};
+        CHECK(words(vec) == expected);
+
+        char new_line[] = R"("just","some","ran,dom","strings")";
+        vec = s.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK(!s.unterminated_quote());
+        expected = {"just", "some", "ran,dom", "strings"};
+        CHECK(words(vec) == expected);
     }
 }
