@@ -135,11 +135,10 @@ public:
 
     split_input& resplit(line_ptr_type new_line, ssize_t new_size,
                          const std::string& delimiter = default_delimiter) {
-        clear_error();
         line_ = new_line;
 
         // resplitting, continue from last slice
-        if (!output_.empty()) {
+        if (!output_.empty() && unterminated_quote()) {
             const auto& last = std::prev(output_.end());
             const auto [old_line, old_begin] = *last;
             size_t begin = old_begin - old_line - 1;
@@ -152,7 +151,7 @@ public:
                 return output_;
             }
 
-            line_ += begin;
+            begin_ = line_ + begin;
         }
 
         return split_impl_select_delim(delimiter);
@@ -287,6 +286,7 @@ private:
 
     split_input& split_impl_select_delim(
         const std::string& delimiter = default_delimiter) {
+        clear_error();
         switch (delimiter.size()) {
         case 0:
             set_error_empty_delimiter();
@@ -301,7 +301,10 @@ private:
     template <typename Delim>
     split_input& split_impl(const Delim& delim) {
         state_ = state::begin;
-        begin_ = line_;
+
+        if (output_.empty()) {
+            begin_ = line_;
+        }
 
         trim_if_enabled(begin_);
 

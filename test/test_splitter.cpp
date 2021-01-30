@@ -525,7 +525,7 @@ TEST_CASE("testing unterminated quote") {
         auto vec = expect_unterminated_quote(s, "\"just");
         CHECK(vec.size() == 1);
 
-        char new_line[] = R"("just",strings)";
+        auto new_line = buff.append(R"(",strings)");
         vec = s.resplit(new_line, strlen(new_line));
         CHECK(s.valid());
         CHECK(!s.unterminated_quote());
@@ -539,7 +539,7 @@ TEST_CASE("testing unterminated quote") {
         std::vector<std::string> expected{"just", "some", "just,some,\""};
         CHECK(words(vec) == expected);
 
-        char new_line[] = R"(just,some,"random",strings)";
+        auto new_line = buff.append(R"(",strings)");
         vec = s.resplit(new_line, strlen(new_line));
         CHECK(s.valid());
         CHECK(!s.unterminated_quote());
@@ -549,15 +549,124 @@ TEST_CASE("testing unterminated quote") {
 
     {
         ss::splitter<ss::quote<'"'>> s;
+        auto vec = expect_unterminated_quote(s, R"("just","some","ran"")");
+        std::vector<std::string> expected{"just", "some", R"("just","some",")"};
+        CHECK(words(vec) == expected);
+
+        auto new_line = buff.append(R"(,dom","strings")");
+        vec = s.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK(!s.unterminated_quote());
+        expected = {"just", "some", "ran\",dom", "strings"};
+        CHECK(words(vec) == expected);
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>> s;
         auto vec = expect_unterminated_quote(s, R"("just","some","ran)");
         std::vector<std::string> expected{"just", "some", R"("just","some",")"};
         CHECK(words(vec) == expected);
 
-        char new_line[] = R"("just","some","ran,dom","strings")";
-        vec = s.resplit(new_line, strlen(new_line));
-        CHECK(s.valid());
-        CHECK(!s.unterminated_quote());
-        expected = {"just", "some", "ran,dom", "strings"};
-        CHECK(words(vec) == expected);
+        {
+            auto new_line = buff.append(R"(,dom)");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(!s.valid());
+            CHECK(s.unterminated_quote());
+            CHECK(words(vec) == expected);
+        }
+
+        {
+            auto new_line = buff.append(R"(",strings)");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"just", "some", "ran,dom", "strings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>, ss::escape<'\\'>> s;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra)");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            auto new_line = buff.append(R"(n,dom",str\"ings)");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"just\"some", "ran,dom", "str\"ings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>, ss::escape<'\\'>> s;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra"")");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            auto new_line = buff.append(R"(n,dom",str\"ings)");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"just\"some", "ra\"n,dom", "str\"ings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>, ss::escape<'\\'>> s;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra\")");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            auto new_line = buff.append(R"(n,dom",str\"ings)");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"just\"some", "ra\"n,dom", "str\"ings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>, ss::trim<' '>> s;
+        auto vec = expect_unterminated_quote(s, R"(  "just" ,some,  "ra )");
+        std::vector<std::string> expected{"just", "some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            auto new_line = buff.append(R"( n,dom"  , strings   )");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"just", "some", "ra  n,dom", "strings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+
+    {
+        ss::splitter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>> s;
+        auto vec = expect_unterminated_quote(s, R"(  "ju\"st" ,some,  "ra \")");
+        std::vector<std::string> expected{"ju\"st", "some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            auto new_line = buff.append(R"( n,dom"  , strings   )");
+            vec = s.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"ju\"st", "some", "ra \" n,dom", "strings"};
+            CHECK(words(vec) == expected);
+        }
     }
 }

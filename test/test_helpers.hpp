@@ -17,6 +17,11 @@ public:
         strcpy(data_, data);
         return data_;
     }
+
+    char* append(const char* data) {
+        strcat(data_, data);
+        return data_;
+    }
 };
 
 [[maybe_unused]] inline buffer buff;
