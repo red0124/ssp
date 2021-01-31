@@ -428,8 +428,8 @@ private:
 
     std::vector<string_range> output_;
     std::string string_error_;
-    bool bool_error_;
-    bool unterminated_quote_;
+    bool bool_error_{false};
+    bool unterminated_quote_{false};
     enum error_mode error_mode_ { error_mode::error_bool };
     line_ptr_type begin_;
     line_ptr_type curr_;

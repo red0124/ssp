@@ -9,9 +9,6 @@
 #include <string>
 #include <vector>
 
-// TODO remove
-#include <iostream>
-
 namespace ss {
 
 template <typename... Matchers>
@@ -262,7 +259,6 @@ private:
         bool crlf;
 
         bool escaped_eol(size_t size) {
-            // escaped new line
             if constexpr (setup<Matchers...>::escape::enabled) {
                 const char* curr;
                 for (curr = next_line_buffer_ + size - 1;
@@ -277,7 +273,6 @@ private:
         }
 
         bool unterminated_quote() {
-            // unterimated quote
             if constexpr (ss::setup<Matchers...>::quote::enabled) {
                 if (next_line_converter_.unterminated_quote()) {
                     return true;

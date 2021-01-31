@@ -127,12 +127,11 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         input_ = split(line, delim);
-        /* TODO
         if (!splitter_.valid()) {
-            // set error
-            return {};
+            set_error_line_not_split();
+            no_void_validator_tup_t<Ts...> ret{};
+            return ret;
         }
-        */
         return convert<Ts...>(input_);
     }
 
@@ -235,19 +234,10 @@ private:
         return error;
     }
 
-    void set_error_invalid_quotation() {
+    void set_error_line_not_split() {
         if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
-            string_error_.append("invalid quotation");
-        } else {
-            bool_error_ = true;
-        }
-    }
-
-    void set_error_unterminated_quote() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("unterminated quote");
+            string_error_.append("line not split correctly");
         } else {
             bool_error_ = true;
         }
@@ -293,9 +283,9 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_input& elems) {
         clear_error();
-        no_void_validator_tup_t<Ts...> ret{};
         if (sizeof...(Ts) != elems.size()) {
             set_error_number_of_colums(sizeof...(Ts), elems.size());
+            no_void_validator_tup_t<Ts...> ret{};
             return ret;
         }
         return extract_tuple<Ts...>(elems);
@@ -368,7 +358,7 @@ private:
     no_void_validator_tup_t<Ts...> extract_tuple(const split_input& elems) {
         static_assert(!all_of<std::is_void, Ts...>::value,
                       "at least one parameter must be non void");
-        no_void_validator_tup_t<Ts...> ret;
+        no_void_validator_tup_t<Ts...> ret{};
         extract_multiple<0, 0, Ts...>(ret, elems);
         return ret;
     }

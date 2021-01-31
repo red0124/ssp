@@ -541,9 +541,6 @@ TEST_CASE("testing csv on multiple lines with quotes") {
 
     while (!p.eof()) {
         auto a = p.get_next<int, double, std::string>();
-        auto [x, y, z] = a;
-        std::cout << "=====================" << std::endl;
-        std::cout << x << ' ' << y << ' ' << z << std::endl;
         i.emplace_back(ss::to_object<X>(a));
     }
 
@@ -575,9 +572,6 @@ TEST_CASE("testing csv on multiple lines with escapes") {
 
     while (!p.eof()) {
         auto a = p.get_next<int, double, std::string>();
-        auto [x, y, z] = a;
-        std::cout << "=====================" << std::endl;
-        std::cout << x << ' ' << y << ' ' << z << std::endl;
         i.emplace_back(ss::to_object<X>(a));
     }
 

@@ -4,8 +4,6 @@
 #include <iostream>
 #include <ss/splitter.hpp>
 
-// TODO make ss::quote accept only one argument
-
 namespace {
 constexpr static auto combinations_size_default = 4;
 size_t combinations_size = combinations_size_default;
