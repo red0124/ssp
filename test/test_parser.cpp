@@ -514,3 +514,72 @@ TEST_CASE("testing error mode") {
     CHECK(!p.valid());
     CHECK(!p.error_msg().empty());
 }
+
+std::string no_quote(const std::string& s) {
+    if (!s.empty() && s[0] == '"') {
+        return {std::next(begin(s)), std::prev(end(s))};
+    }
+    return s;
+}
+
+TEST_CASE("testing csv on multiple lines with quotes") {
+    unique_file_name f;
+    std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
+                           {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
+                           {9, 10, "v"},          {11, 12, "\"w\n\""}};
+    make_and_write(f.name, data);
+    for (auto& [_, __, s] : data) {
+        s = no_quote(s);
+        if (s[0] == 'u') {
+            s = "u\"";
+        }
+    }
+
+    ss::parser<ss::quote<'"'>> p{f.name, ","};
+    p.set_error_mode(ss::error_mode::error_string);
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        auto [x, y, z] = a;
+        std::cout << "=====================" << std::endl;
+        std::cout << x << ' ' << y << ' ' << z << std::endl;
+        i.emplace_back(ss::to_object<X>(a));
+    }
+
+    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+}
+
+std::string no_escape(std::string& s) {
+    s.erase(std::remove(begin(s), end(s), '\\'), end(s));
+    return s;
+}
+
+TEST_CASE("testing csv on multiple lines with escapes") {
+    unique_file_name f;
+    std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {3, 4, "y\\\ny\\\ny"},
+                           {5, 6, "z\\\nz"},      {7, 8, "u"},
+                           {9, 10, "v\\\\"},      {11, 12, "w\\\n"}};
+
+    make_and_write(f.name, data);
+    for (auto& [_, __, s] : data) {
+        s = no_escape(s);
+        if (s == "v") {
+            s = "v\\";
+        }
+    }
+
+    ss::parser<ss::escape<'\\'>> p{f.name, ","};
+    p.set_error_mode(ss::error_mode::error_string);
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        auto [x, y, z] = a;
+        std::cout << "=====================" << std::endl;
+        std::cout << x << ' ' << y << ' ' << z << std::endl;
+        i.emplace_back(ss::to_object<X>(a));
+    }
+
+    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+}

@@ -46,8 +46,7 @@ TEST_CASE("testing valid conversions") {
         CHECK(tup == 5);
     }
     {
-        // TODO make \t -> ' '
-        auto tup = c.convert<void, int, void>(buff("junk\t5\tjunk"), "\t");
+        auto tup = c.convert<void, int, void>(buff("junk 5 junk"), " ");
         REQUIRE(c.valid());
         CHECK(tup == 5);
     }
@@ -397,4 +396,51 @@ TEST_CASE("testing error mode") {
     c.convert<int>(buff("junk"));
     CHECK(!c.valid());
     CHECK(!c.error_msg().empty());
+}
+
+TEST_CASE("testing converter with quotes spacing and escaping") {
+    {
+        ss::converter c;
+
+        auto tup = c.convert<std::string, std::string, std::string>(
+            R"("just","some","strings")");
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("\"just\"", "\"some\"", "\"strings\""));
+    }
+
+    {
+        ss::converter<ss::quote<'"'>> c;
+
+        auto tup = c.convert<std::string, std::string, double, char>(
+            buff(R"("just",some,"12.3","a")"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("just", "some", 12.3, 'a'));
+    }
+
+    {
+        ss::converter<ss::trim<' '>> c;
+
+        auto tup = c.convert<std::string, std::string, double, char>(
+            R"(    just  ,  some   ,  12.3 ,a     )");
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("just", "some", 12.3, 'a'));
+    }
+
+    {
+        ss::converter<ss::escape<'\\'>> c;
+
+        auto tup =
+            c.convert<std::string, std::string>(buff(R"(ju\,st,strings)"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("ju,st", "strings"));
+    }
+
+    {
+        ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
+
+        auto tup = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings")"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("ju,st", "so,me", 12.34, "str\"ings"));
+    }
 }

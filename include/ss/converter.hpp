@@ -110,12 +110,14 @@ constexpr bool tied_class_v = tied_class<Ts...>::value;
 template <typename... Matchers>
 class converter {
     constexpr static auto default_delimiter = ",";
+    using line_ptr_type = typename splitter<Matchers...>::line_ptr_type;
 
 public:
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(char* line, const std::string& delim = default_delimiter) {
+    T convert_object(line_ptr_type line,
+                     const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
@@ -123,7 +125,7 @@ public:
     // extracted values of type 'Ts'
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert(
-        char* line, const std::string& delim = default_delimiter) {
+        line_ptr_type line, const std::string& delim = default_delimiter) {
         input_ = split(line, delim);
         /* TODO
         if (!splitter_.valid()) {
@@ -181,6 +183,10 @@ public:
                                                          : bool_error_ == false;
     }
 
+    bool unterminated_quote() const {
+        return splitter_.unterminated_quote();
+    }
+
     const std::string& error_msg() const {
         return string_error_;
     }
@@ -191,7 +197,7 @@ public:
 
     // 'splits' string by given delimiter, returns vector of pairs which
     // contain the beginnings and the ends of each column of the string
-    const split_input& split(char* line,
+    const split_input& split(line_ptr_type line,
                              const std::string& delim = default_delimiter) {
         input_.clear();
         if (line[0] == '\0') {
@@ -199,6 +205,12 @@ public:
         }
 
         input_ = splitter_.split(line, delim);
+        return input_;
+    }
+
+    const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
+                               const std::string& delim = default_delimiter) {
+        input_ = splitter_.resplit(new_line, new_size, delim);
         return input_;
     }
 

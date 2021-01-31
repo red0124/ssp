@@ -5,9 +5,6 @@
 #include <string>
 #include <vector>
 
-// TODO remove
-#include <iostream>
-
 namespace ss {
 template <char... Cs>
 struct matcher {
@@ -99,16 +96,17 @@ private:
     using escape = typename setup<Ts...>::escape;
 
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
+
+public:
     using line_ptr_type =
         typename ternary<is_const_line, const char*, char*>::type;
 
-public:
     bool valid() const {
         return (error_mode_ == error_mode::error_string) ? string_error_.empty()
                                                          : bool_error_ == false;
     }
 
-    bool unterminated_quote() {
+    bool unterminated_quote() const {
         return unterminated_quote_;
     }
 
@@ -120,7 +118,7 @@ public:
         error_mode_ = mode;
     }
 
-    split_input& split(line_ptr_type new_line,
+    const split_input& split(line_ptr_type new_line,
                        const std::string& delimiter = default_delimiter) {
         output_.clear();
         return resplit(new_line, -1, delimiter);
@@ -133,7 +131,7 @@ public:
         }
     }
 
-    split_input& resplit(line_ptr_type new_line, ssize_t new_size,
+    const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
                          const std::string& delimiter = default_delimiter) {
         line_ = new_line;
 
