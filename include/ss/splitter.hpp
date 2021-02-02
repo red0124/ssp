@@ -1,4 +1,5 @@
 #pragma once
+#include "setup.hpp"
 #include "type_traits.hpp"
 #include <cstdlib>
 #include <cstring>
@@ -6,78 +7,6 @@
 #include <vector>
 
 namespace ss {
-template <char... Cs>
-struct matcher {
-private:
-    template <char X, char... Xs>
-    static bool match_impl(char c) {
-        if constexpr (sizeof...(Xs) != 0) {
-            return (c == X) || match_impl<Xs...>(c);
-        }
-        return (c == X);
-    }
-
-public:
-    static bool match(char c) {
-        return match_impl<Cs...>(c);
-    }
-    constexpr static bool enabled = true;
-};
-
-template <>
-class matcher<'\0'> {
-public:
-    constexpr static bool enabled = false;
-    static bool match(char c) = delete;
-};
-
-template <char C>
-struct quote : matcher<C> {};
-
-template <char... Cs>
-struct trim : matcher<Cs...> {};
-
-template <char... Cs>
-struct escape : matcher<Cs...> {};
-
-template <typename T, template <char...> class Template>
-struct is_instance_of_matcher {
-    constexpr static bool value = false;
-};
-
-template <char... Ts, template <char...> class Template>
-struct is_instance_of_matcher<Template<Ts...>, Template> {
-    constexpr static bool value = true;
-};
-
-template <template <char...> class Matcher, typename... Ts>
-struct get_matcher;
-
-template <template <char...> class Matcher, typename T, typename... Ts>
-struct get_matcher<Matcher, T, Ts...> {
-    using type =
-        typename ternary<is_instance_of_matcher<T, Matcher>::value, T,
-                         typename get_matcher<Matcher, Ts...>::type>::type;
-};
-
-template <template <char...> class Matcher>
-struct get_matcher<Matcher> {
-    using type = Matcher<'\0'>;
-};
-
-template <template <char...> class Matcher, typename... Ts>
-using get_matcher_t = typename get_matcher<Matcher, Ts...>::type;
-
-// TODO add static asserts
-template <typename... Ts>
-struct setup {
-    using quote = get_matcher_t<quote, Ts...>;
-    using trim = get_matcher_t<trim, Ts...>;
-    using escape = get_matcher_t<escape, Ts...>;
-};
-
-template <typename... Ts>
-struct setup<setup<Ts...>> : setup<Ts...> {};
 
 using string_range = std::pair<const char*, const char*>;
 using split_input = std::vector<string_range>;
