@@ -127,11 +127,6 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         input_ = split(line, delim);
-        if (!splitter_.valid()) {
-            set_error_line_not_split();
-            no_void_validator_tup_t<Ts...> ret{};
-            return ret;
-        }
         return convert<Ts...>(input_);
     }
 
@@ -191,6 +186,7 @@ public:
     }
 
     void set_error_mode(error_mode mode) {
+        splitter_.set_error_mode(mode);
         error_mode_ = mode;
     }
 
@@ -234,10 +230,10 @@ private:
         return error;
     }
 
-    void set_error_line_not_split() {
+    void set_error_unterminated_quote() {
         if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
-            string_error_.append("line not split correctly");
+            string_error_.append(splitter_.error_msg());
         } else {
             bool_error_ = true;
         }
@@ -283,11 +279,19 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_input& elems) {
         clear_error();
+
+        if (!splitter_.valid()) {
+            set_error_unterminated_quote();
+            no_void_validator_tup_t<Ts...> ret{};
+            return ret;
+        }
+
         if (sizeof...(Ts) != elems.size()) {
             set_error_number_of_colums(sizeof...(Ts), elems.size());
             no_void_validator_tup_t<Ts...> ret{};
             return ret;
         }
+
         return extract_tuple<Ts...>(elems);
     }
 

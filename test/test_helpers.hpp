@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdlib>
 #include <cstring>
 
 #ifdef CMAKE_GITHUB_CI
@@ -8,19 +9,35 @@
 #endif
 
 class buffer {
-    constexpr static auto buff_size = 1024;
-    char data_[buff_size];
+    char* data_{nullptr};
 
 public:
     char* operator()(const char* data) {
-        memset(data_, '\0', buff_size);
+        if (data_) {
+            delete[] data_;
+        }
+        data_ = new char[strlen(data) + 1];
         strcpy(data_, data);
         return data_;
     }
 
     char* append(const char* data) {
-        strcat(data_, data);
-        return data_;
+        if (data_) {
+            char* new_data_ = new char[strlen(data_) + strlen(data) + 1];
+            strcpy(new_data_, data_);
+            strcat(new_data_, data);
+            delete[] data_;
+            data_ = new_data_;
+            return data_;
+        } else {
+            return operator()(data);
+        }
+    }
+
+    ~buffer() {
+        if (data_) {
+            delete[] data_;
+        }
     }
 };
 

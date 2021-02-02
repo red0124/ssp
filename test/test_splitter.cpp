@@ -668,3 +668,28 @@ TEST_CASE("testing unterminated quote") {
         }
     }
 }
+
+TEST_CASE("testing invalid splits") {
+    ss::splitter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>> s;
+
+    // empty delimiter
+    s.split(buff("some,random,strings"), "");
+    CHECK(!s.valid());
+    CHECK(!s.unterminated_quote());
+
+    // mismatched delimiter
+    s.split(buff(R"(some,"random,"strings")"));
+    CHECK(!s.valid());
+    CHECK(!s.unterminated_quote());
+
+    // unterminated quote
+    s.split(buff("some,random,\"strings"));
+    CHECK(!s.valid());
+    CHECK(s.unterminated_quote());
+
+    // invalid resplit
+    char new_line[] = "some";
+    auto a = s.resplit(new_line, strlen(new_line));
+    CHECK(!s.valid());
+    CHECK(!s.unterminated_quote());
+}

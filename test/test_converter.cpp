@@ -115,6 +115,9 @@ TEST_CASE("testing invalid conversions") {
     c.convert<int>("");
     REQUIRE(!c.valid());
 
+    c.convert<int>("10", "");
+    REQUIRE(!c.valid());
+
     c.convert<int, void>("");
     REQUIRE(!c.valid());
 
@@ -436,5 +439,26 @@ TEST_CASE("testing converter with quotes spacing and escaping") {
             buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings")"));
         REQUIRE(c.valid());
         CHECK(tup == std::make_tuple("ju,st", "so,me", 12.34, "str\"ings"));
+    }
+}
+
+TEST_CASE("testing invalid split conversions") {
+    ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
+    c.set_error_mode(ss::error_mode::error_string);
+
+    {
+        // mismatched quote
+        auto tup = c.convert<std::string, std::string, double, char>(
+            buff(R"(  "just  , some ,   "12.3","a"  )"));
+        CHECK(!c.valid());
+        CHECK(!c.unterminated_quote());
+    }
+
+    {
+        // unterminated quote
+        auto tup = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)"));
+        CHECK(!c.valid());
+        CHECK(c.unterminated_quote());
     }
 }

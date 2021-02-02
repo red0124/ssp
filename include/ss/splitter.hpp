@@ -119,7 +119,7 @@ public:
     }
 
     const split_input& split(line_ptr_type new_line,
-                       const std::string& delimiter = default_delimiter) {
+                             const std::string& delimiter = default_delimiter) {
         output_.clear();
         return resplit(new_line, -1, delimiter);
     }
@@ -131,8 +131,9 @@ public:
         }
     }
 
-    const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
-                         const std::string& delimiter = default_delimiter) {
+    const split_input& resplit(
+        line_ptr_type new_line, ssize_t new_size,
+        const std::string& delimiter = default_delimiter) {
         line_ = new_line;
 
         // resplitting, continue from last slice
@@ -175,6 +176,16 @@ private:
         }
     }
 
+    void set_error_mismatched_quote(size_t n) {
+        if (error_mode_ == error_mode::error_string) {
+            string_error_.clear();
+            string_error_.append("mismatched quote at position: " +
+                                 std::to_string(n));
+        } else {
+            bool_error_ = true;
+        }
+    }
+
     void set_error_unterminated_quote() {
         unterminated_quote_ = true;
         if (error_mode_ == error_mode::error_string) {
@@ -186,9 +197,11 @@ private:
     }
 
     void set_error_invalid_resplit() {
+        unterminated_quote_ = false;
         if (error_mode_ == error_mode::error_string) {
             string_error_.clear();
-            string_error_.append("invalid_resplit");
+            string_error_.append("invalid resplit, new line must be longer"
+                                 "than the end of the last slice");
         } else {
             bool_error_ = true;
         }
@@ -388,9 +401,10 @@ private:
                             // eg no trim: ...,"hello"\0 -> hello
                             output_.emplace_back(begin_, curr_);
                         } else {
-                            // missmatched quote
+                            // mismatched quote
                             // eg: ...,"hel"lo,... -> error
-                            // or not
+                            set_error_mismatched_quote(end_ - line_);
+                            output_.emplace_back(line_, begin_);
                         }
                         state_ = state::finished;
                         break;

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+// TODO rule of 5-3-1
+// TODO threads
 namespace ss {
 
 template <typename... Matchers>
