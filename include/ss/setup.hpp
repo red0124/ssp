@@ -98,7 +98,7 @@ struct setup {
     using trim = get_matcher_t<trim, Ts...>;
     using escape = get_matcher_t<escape, Ts...>;
 
-#define ASSERT_MSG "cannot have the same character in multiple matchers"
+#define ASSERT_MSG "cannot have the same match character in multiple matchers"
     static_assert(!matches_intersect<quote, trim>(), ASSERT_MSG);
     static_assert(!matches_intersect<trim, escape>(), ASSERT_MSG);
     static_assert(!matches_intersect<escape, quote>(), ASSERT_MSG);

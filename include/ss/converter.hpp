@@ -126,8 +126,8 @@ public:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
-        input_ = split(line, delim);
-        return convert<Ts...>(input_);
+        split(line, delim);
+        return convert<Ts...>(splitter_.input_);
     }
 
     // parses already split line, returns 'T' object with extracted values
@@ -169,7 +169,7 @@ public:
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(input_);
+        return convert<T, Ts...>(splitter_.input_);
     }
 
     bool valid() const {
@@ -194,19 +194,17 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_input& split(line_ptr_type line,
                              const std::string& delim = default_delimiter) {
-        input_.clear();
+        splitter_.input_.clear();
         if (line[0] == '\0') {
-            return input_;
+            return splitter_.input_;
         }
 
-        input_ = splitter_.split(line, delim);
-        return input_;
+        return splitter_.split(line, delim);
     }
 
     const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
                                const std::string& delim = default_delimiter) {
-        input_ = splitter_.resplit(new_line, new_size, delim);
-        return input_;
+        return splitter_.resplit(new_line, new_size, delim);
     }
 
 private:
@@ -371,7 +369,6 @@ private:
     // members
     ////////////////
 
-    std::vector<string_range> input_;
     std::string string_error_;
     bool bool_error_;
     enum error_mode error_mode_ { error_mode::error_bool };

@@ -3,6 +3,7 @@
 #include "type_traits.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,6 @@ enum class error_mode { error_string, error_bool };
 template <typename... Ts>
 class splitter {
 private:
-    enum class state { begin, reading, quoting, finished };
     constexpr static auto default_delimiter = ",";
 
     using quote = typename setup<Ts...>::quote;
@@ -49,12 +49,12 @@ public:
 
     const split_input& split(line_ptr_type new_line,
                              const std::string& delimiter = default_delimiter) {
-        output_.clear();
+        input_.clear();
         return resplit(new_line, -1, delimiter);
     }
 
     void adjust_ranges(const char* old_line) {
-        for (auto& [begin, end] : output_) {
+        for (auto& [begin, end] : input_) {
             begin = begin - old_line + line_;
             end = end - old_line + line_;
         }
@@ -66,17 +66,17 @@ public:
         line_ = new_line;
 
         // resplitting, continue from last slice
-        if (!output_.empty() && unterminated_quote()) {
-            const auto& last = std::prev(output_.end());
+        if (!input_.empty() && unterminated_quote()) {
+            const auto& last = std::prev(input_.end());
             const auto [old_line, old_begin] = *last;
             size_t begin = old_begin - old_line - 1;
-            output_.pop_back();
+            input_.pop_back();
             adjust_ranges(old_line);
 
             // safety measure
             if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
                 set_error_invalid_resplit();
-                return output_;
+                return input_;
             }
 
             begin_ = line_ + begin;
@@ -205,32 +205,31 @@ private:
     void shift() {
         if constexpr (!is_const_line) {
             *curr_ = *end_;
+            ++curr_;
         }
         ++end_;
-        ++curr_;
     }
 
     void shift(size_t n) {
         if constexpr (!is_const_line) {
             memcpy(curr_, end_, n);
+            curr_ += n;
         }
         end_ += n;
-        curr_ += n;
     }
 
     void push_and_start_next(size_t n) {
-        output_.emplace_back(begin_, curr_);
+        push_range();
         begin_ = end_ + n;
-        state_ = state::begin;
     }
 
-    split_input& split_impl_select_delim(
+    const split_input& split_impl_select_delim(
         const std::string& delimiter = default_delimiter) {
         clear_error();
         switch (delimiter.size()) {
         case 0:
             set_error_empty_delimiter();
-            return output_;
+            return input_;
         case 1:
             return split_impl(delimiter[0]);
         default:
@@ -239,48 +238,43 @@ private:
     }
 
     template <typename Delim>
-    split_input& split_impl(const Delim& delim) {
-        state_ = state::begin;
+    const split_input& split_impl(const Delim& delim) {
 
-        if (output_.empty()) {
+        if (input_.empty()) {
             begin_ = line_;
         }
 
         trim_if_enabled(begin_);
 
-        while (state_ != state::finished) {
-            curr_ = end_ = begin_;
-            switch (state_) {
-            case (state::begin):
-                state_begin();
-                break;
-            case (state::reading):
-                state_reading(delim);
-                break;
-            case (state::quoting):
-                state_quoting(delim);
-                break;
-            default:
-                break;
-            };
-        }
+        for (done_ = false; !done_; state_begin(delim))
+            ;
 
-        return output_;
+        return input_;
     }
 
     ////////////////
     // states
     ////////////////
 
-    void state_begin() {
+    void push_range() {
+        if constexpr (is_const_line) {
+            input_.emplace_back(begin_, end_);
+        } else {
+            input_.emplace_back(begin_, curr_);
+        }
+    }
+
+    template <typename Delim>
+    void state_begin(const Delim& delim) {
         if constexpr (quote::enabled) {
             if (quote::match(*begin_)) {
-                ++begin_;
-                state_ = state::quoting;
+                curr_ = end_ = ++begin_;
+                state_quoting(delim);
                 return;
             }
         }
-        state_ = state::reading;
+        curr_ = end_ = begin_;
+        state_reading(delim);
     }
 
     template <typename Delim>
@@ -288,22 +282,22 @@ private:
         while (true) {
             auto [width, valid] = match_delimiter(end_, delim);
 
-            // not a delimiter
             if (!valid) {
+                // not a delimiter
                 if (width == 0) {
                     // eol
-                    output_.emplace_back(begin_, curr_);
-                    state_ = state::finished;
+                    push_range();
+                    done_ = true;
                     break;
                 } else {
                     shift(width);
                     continue;
                 }
+            } else {
+                // found delimiter
+                push_and_start_next(width);
+                break;
             }
-
-            // found delimiter
-            push_and_start_next(width);
-            break;
         }
     }
 
@@ -311,56 +305,57 @@ private:
     void state_quoting(const Delim& delim) {
         if constexpr (quote::enabled) {
             while (true) {
-                if (quote::match(*end_)) {
-                    // double quote
-                    // eg: ...,"hel""lo,... -> hel"lo
-                    if (quote::match(end_[1])) {
-                        ++end_;
-                        shift();
-                        continue;
+                if (!quote::match(*end_)) {
+                    if constexpr (escape::enabled) {
+                        if (escape::match(*end_)) {
+                            ++end_;
+                            shift();
+                            continue;
+                        }
                     }
 
-                    auto [width, valid] = match_delimiter(end_ + 1, delim);
-
-                    // not a delimiter
-                    if (!valid) {
-                        if (width == 0) {
-                            // eol
-                            // eg: ...,"hello"   \0 -> hello
-                            // eg no trim: ...,"hello"\0 -> hello
-                            output_.emplace_back(begin_, curr_);
-                        } else {
-                            // mismatched quote
-                            // eg: ...,"hel"lo,... -> error
-                            set_error_mismatched_quote(end_ - line_);
-                            output_.emplace_back(line_, begin_);
-                        }
-                        state_ = state::finished;
+                    // unterminated quote error
+                    // eg: ..."hell\0 -> quote not terminated
+                    if (*end_ == '\0') {
+                        set_error_unterminated_quote();
+                        input_.emplace_back(line_, begin_);
+                        done_ = true;
                         break;
                     }
+                    shift();
+                    continue;
+                }
 
-                    // delimiter
+                auto [width, valid] = match_delimiter(end_ + 1, delim);
+
+                // delimiter
+                if (valid) {
                     push_and_start_next(width + 1);
                     break;
                 }
 
-                if constexpr (escape::enabled) {
-                    if (escape::match(*end_)) {
-                        ++end_;
-                        shift();
-                        continue;
-                    }
+                // double quote
+                // eg: ...,"hel""lo",... -> hel"lo
+                if (quote::match(end_[1])) {
+                    ++end_;
+                    shift();
+                    continue;
                 }
 
-                // unterminated error
-                // eg: ..."hell\0 -> quote not terminated
-                if (*end_ == '\0') {
-                    set_error_unterminated_quote();
-                    output_.emplace_back(line_, begin_);
-                    state_ = state::finished;
-                    break;
+                // not a delimiter
+                if (width == 0) {
+                    // eol
+                    // eg: ...,"hello"   \0 -> hello
+                    // eg no trim: ...,"hello"\0 -> hello
+                    push_range();
+                } else {
+                    // mismatched quote
+                    // eg: ...,"hel"lo,... -> error
+                    set_error_mismatched_quote(end_ - line_);
+                    input_.emplace_back(line_, begin_);
                 }
-                shift();
+                done_ = true;
+                break;
             }
         }
     }
@@ -369,7 +364,6 @@ private:
     // members
     ////////////////
 
-    std::vector<string_range> output_;
     std::string string_error_;
     bool bool_error_{false};
     bool unterminated_quote_{false};
@@ -378,7 +372,10 @@ private:
     line_ptr_type curr_;
     line_ptr_type end_;
     line_ptr_type line_;
-    state state_;
+    bool done_;
+
+public:
+    split_input input_;
 };
 
 } /* ss */
