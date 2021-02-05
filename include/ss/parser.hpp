@@ -285,10 +285,10 @@ private:
 
         void undo_remove_eol(size_t& string_end) {
             if (crlf) {
-                memcpy(next_line_buffer_ + string_end, "\r\n\0", 3);
+                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
                 string_end += 2;
             } else {
-                memcpy(next_line_buffer_ + string_end, "\n\0", 2);
+                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
                 string_end += 1;
             }
         }
@@ -311,7 +311,7 @@ private:
             first = static_cast<char*>(realloc(static_cast<void*>(first),
                                                first_size + second_size + 2));
 
-            memcpy(first + first_size, second, second_size + 1);
+            std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }
 

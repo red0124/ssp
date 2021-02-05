@@ -1,6 +1,7 @@
 #pragma once
 #include "setup.hpp"
 #include "type_traits.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -167,8 +168,7 @@ private:
     void shift_if_escaped(line_ptr_type& curr) {
         if constexpr (escape::enabled) {
             if (escape::match(*curr)) {
-                *curr_ = end_[1];
-                ++end_;
+                shift_and_jump_escape();
             }
         }
     }
@@ -199,29 +199,37 @@ private:
     }
 
     ////////////////
-    // matching
+    // shifting
     ////////////////
 
-    void shift() {
-        if constexpr (!is_const_line) {
-            *curr_ = *end_;
-            ++curr_;
+    void shift_and_set_current() {
+        if (escaped_ > 0) {
+            if constexpr (!is_const_line) {
+                std::copy_n(curr_ + escaped_, end_ - curr_, curr_);
+            }
         }
+        curr_ = end_ - escaped_;
+    }
+
+    void shift_and_push() {
+        shift_and_set_current();
+        input_.emplace_back(begin_, curr_);
+    }
+
+    void shift_and_jump_escape() {
+        shift_and_set_current();
         ++end_;
+        ++escaped_;
     }
 
-    void shift(size_t n) {
-        if constexpr (!is_const_line) {
-            memcpy(curr_, end_, n);
-            curr_ += n;
-        }
-        end_ += n;
-    }
-
-    void push_and_start_next(size_t n) {
-        push_range();
+    void shift_push_and_start_next(size_t n) {
+        shift_and_push();
         begin_ = end_ + n;
     }
+
+    ////////////////
+    // split impl
+    ////////////////
 
     const split_input& split_impl_select_delim(
         const std::string& delimiter = default_delimiter) {
@@ -246,39 +254,32 @@ private:
 
         trim_if_enabled(begin_);
 
-        for (done_ = false; !done_; state_begin(delim))
+        for (done_ = false; !done_; read(delim))
             ;
 
         return input_;
     }
 
     ////////////////
-    // states
+    // reading
     ////////////////
 
-    void push_range() {
-        if constexpr (is_const_line) {
-            input_.emplace_back(begin_, end_);
-        } else {
-            input_.emplace_back(begin_, curr_);
-        }
-    }
-
     template <typename Delim>
-    void state_begin(const Delim& delim) {
+    void read(const Delim& delim) {
+        escaped_ = 0;
         if constexpr (quote::enabled) {
             if (quote::match(*begin_)) {
                 curr_ = end_ = ++begin_;
-                state_quoting(delim);
+                read_quoted(delim);
                 return;
             }
         }
         curr_ = end_ = begin_;
-        state_reading(delim);
+        read_normal(delim);
     }
 
     template <typename Delim>
-    void state_reading(const Delim& delim) {
+    void read_normal(const Delim& delim) {
         while (true) {
             auto [width, valid] = match_delimiter(end_, delim);
 
@@ -286,30 +287,30 @@ private:
                 // not a delimiter
                 if (width == 0) {
                     // eol
-                    push_range();
+                    shift_and_push();
                     done_ = true;
                     break;
                 } else {
-                    shift(width);
+                    end_ += width;
                     continue;
                 }
             } else {
                 // found delimiter
-                push_and_start_next(width);
+                shift_push_and_start_next(width);
                 break;
             }
         }
     }
 
     template <typename Delim>
-    void state_quoting(const Delim& delim) {
+    void read_quoted(const Delim& delim) {
         if constexpr (quote::enabled) {
             while (true) {
                 if (!quote::match(*end_)) {
                     if constexpr (escape::enabled) {
                         if (escape::match(*end_)) {
+                            shift_and_jump_escape();
                             ++end_;
-                            shift();
                             continue;
                         }
                     }
@@ -322,7 +323,7 @@ private:
                         done_ = true;
                         break;
                     }
-                    shift();
+                    ++end_;
                     continue;
                 }
 
@@ -330,15 +331,15 @@ private:
 
                 // delimiter
                 if (valid) {
-                    push_and_start_next(width + 1);
+                    shift_push_and_start_next(width + 1);
                     break;
                 }
 
                 // double quote
                 // eg: ...,"hel""lo",... -> hel"lo
                 if (quote::match(end_[1])) {
+                    shift_and_jump_escape();
                     ++end_;
-                    shift();
                     continue;
                 }
 
@@ -347,7 +348,7 @@ private:
                     // eol
                     // eg: ...,"hello"   \0 -> hello
                     // eg no trim: ...,"hello"\0 -> hello
-                    push_range();
+                    shift_and_push();
                 } else {
                     // mismatched quote
                     // eg: ...,"hel"lo,... -> error
@@ -373,6 +374,7 @@ private:
     line_ptr_type end_;
     line_ptr_type line_;
     bool done_;
+    size_t escaped_{0};
 
 public:
     split_input input_;
