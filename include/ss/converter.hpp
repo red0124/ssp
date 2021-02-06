@@ -127,7 +127,7 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
-        return convert<Ts...>(splitter_.input_);
+        return convert<Ts...>(splitter_.split_input_);
     }
 
     // parses already split line, returns 'T' object with extracted values
@@ -169,7 +169,7 @@ public:
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.input_);
+        return convert<T, Ts...>(splitter_.split_input_);
     }
 
     bool valid() const {
@@ -194,20 +194,25 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_input& split(line_ptr_type line,
                              const std::string& delim = default_delimiter) {
-        splitter_.input_.clear();
+        splitter_.split_input_.clear();
         if (line[0] == '\0') {
-            return splitter_.input_;
+            return splitter_.split_input_;
         }
 
         return splitter_.split(line, delim);
     }
+
+private:
+
+    ////////////////
+    // resplit
+    ////////////////
 
     const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
                                const std::string& delim = default_delimiter) {
         return splitter_.resplit(new_line, new_size, delim);
     }
 
-private:
     ////////////////
     // error
     ////////////////
@@ -373,6 +378,9 @@ private:
     bool bool_error_;
     enum error_mode error_mode_ { error_mode::error_bool };
     splitter<Matchers...> splitter_;
+
+    template <typename ...>
+    friend class parser;
 };
 
 } /* ss */

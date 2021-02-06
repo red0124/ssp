@@ -50,16 +50,21 @@ public:
 
     const split_input& split(line_ptr_type new_line,
                              const std::string& delimiter = default_delimiter) {
-        input_.clear();
+        split_input_.clear();
         return resplit(new_line, -1, delimiter);
     }
 
     void adjust_ranges(const char* old_line) {
-        for (auto& [begin, end] : input_) {
+        for (auto& [begin, end] : split_input_) {
             begin = begin - old_line + line_;
             end = end - old_line + line_;
         }
     }
+
+private:
+    ////////////////
+    // resplit
+    ////////////////
 
     const split_input& resplit(
         line_ptr_type new_line, ssize_t new_size,
@@ -67,17 +72,17 @@ public:
         line_ = new_line;
 
         // resplitting, continue from last slice
-        if (!input_.empty() && unterminated_quote()) {
-            const auto& last = std::prev(input_.end());
+        if (!split_input_.empty() && unterminated_quote()) {
+            const auto& last = std::prev(split_input_.end());
             const auto [old_line, old_begin] = *last;
             size_t begin = old_begin - old_line - 1;
-            input_.pop_back();
+            split_input_.pop_back();
             adjust_ranges(old_line);
 
             // safety measure
             if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
                 set_error_invalid_resplit();
-                return input_;
+                return split_input_;
             }
 
             begin_ = line_ + begin;
@@ -86,7 +91,6 @@ public:
         return split_impl_select_delim(delimiter);
     }
 
-private:
     ////////////////
     // error
     ////////////////
@@ -213,7 +217,7 @@ private:
 
     void shift_and_push() {
         shift_and_set_current();
-        input_.emplace_back(begin_, curr_);
+        split_input_.emplace_back(begin_, curr_);
     }
 
     void shift_and_jump_escape() {
@@ -237,7 +241,7 @@ private:
         switch (delimiter.size()) {
         case 0:
             set_error_empty_delimiter();
-            return input_;
+            return split_input_;
         case 1:
             return split_impl(delimiter[0]);
         default:
@@ -248,7 +252,7 @@ private:
     template <typename Delim>
     const split_input& split_impl(const Delim& delim) {
 
-        if (input_.empty()) {
+        if (split_input_.empty()) {
             begin_ = line_;
         }
 
@@ -257,7 +261,7 @@ private:
         for (done_ = false; !done_; read(delim))
             ;
 
-        return input_;
+        return split_input_;
     }
 
     ////////////////
@@ -319,7 +323,7 @@ private:
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
                         set_error_unterminated_quote();
-                        input_.emplace_back(line_, begin_);
+                        split_input_.emplace_back(line_, begin_);
                         done_ = true;
                         break;
                     }
@@ -353,7 +357,7 @@ private:
                     // mismatched quote
                     // eg: ...,"hel"lo,... -> error
                     set_error_mismatched_quote(end_ - line_);
-                    input_.emplace_back(line_, begin_);
+                    split_input_.emplace_back(line_, begin_);
                 }
                 done_ = true;
                 break;
@@ -375,9 +379,10 @@ private:
     line_ptr_type line_;
     bool done_;
     size_t escaped_{0};
+    split_input split_input_;
 
-public:
-    split_input input_;
+    template <typename ...>
+    friend class converter;
 };
 
 } /* ss */
