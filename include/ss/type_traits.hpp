@@ -315,6 +315,23 @@ struct is_instance_of<Template<Ts...>, Template> {
 };
 
 ////////////////
+// ternary
+////////////////
+
+template <bool B, typename T, typename U>
+struct ternary;
+
+template <typename T, typename U>
+struct ternary<true, T, U> {
+    using type = T;
+};
+
+template <typename T, typename U>
+struct ternary<false, T, U> {
+    using type = U;
+};
+
+////////////////
 // tuple to struct
 ////////////////
 
@@ -323,6 +340,7 @@ S to_object(std::index_sequence<Is...>, Tup&& tup) {
     return {std::get<Is>(std::forward<Tup>(tup))...};
 }
 
+// TODO Tup may not be a tuple ...
 template <class S, class Tup>
 S to_object(Tup&& tup) {
     using T = std::remove_reference_t<Tup>;

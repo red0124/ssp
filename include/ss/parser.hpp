@@ -9,13 +9,14 @@
 #include <string>
 #include <vector>
 
+// TODO rule of 5-3-1
+// TODO threads
 namespace ss {
 
-struct none {};
-template <typename...>
-class composite;
-
+template <typename... Matchers>
 class parser {
+    struct none {};
+
 public:
     parser(const std::string& file_name, const std::string& delimiter)
         : file_name_{file_name}, delim_{delimiter},
@@ -41,7 +42,7 @@ public:
 
     void set_error_mode(error_mode mode) {
         error_mode_ = mode;
-        converter_.set_error_mode(mode);
+        reader_.set_error_mode(mode);
     }
 
     const std::string& error_msg() const {
@@ -53,7 +54,7 @@ public:
     }
 
     bool ignore_next() {
-        return buff_.read(file_);
+        return reader_.read(file_);
     }
 
     template <typename T, typename... Ts>
@@ -63,17 +64,16 @@ public:
 
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
-        buff_.update();
+        reader_.update();
         clear_error();
         if (eof_) {
             set_error_eof_reached();
             return {};
         }
 
-        split_input_ = converter_.split(buff_.get(), delim_);
-        auto value = converter_.convert<T, Ts...>(split_input_);
+        auto value = reader_.get_converter().template convert<T, Ts...>();
 
-        if (!converter_.valid()) {
+        if (!reader_.get_converter().valid()) {
             set_error_invalid_conversion();
         }
 
@@ -162,8 +162,8 @@ public:
         no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
-                parser_.converter_.convert<U, Us...>(parser_.split_input_);
-            if (!parser_.converter_.valid()) {
+                parser_.reader_.get_converter().template convert<U, Us...>();
+            if (!parser_.reader_.get_converter().valid()) {
                 parser_.set_error_invalid_conversion();
             }
             return value;
@@ -192,9 +192,6 @@ public:
     }
 
 private:
-    template <typename...>
-    friend class composite;
-
     // tries to invoke the given function (see below), if the function
     // returns a value which can be used as a conditional, and it returns
     // false, the function sets an error, and allows the invoke of the
@@ -249,44 +246,146 @@ private:
     // line reading
     ////////////////
 
-    class buffer {
+    class reader {
         char* buffer_{nullptr};
-        char* new_buffer_{nullptr};
-        size_t size_{0};
+        char* next_line_buffer_{nullptr};
+        char* helper_buffer_{nullptr};
 
-    public:
-        ~buffer() {
-            free(buffer_);
-            free(new_buffer_);
+        converter<Matchers...> converter_;
+        converter<Matchers...> next_line_converter_;
+
+        size_t size_{0};
+        size_t helper_size_{0};
+        const std::string& delim_;
+
+        bool crlf;
+
+        bool escaped_eol(size_t size) {
+            if constexpr (setup<Matchers...>::escape::enabled) {
+                const char* curr;
+                for (curr = next_line_buffer_ + size - 1;
+                     curr >= next_line_buffer_ &&
+                     setup<Matchers...>::escape::match(*curr);
+                     --curr) {
+                }
+                return (next_line_buffer_ - curr + size) % 2 == 0;
+            }
+
+            return false;
         }
 
-        bool read(FILE* file) {
-            ssize_t size = getline(&new_buffer_, &size_, file);
-            size_t string_end = size - 1;
+        bool unterminated_quote() {
+            if constexpr (ss::setup<Matchers...>::quote::enabled) {
+                if (next_line_converter_.unterminated_quote()) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
-            if (size == -1) {
+        void undo_remove_eol(size_t& string_end) {
+            if (crlf) {
+                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
+                string_end += 2;
+            } else {
+                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
+                string_end += 1;
+            }
+        }
+
+        size_t remove_eol(char*& buffer, size_t size) {
+            size_t new_size = size - 1;
+            if (size >= 2 && buffer[size - 2] == '\r') {
+                crlf = true;
+                new_size--;
+            } else {
+                crlf = false;
+            }
+
+            buffer[new_size] = '\0';
+            return new_size;
+        }
+
+        void realloc_concat(char*& first, size_t& first_size,
+                            const char* const second, size_t second_size) {
+            first = static_cast<char*>(realloc(static_cast<void*>(first),
+                                               first_size + second_size + 2));
+
+            std::copy_n(second, second_size + 1, first + first_size);
+            first_size += second_size;
+        }
+
+        bool append_line(FILE* file, char*& dst_buffer, size_t& dst_size) {
+            undo_remove_eol(dst_size);
+
+            ssize_t ssize = getline(&helper_buffer_, &helper_size_, file);
+            if (ssize == -1) {
                 return false;
             }
 
-            if (size >= 2 && new_buffer_[size - 2] == '\r') {
-                string_end--;
-            }
-
-            new_buffer_[string_end] = '\0';
+            size_t size = remove_eol(helper_buffer_, ssize);
+            realloc_concat(dst_buffer, dst_size, helper_buffer_, size);
             return true;
         }
 
-        const char* get() const {
+    public:
+        reader(const std::string& delimiter) : delim_{delimiter} {
+        }
+
+        ~reader() {
+            free(buffer_);
+            free(next_line_buffer_);
+            free(helper_buffer_);
+        }
+
+        bool read(FILE* file) {
+            ssize_t ssize = getline(&next_line_buffer_, &size_, file);
+
+            if (ssize == -1) {
+                return false;
+            }
+
+            size_t size = remove_eol(next_line_buffer_, ssize);
+
+            while (escaped_eol(size)) {
+                if (!append_line(file, next_line_buffer_, size)) {
+                    return false;
+                }
+            }
+
+            next_line_converter_.split(next_line_buffer_, delim_);
+
+            while (unterminated_quote()) {
+                if (!append_line(file, next_line_buffer_, size)) {
+                    return false;
+                }
+                next_line_converter_.resplit(next_line_buffer_, size);
+            }
+
+            return true;
+        }
+
+        void set_error_mode(error_mode mode) {
+            converter_.set_error_mode(mode);
+            next_line_converter_.set_error_mode(mode);
+        }
+
+        converter<Matchers...>& get_converter() {
+            return converter_;
+        }
+
+        const char* get_buffer() const {
             return buffer_;
         }
 
         void update() {
-            std::swap(buffer_, new_buffer_);
+            std::swap(buffer_, next_line_buffer_);
+            std::swap(converter_, next_line_converter_);
         }
     };
 
     void read_line() {
-        eof_ = !buff_.read(file_);
+        eof_ = !reader_.read(file_);
         ++line_number_;
     }
 
@@ -326,9 +425,9 @@ private:
                 .append(" ")
                 .append(std::to_string(line_number_))
                 .append(": ")
-                .append(converter_.error_msg())
+                .append(reader_.get_converter().error_msg())
                 .append(": \"")
-                .append(buff_.get())
+                .append(reader_.get_buffer())
                 .append("\"");
         } else {
             bool_error_ = true;
@@ -344,10 +443,8 @@ private:
     std::string string_error_;
     bool bool_error_{false};
     error_mode error_mode_{error_mode::error_bool};
-    converter converter_;
-    converter::split_input split_input_;
     FILE* file_{nullptr};
-    buffer buff_;
+    reader reader_{delim_};
     size_t line_number_{0};
     bool eof_{false};
 };

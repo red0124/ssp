@@ -1,23 +1,18 @@
+#include "test_helpers.hpp"
 #include <algorithm>
 #include <ss/converter.hpp>
 
-#ifdef CMAKE_GITHUB_CI
-#include <doctest/doctest.h>
-#else
-#include <doctest.h>
-#endif
-
 TEST_CASE("testing split") {
     ss::converter c;
-
     for (const auto& [s, expected, delim] :
-         {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
-          {"", {}, " "},
-          {"a,b,c", {"a", "b", "c"}, ""},
-          {" x x x x | x ", {" x x x x ", " x "}, "|"},
-          {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
-          {"x\t-\ty", {"x", "y"}, "\t-\t"},
-          {"x", {"x"}, ","}}) {
+         // clang-format off
+                {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
+                {"", {}, " "},
+                {" x x x x | x ", {" x x x x ", " x "}, "|"},
+                {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
+                {"x\t-\ty", {"x", "y"}, "\t-\t"},
+                {"x", {"x"}, ","}} // clang-format on
+    ) {
         auto split = c.split(s, delim);
         CHECK(split.size() == expected.size());
         for (size_t i = 0; i < split.size(); ++i) {
@@ -118,6 +113,9 @@ TEST_CASE("testing invalid conversions") {
     ss::converter c;
 
     c.convert<int>("");
+    REQUIRE(!c.valid());
+
+    c.convert<int>("10", "");
     REQUIRE(!c.valid());
 
     c.convert<int, void>("");
@@ -395,4 +393,72 @@ TEST_CASE("testing error mode") {
     c.convert<int>("junk");
     CHECK(!c.valid());
     CHECK(!c.error_msg().empty());
+}
+
+TEST_CASE("testing converter with quotes spacing and escaping") {
+    {
+        ss::converter c;
+
+        auto tup = c.convert<std::string, std::string, std::string>(
+            R"("just","some","strings")");
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("\"just\"", "\"some\"", "\"strings\""));
+    }
+
+    {
+        ss::converter<ss::quote<'"'>> c;
+
+        auto tup = c.convert<std::string, std::string, double, char>(
+            buff(R"("just",some,"12.3","a")"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("just", "some", 12.3, 'a'));
+    }
+
+    {
+        ss::converter<ss::trim<' '>> c;
+
+        auto tup = c.convert<std::string, std::string, double, char>(
+            buff(R"(    just  ,  some   ,  12.3 ,a     )"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("just", "some", 12.3, 'a'));
+    }
+
+    {
+        ss::converter<ss::escape<'\\'>> c;
+
+        auto tup =
+            c.convert<std::string, std::string>(buff(R"(ju\,st,strings)"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("ju,st", "strings"));
+    }
+
+    {
+        ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
+
+        auto tup = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings")"));
+        REQUIRE(c.valid());
+        CHECK(tup == std::make_tuple("ju,st", "so,me", 12.34, "str\"ings"));
+    }
+}
+
+TEST_CASE("testing invalid split conversions") {
+    ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
+    c.set_error_mode(ss::error_mode::error_string);
+
+    {
+        // mismatched quote
+        auto tup = c.convert<std::string, std::string, double, char>(
+            buff(R"(  "just  , some ,   "12.3","a"  )"));
+        CHECK(!c.valid());
+        CHECK(!c.unterminated_quote());
+    }
+
+    {
+        // unterminated quote
+        auto tup = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)"));
+        CHECK(!c.valid());
+        CHECK(c.unterminated_quote());
+    }
 }

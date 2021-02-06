@@ -1,5 +1,6 @@
 test_sources = files([
       'test_main.cpp',
+      'test_splitter.cpp',
       'test_converter.cpp',
       'test_parser.cpp',
       'test_extractions.cpp',

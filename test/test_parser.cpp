@@ -1,20 +1,18 @@
+#include "test_helpers.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <ss/parser.hpp>
 
-#ifdef CMAKE_GITHUB_CI
-#include <doctest/doctest.h>
-#else
-#include <doctest.h>
-#endif
-
 struct unique_file_name {
     const std::string name;
 
-    unique_file_name() : name{std::tmpnam(nullptr)} {}
+    unique_file_name() : name{std::tmpnam(nullptr)} {
+    }
 
-    ~unique_file_name() { std::filesystem::remove(name); }
+    ~unique_file_name() {
+        std::filesystem::remove(name);
+    }
 };
 
 struct X {
@@ -30,7 +28,9 @@ struct X {
             .append(delim)
             .append(s);
     }
-    auto tied() const { return std::tie(i, d, s); }
+    auto tied() const {
+        return std::tie(i, d, s);
+    }
 };
 
 template <typename T>
@@ -56,6 +56,7 @@ TEST_CASE("testing parser") {
     make_and_write(f.name, data);
     {
         ss::parser p{f.name, ","};
+        p.set_error_mode(ss::error_mode::error_string);
         std::vector<X> i;
 
         while (!p.eof()) {
@@ -166,10 +167,13 @@ struct test_struct {
     int i;
     double d;
     char c;
-    auto tied() { return std::tie(i, d, c); }
+    auto tied() {
+        return std::tie(i, d, c);
+    }
 };
 
-void expect_test_struct(const test_struct&) {}
+void expect_test_struct(const test_struct&) {
+}
 
 // various scenarios
 TEST_CASE("testing composite conversion") {
@@ -391,7 +395,9 @@ struct my_string {
 
     my_string() = default;
 
-    ~my_string() { delete[] data; }
+    ~my_string() {
+        delete[] data;
+    }
 
     // make sure no object is copied
     my_string(const my_string&) = delete;
@@ -422,7 +428,9 @@ struct xyz {
     my_string x;
     my_string y;
     my_string z;
-    auto tied() { return std::tie(x, y, z); }
+    auto tied() {
+        return std::tie(x, y, z);
+    }
 };
 
 TEST_CASE("testing the moving of parsed values") {
@@ -474,8 +482,8 @@ TEST_CASE("testing the moving of parsed values") {
 TEST_CASE("testing the moving of parsed composite values") {
     // to compile is enough
     return;
-    ss::parser* p;
-    p->try_next<my_string, my_string, my_string>()
+    ss::parser p{"", ""};
+    p.try_next<my_string, my_string, my_string>()
         .or_else<my_string, my_string, my_string, my_string>([](auto&&) {})
         .or_else<my_string>([](auto&) {})
         .or_else<xyz>([](auto&&) {})
@@ -505,4 +513,67 @@ TEST_CASE("testing error mode") {
     p.get_next<int>();
     CHECK(!p.valid());
     CHECK(!p.error_msg().empty());
+}
+
+std::string no_quote(const std::string& s) {
+    if (!s.empty() && s[0] == '"') {
+        return {std::next(begin(s)), std::prev(end(s))};
+    }
+    return s;
+}
+
+TEST_CASE("testing csv on multiple lines with quotes") {
+    unique_file_name f;
+    std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
+                           {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
+                           {9, 10, "v"},          {11, 12, "\"w\n\""}};
+    make_and_write(f.name, data);
+    for (auto& [_, __, s] : data) {
+        s = no_quote(s);
+        if (s[0] == 'u') {
+            s = "u\"";
+        }
+    }
+
+    ss::parser<ss::quote<'"'>> p{f.name, ","};
+    p.set_error_mode(ss::error_mode::error_string);
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        i.emplace_back(ss::to_object<X>(a));
+    }
+
+    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+}
+
+std::string no_escape(std::string& s) {
+    s.erase(std::remove(begin(s), end(s), '\\'), end(s));
+    return s;
+}
+
+TEST_CASE("testing csv on multiple lines with escapes") {
+    unique_file_name f;
+    std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {3, 4, "y\\\ny\\\ny"},
+                           {5, 6, "z\\\nz"},      {7, 8, "u"},
+                           {9, 10, "v\\\\"},      {11, 12, "w\\\n"}};
+
+    make_and_write(f.name, data);
+    for (auto& [_, __, s] : data) {
+        s = no_escape(s);
+        if (s == "v") {
+            s = "v\\";
+        }
+    }
+
+    ss::parser<ss::escape<'\\'>> p{f.name, ","};
+    p.set_error_mode(ss::error_mode::error_string);
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        i.emplace_back(ss::to_object<X>(a));
+    }
+
+    CHECK(std::equal(i.begin(), i.end(), data.begin()));
 }

@@ -28,7 +28,7 @@ include(doctest)
 
 enable_testing()
 
-foreach(name IN ITEMS test_parser test_converter test_extractions)
+foreach(name IN ITEMS test_splitter test_parser test_converter test_extractions)
   add_executable("${name}" "${name}.cpp")
   target_link_libraries("${name}" PRIVATE ssp::ssp doctest::doctest)
   target_compile_definitions("${name}" PRIVATE

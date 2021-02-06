@@ -48,6 +48,7 @@ Bill (Heath) Gates 65 3.3
  * Works on any type
  * Easy to use
  * No exceptions
+ * Works with quotes, escapes and spacings
  * Columns and rows can be ignored
  * Works with any type of delimiter
  * Can return whole objects composed of converted values
@@ -215,6 +216,15 @@ inline bool ss::extract(const char* begin, const char* end, shape& dst) {
 }
 ```
 The shape enum will be used in an example below. The **inline** is there just to prevent multiple definition errors. The function returns **true** if the conversion was a success, and **false** otherwise. The function uses **const char*** begin and end for performance reasons. 
+
+## Quoting
+Not yet documented.
+
+## Escaping
+Not yet documented.
+
+## Spacing
+Not yet documented.
 
 ## Error handling
 

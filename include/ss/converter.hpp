@@ -1,8 +1,8 @@
 #pragma once
-
 #include "extract.hpp"
 #include "function_traits.hpp"
 #include "restrictions.hpp"
+#include "splitter.hpp"
 #include "type_traits.hpp"
 #include <string>
 #include <type_traits>
@@ -21,7 +21,7 @@ INIT_HAS_METHOD(error)
 // eg. no_validator_tup_t<int, ss::nx<char, 'A', 'B'>> <=> std::tuple<int, char>
 // where ss::nx<char, 'A', 'B'> is a validator '(n)one e(x)cept' which
 // checks if the returned character is either 'A' or 'B', returns error if not
-// additionaly if one element is left in the pack, it will be unwraped from
+// additionally if one element is left in the pack, it will be unwrapped from
 // the tuple eg. no_void_validator_tup_t<int> <=> int instead of std::tuple<int>
 template <typename T, typename U = void>
 struct no_validator;
@@ -103,40 +103,43 @@ struct tied_class {
 template <typename... Ts>
 constexpr bool tied_class_v = tied_class<Ts...>::value;
 
-// the error can be set inside a string, or a bool
-enum class error_mode { error_string, error_bool };
-
 ////////////////
 // converter
 ////////////////
 
+template <typename... Matchers>
 class converter {
-    using string_range = std::pair<const char*, const char*>;
-    constexpr static auto default_delimiter = ',';
+    constexpr static auto default_delimiter = ",";
+    using line_ptr_type = typename splitter<Matchers...>::line_ptr_type;
 
 public:
-    using split_input = std::vector<string_range>;
-
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(const char* const line, const std::string& delim = "") {
+    T convert_object(line_ptr_type line,
+                     const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
     // parses line with given delimiter, returns tuple of objects with
     // extracted values of type 'Ts'
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert(const char* const line,
-                                           const std::string& delim = "") {
-        input_ = split(line, delim);
-        return convert<Ts...>(input_);
+    no_void_validator_tup_t<Ts...> convert(
+        line_ptr_type line, const std::string& delim = default_delimiter) {
+        split(line, delim);
+        return convert<Ts...>(splitter_.split_input_);
     }
 
     // parses already split line, returns 'T' object with extracted values
     template <typename T, typename... Ts>
     T convert_object(const split_input& elems) {
         return to_object<T>(convert<Ts...>(elems));
+    }
+
+    // same as above, but uses cached split line
+    template <typename T, typename... Ts>
+    T convert_object() {
+        return to_object<T>(convert<Ts...>());
     }
 
     // parses already split line, returns either a tuple of objects with
@@ -163,35 +166,53 @@ public:
         }
     }
 
+    // same as above, but uses cached split line
+    template <typename T, typename... Ts>
+    no_void_validator_tup_t<T, Ts...> convert() {
+        return convert<T, Ts...>(splitter_.split_input_);
+    }
+
     bool valid() const {
         return (error_mode_ == error_mode::error_string) ? string_error_.empty()
                                                          : bool_error_ == false;
     }
 
-    const std::string& error_msg() const { return string_error_; }
+    bool unterminated_quote() const {
+        return splitter_.unterminated_quote();
+    }
 
-    void set_error_mode(error_mode mode) { error_mode_ = mode; }
+    const std::string& error_msg() const {
+        return string_error_;
+    }
+
+    void set_error_mode(error_mode mode) {
+        splitter_.set_error_mode(mode);
+        error_mode_ = mode;
+    }
 
     // 'splits' string by given delimiter, returns vector of pairs which
-    // contain the beginings and the ends of each column of the string
-    const split_input& split(const char* const line,
-                             const std::string& delim = "") {
-        input_.clear();
+    // contain the beginnings and the ends of each column of the string
+    const split_input& split(line_ptr_type line,
+                             const std::string& delim = default_delimiter) {
+        splitter_.split_input_.clear();
         if (line[0] == '\0') {
-            return input_;
+            return splitter_.split_input_;
         }
 
-        switch (delim.size()) {
-        case 0:
-            return split_impl(line, ',');
-        case 1:
-            return split_impl(line, delim[0]);
-        default:
-            return split_impl(line, delim, delim.size());
-        };
+        return splitter_.split(line, delim);
     }
 
 private:
+
+    ////////////////
+    // resplit
+    ////////////////
+
+    const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
+                               const std::string& delim = default_delimiter) {
+        return splitter_.resplit(new_line, new_size, delim);
+    }
+
     ////////////////
     // error
     ////////////////
@@ -210,6 +231,15 @@ private:
             .append(msg.first, msg.second)
             .append("\'");
         return error;
+    }
+
+    void set_error_unterminated_quote() {
+        if (error_mode_ == error_mode::error_string) {
+            string_error_.clear();
+            string_error_.append(splitter_.error_msg());
+        } else {
+            bool_error_ = true;
+        }
     }
 
     void set_error_invalid_conversion(const string_range msg, size_t pos) {
@@ -252,11 +282,19 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_input& elems) {
         clear_error();
-        no_void_validator_tup_t<Ts...> ret{};
-        if (sizeof...(Ts) != elems.size()) {
-            set_error_number_of_colums(sizeof...(Ts), elems.size());
+
+        if (!splitter_.valid()) {
+            set_error_unterminated_quote();
+            no_void_validator_tup_t<Ts...> ret{};
             return ret;
         }
+
+        if (sizeof...(Ts) != elems.size()) {
+            set_error_number_of_colums(sizeof...(Ts), elems.size());
+            no_void_validator_tup_t<Ts...> ret{};
+            return ret;
+        }
+
         return extract_tuple<Ts...>(elems);
     }
 
@@ -268,37 +306,6 @@ private:
     }
 
     ////////////////
-    // substring
-    ////////////////
-
-    template <typename Delim>
-    const split_input& split_impl(const char* const line, Delim delim,
-                                  size_t delim_size = 1) {
-        auto range = substring(line, delim);
-        input_.push_back(range);
-        while (range.second[0] != '\0') {
-            range = substring(range.second + delim_size, delim);
-            input_.push_back(range);
-        }
-        return input_;
-    }
-
-    bool no_match(const char* end, char delim) const { return *end != delim; }
-
-    bool no_match(const char* end, const std::string& delim) const {
-        return strncmp(end, delim.c_str(), delim.size()) != 0;
-    }
-
-    template <typename Delim>
-    string_range substring(const char* const begin, Delim delim) const {
-        const char* end;
-        for (end = begin; *end != '\0' && no_match(end, delim); ++end)
-            ;
-
-        return string_range{begin, end};
-    }
-
-    ////////////////
     // conversion
     ////////////////
 
@@ -306,6 +313,11 @@ private:
     void extract_one(no_validator_t<T>& dst, const string_range msg,
                      size_t pos) {
         if (!valid()) {
+            return;
+        }
+
+        if constexpr (std::is_same_v<T, std::string>) {
+            extract(msg.first, msg.second, dst);
             return;
         }
 
@@ -353,7 +365,7 @@ private:
     no_void_validator_tup_t<Ts...> extract_tuple(const split_input& elems) {
         static_assert(!all_of<std::is_void, Ts...>::value,
                       "at least one parameter must be non void");
-        no_void_validator_tup_t<Ts...> ret;
+        no_void_validator_tup_t<Ts...> ret{};
         extract_multiple<0, 0, Ts...>(ret, elems);
         return ret;
     }
@@ -362,21 +374,13 @@ private:
     // members
     ////////////////
 
-    std::vector<string_range> input_;
     std::string string_error_;
     bool bool_error_;
     enum error_mode error_mode_ { error_mode::error_bool };
+    splitter<Matchers...> splitter_;
+
+    template <typename ...>
+    friend class parser;
 };
-
-template <>
-inline void converter::extract_one<std::string>(std::string& dst,
-                                                const string_range msg,
-                                                size_t) {
-    if (!valid()) {
-        return;
-    }
-
-    extract(msg.first, msg.second, dst);
-}
 
 } /* ss */
