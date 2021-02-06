@@ -169,14 +169,6 @@ private:
         }
     }
 
-    void shift_if_escaped(line_ptr_type& curr) {
-        if constexpr (escape::enabled) {
-            if (escape::match(*curr)) {
-                shift_and_jump_escape();
-            }
-        }
-    }
-
     template <typename Delim>
     std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
                                              const Delim& delim) {
@@ -207,12 +199,14 @@ private:
     ////////////////
 
     void shift_and_set_current() {
-        if (escaped_ > 0) {
-            if constexpr (!is_const_line) {
+        if constexpr (!is_const_line) {
+            if (escaped_ > 0) {
                 std::copy_n(curr_ + escaped_, end_ - curr_, curr_);
+                curr_ = end_ - escaped_;
+                return;
             }
         }
-        curr_ = end_ - escaped_;
+        curr_ = end_;
     }
 
     void shift_and_push() {
@@ -220,10 +214,20 @@ private:
         split_input_.emplace_back(begin_, curr_);
     }
 
+    void shift_if_escaped(line_ptr_type& curr) {
+        if constexpr (escape::enabled) {
+            if (escape::match(*curr)) {
+                shift_and_jump_escape();
+            }
+        }
+    }
+
     void shift_and_jump_escape() {
         shift_and_set_current();
+        if constexpr (!is_const_line) {
+            ++escaped_;
+        }
         ++end_;
-        ++escaped_;
     }
 
     void shift_push_and_start_next(size_t n) {
@@ -381,7 +385,7 @@ private:
     size_t escaped_{0};
     split_input split_input_;
 
-    template <typename ...>
+    template <typename...>
     friend class converter;
 };
 

@@ -10,7 +10,6 @@
 #include <vector>
 
 // TODO rule of 5-3-1
-// TODO threads
 namespace ss {
 
 template <typename... Matchers>
@@ -261,24 +260,18 @@ private:
         bool crlf;
 
         bool escaped_eol(size_t size) {
-            if constexpr (setup<Matchers...>::escape::enabled) {
-                const char* curr;
-                for (curr = next_line_buffer_ + size - 1;
-                     curr >= next_line_buffer_ &&
-                     setup<Matchers...>::escape::match(*curr);
-                     --curr) {
-                }
-                return (next_line_buffer_ - curr + size) % 2 == 0;
+            const char* curr;
+            for (curr = next_line_buffer_ + size - 1;
+                 curr >= next_line_buffer_ &&
+                 setup<Matchers...>::escape::match(*curr);
+                 --curr) {
             }
-
-            return false;
+            return (next_line_buffer_ - curr + size) % 2 == 0;
         }
 
         bool unterminated_quote() {
-            if constexpr (ss::setup<Matchers...>::quote::enabled) {
-                if (next_line_converter_.unterminated_quote()) {
-                    return true;
-                }
+            if (next_line_converter_.unterminated_quote()) {
+                return true;
             }
             return false;
         }
@@ -347,19 +340,23 @@ private:
 
             size_t size = remove_eol(next_line_buffer_, ssize);
 
-            while (escaped_eol(size)) {
-                if (!append_line(file, next_line_buffer_, size)) {
-                    return false;
+            if constexpr (setup<Matchers...>::escape::enabled) {
+                while (escaped_eol(size)) {
+                    if (!append_line(file, next_line_buffer_, size)) {
+                        return false;
+                    }
                 }
             }
 
             next_line_converter_.split(next_line_buffer_, delim_);
 
-            while (unterminated_quote()) {
-                if (!append_line(file, next_line_buffer_, size)) {
-                    return false;
+            if constexpr (setup<Matchers...>::quote::enabled) {
+                while (unterminated_quote()) {
+                    if (!append_line(file, next_line_buffer_, size)) {
+                        return false;
+                    }
+                    next_line_converter_.resplit(next_line_buffer_, size);
                 }
-                next_line_converter_.resplit(next_line_buffer_, size);
             }
 
             return true;
