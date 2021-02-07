@@ -12,4 +12,6 @@ ssp_dep = declare_dependency(
   dependencies: fast_float_dep
   )
 
-subdir('test')
+if not meson.is_subproject()
+  subdir('test')
+endif
