@@ -408,7 +408,7 @@ FetchContent_MakeAvailable(ssp)
 ```
 Either way, after you prepare the target, you just have to invoke it in your project:
 ```cmake
-target_link_libraries(project PUBLIC ssp)
+target_link_libraries(project PUBLIC ssp fast_float)
 ```
 ## Meson
 
