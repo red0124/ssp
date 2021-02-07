@@ -9,11 +9,11 @@ test_sources = files([
 doctest_proj = subproject('doctest')
 doctest_dep = doctest_proj.get_variable('doctest_dep')
 
-test_exe = executable('test_ssp', 
-  sources: test_sources, 
-  dependencies: doctest_dep, 
-  include_directories: includes,
+test_exe = executable(
+  'test_ssp',
+  sources: test_sources,
+  dependencies: [doctest_dep, ssp_dep],
   cpp_args: '-lstdc++fs'
   )
 
-test('tests_ssp', test_exe)
+test('test_ssp', test_exe)

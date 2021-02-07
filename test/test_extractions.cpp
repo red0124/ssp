@@ -2,11 +2,9 @@
 #include <algorithm>
 #include <ss/extract.hpp>
 
-constexpr auto eps = 0.000001;
-using ld = long double;
-
 #define CHECK_FLOATING_CONVERSION(input, type)                                 \
     {                                                                          \
+        auto eps = std::numeric_limits<type>::min();                           \
         std::string s = #input;                                                \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
@@ -14,6 +12,7 @@ using ld = long double;
     }                                                                          \
     {                                                                          \
         /* check negative too */                                               \
+        auto eps = std::numeric_limits<type>::min();                           \
         auto s = std::string("-") + #input;                                    \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
@@ -23,23 +22,18 @@ using ld = long double;
 TEST_CASE("testing extract functions for floating point values") {
     CHECK_FLOATING_CONVERSION(123.456, float);
     CHECK_FLOATING_CONVERSION(123.456, double);
-    CHECK_FLOATING_CONVERSION(123.456, ld);
 
     CHECK_FLOATING_CONVERSION(69, float);
     CHECK_FLOATING_CONVERSION(69, double);
-    CHECK_FLOATING_CONVERSION(69, ld);
 
     CHECK_FLOATING_CONVERSION(420., float);
     CHECK_FLOATING_CONVERSION(420., double);
-    CHECK_FLOATING_CONVERSION(420., ld);
 
     CHECK_FLOATING_CONVERSION(0.123, float);
     CHECK_FLOATING_CONVERSION(0.123, double);
-    CHECK_FLOATING_CONVERSION(0.123, ld);
 
     CHECK_FLOATING_CONVERSION(123e4, float);
     CHECK_FLOATING_CONVERSION(123e4, double);
-    CHECK_FLOATING_CONVERSION(123e4, ld);
 }
 
 #define CHECK_DECIMAL_CONVERSION(input, type)                                  \

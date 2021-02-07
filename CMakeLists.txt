@@ -16,6 +16,16 @@ if(ssp_INCLUDE_WITHOUT_SYSTEM)
   set(ssp_warning_guard "")
 endif()
 
+# ---- Dependencies ----
+
+FetchContent_Declare(
+  fast_float
+  GIT_REPOSITORY https://github.com/red0124/fast_float.git
+  GIT_TAG origin/meson
+  GIT_SHALLOW TRUE)
+
+FetchContent_MakeAvailable(fast_float)
+
 # ---- Declare library ----
 
 add_library(ssp INTERFACE)
@@ -26,6 +36,7 @@ target_include_directories(
     ${ssp_warning_guard}
     INTERFACE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    fast_float
 )
 
 target_compile_features(ssp INTERFACE cxx_std_17)

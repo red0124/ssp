@@ -30,7 +30,7 @@ enable_testing()
 
 foreach(name IN ITEMS test_splitter test_parser test_converter test_extractions)
   add_executable("${name}" "${name}.cpp")
-  target_link_libraries("${name}" PRIVATE ssp::ssp doctest::doctest)
+  target_link_libraries("${name}" PRIVATE ssp::ssp fast_float doctest::doctest)
   target_compile_definitions("${name}" PRIVATE
     DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN CMAKE_GITHUB_CI)
   doctest_discover_tests("${name}")
