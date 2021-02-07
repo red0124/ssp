@@ -59,7 +59,7 @@ using ul = unsigned long;
 using ll = long long;
 using ull = unsigned long long;
 
-TEST_CASE("testing extract functions for decimal values") {
+TEST_CASE("extract test functions for decimal values") {
     CHECK_DECIMAL_CONVERSION(1234, short);
     CHECK_DECIMAL_CONVERSION(1234, us);
     CHECK_DECIMAL_CONVERSION(1234, int);
@@ -77,7 +77,7 @@ TEST_CASE("testing extract functions for decimal values") {
         CHECK(!t.has_value());                                                 \
     }
 
-TEST_CASE("testing extract functions for numbers with invalid inputs") {
+TEST_CASE("extract test functions for numbers with invalid inputs") {
     // negative unsigned value
     CHECK_INVALID_CONVERSION("-1234", ul);
 
@@ -125,7 +125,7 @@ TEST_CASE("testing extract functions for numbers with invalid inputs") {
         CHECK(!t.has_value());                                                 \
     }
 
-TEST_CASE("testing extract functions for numbers with out of range inputs") {
+TEST_CASE("extract test functions for numbers with out of range inputs") {
     CHECK_OUT_OF_RANGE_CONVERSION(short);
     CHECK_OUT_OF_RANGE_CONVERSION(us);
     CHECK_OUT_OF_RANGE_CONVERSION(int);
@@ -136,7 +136,7 @@ TEST_CASE("testing extract functions for numbers with out of range inputs") {
     CHECK_OUT_OF_RANGE_CONVERSION(ull);
 }
 
-TEST_CASE("testing extract functions for boolean values") {
+TEST_CASE("extract test functions for boolean values") {
     for (const auto& [b, s] : {std::pair<bool, std::string>{true, "1"},
                                {false, "0"},
                                {true, "true"},
@@ -152,7 +152,7 @@ TEST_CASE("testing extract functions for boolean values") {
     }
 }
 
-TEST_CASE("testing extract functions for char values") {
+TEST_CASE("extract test functions for char values") {
     for (const auto& [c, s] :
          {std::pair<char, std::string>{'a', "a"}, {'x', "x"}, {' ', " "}}) {
         char v;
@@ -166,7 +166,7 @@ TEST_CASE("testing extract functions for char values") {
     }
 }
 
-TEST_CASE("testing extract functions for std::optional") {
+TEST_CASE("extract test functions for std::optional") {
     for (const auto& [i, s] :
          {std::pair<std::optional<int>, std::string>{1, "1"},
           {69, "69"},
@@ -209,7 +209,7 @@ TEST_CASE("testing extract functions for std::optional") {
 
 #define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
 
-TEST_CASE("testing extract functions for std::variant") {
+TEST_CASE("extract test functions for std::variant") {
     {
         std::string s = "22";
         {

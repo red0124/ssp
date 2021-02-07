@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <ss/converter.hpp>
 
-TEST_CASE("testing split") {
+TEST_CASE("converter test split") {
     ss::converter c;
     for (const auto& [s, expected, delim] :
          // clang-format off
@@ -22,7 +22,7 @@ TEST_CASE("testing split") {
     }
 }
 
-TEST_CASE("testing valid conversions") {
+TEST_CASE("converter test valid conversions") {
     ss::converter c;
 
     {
@@ -109,7 +109,7 @@ TEST_CASE("testing valid conversions") {
     }
 }
 
-TEST_CASE("testing invalid conversions") {
+TEST_CASE("converter test invalid conversions") {
     ss::converter c;
 
     c.convert<int>("");
@@ -143,7 +143,7 @@ TEST_CASE("testing invalid conversions") {
     REQUIRE(!c.valid());
 }
 
-TEST_CASE("testing ss:ax restriction (all except)") {
+TEST_CASE("converter test ss:ax restriction (all except)") {
     ss::converter c;
 
     c.convert<ss::ax<int, 0>>("0");
@@ -174,7 +174,7 @@ TEST_CASE("testing ss:ax restriction (all except)") {
     }
 }
 
-TEST_CASE("testing ss:nx restriction (none except)") {
+TEST_CASE("converter test ss:nx restriction (none except)") {
     ss::converter c;
 
     c.convert<ss::nx<int, 1>>("3");
@@ -208,7 +208,7 @@ TEST_CASE("testing ss:nx restriction (none except)") {
     }
 }
 
-TEST_CASE("testing ss:ir restriction (in range)") {
+TEST_CASE("converter test ss:ir restriction (in range)") {
     ss::converter c;
 
     c.convert<ss::ir<int, 0, 2>>("3");
@@ -242,7 +242,7 @@ TEST_CASE("testing ss:ir restriction (in range)") {
     }
 }
 
-TEST_CASE("testing ss:oor restriction (out of range)") {
+TEST_CASE("converter test ss:oor restriction (out of range)") {
     ss::converter c;
 
     c.convert<ss::oor<int, 1, 5>>("3");
@@ -289,7 +289,7 @@ inline bool ss::extract(const char* begin, const char* end,
     return true;
 }
 
-TEST_CASE("testing ss:ne restriction (not empty)") {
+TEST_CASE("converter test ss:ne restriction (not empty)") {
     ss::converter c;
 
     c.convert<ss::ne<std::string>>("");
@@ -324,7 +324,8 @@ TEST_CASE("testing ss:ne restriction (not empty)") {
     }
 }
 
-TEST_CASE("testing ss:lt ss::lte ss::gt ss::gte restriction (in range)") {
+TEST_CASE(
+    "converter test ss:lt ss::lte ss::gt ss::gte restriction (in range)") {
     ss::converter c;
 
     c.convert<ss::lt<int, 3>>("3");
@@ -382,7 +383,7 @@ TEST_CASE("testing ss:lt ss::lte ss::gt ss::gte restriction (in range)") {
     }
 }
 
-TEST_CASE("testing error mode") {
+TEST_CASE("converter test error mode") {
     ss::converter c;
 
     c.convert<int>("junk");
@@ -395,7 +396,7 @@ TEST_CASE("testing error mode") {
     CHECK(!c.error_msg().empty());
 }
 
-TEST_CASE("testing converter with quotes spacing and escaping") {
+TEST_CASE("converter test converter with quotes spacing and escaping") {
     {
         ss::converter c;
 
@@ -442,7 +443,7 @@ TEST_CASE("testing converter with quotes spacing and escaping") {
     }
 }
 
-TEST_CASE("testing invalid split conversions") {
+TEST_CASE("converter test invalid split conversions") {
     ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
     c.set_error_mode(ss::error_mode::error_string);
 

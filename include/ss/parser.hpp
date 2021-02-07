@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-// TODO rule of 5-3-1
 namespace ss {
 
 template <typename... Matchers>

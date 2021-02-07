@@ -174,7 +174,7 @@ void test_combinations(matches_type& matches, std::vector<std::string> delims) {
     }
 }
 
-TEST_CASE("testing splitter no setup") {
+TEST_CASE("splitter test with no setup") {
     {
         matches_type p{{{"x"}, "x"},        {{"\""}, "\""},
                        {{""}, ""},          {{"\n"}, "\n"},
@@ -184,7 +184,7 @@ TEST_CASE("testing splitter no setup") {
     }
 }
 
-TEST_CASE("testing splitter quote") {
+TEST_CASE("splitter test with quote") {
     case_type case1 = {R"("""")"};
     case_type case2 = {R"("x""x")", R"(x"x)"};
     case_type case3 = {R"("")", R"()"};
@@ -228,7 +228,7 @@ TEST_CASE("testing splitter quote") {
     }
 }
 
-TEST_CASE("testing splitter trim") {
+TEST_CASE("splitter test with trim") {
     auto guard = set_combinations_size(3);
     case_type case1 = spaced({R"(x)"}, " ");
     case_type case2 = spaced({R"(yy)"}, " ");
@@ -258,7 +258,7 @@ TEST_CASE("testing splitter trim") {
     }
 }
 
-TEST_CASE("testing splitter escape") {
+TEST_CASE("splitter test with escape") {
     case_type case1 = {R"(x)", R"(\x)"};
     case_type case2 = {R"(xx)", R"(\xx)", R"(x\x)", R"(\x\x)"};
     case_type case3 = {R"(\\)"};
@@ -295,7 +295,7 @@ TEST_CASE("testing splitter escape") {
     }
 }
 
-TEST_CASE("testing splitter quote and trim") {
+TEST_CASE("splitter test with quote and trim") {
     auto guard = set_combinations_size(3);
     case_type case1 = spaced({R"("""")"}, " ");
     case_type case2 = spaced({R"("x""x")", R"(x"x)"}, " ");
@@ -328,7 +328,7 @@ TEST_CASE("testing splitter quote and trim") {
     }
 }
 
-TEST_CASE("testing splitter quote and escape") {
+TEST_CASE("splitter test with quote and escape") {
     case_type case1 = {R"("\"")", R"(\")", R"("""")"};
     case_type case2 = {R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"};
     case_type case3 = {R"("")", R"()"};
@@ -376,7 +376,7 @@ TEST_CASE("testing splitter quote and escape") {
     }
 }
 
-TEST_CASE("testing splitter escape and trim") {
+TEST_CASE("splitter test with escape and trim") {
     case_type case0 = spaced({R"(\ x\ )", R"(\ \x\ )"}, " ");
     case_type case1 = spaced({R"(x)", R"(\x)"}, " ");
     case_type case3 = spaced({R"(\\)"}, " ");
@@ -413,7 +413,7 @@ TEST_CASE("testing splitter escape and trim") {
     }
 }
 
-TEST_CASE("testing splitter quote and escape and trim") {
+TEST_CASE("splitter test with quote and escape and trim") {
     auto guard = set_combinations_size(3);
     case_type case1 = spaced({R"("\"")", R"(\")", R"("""")"}, " ");
     case_type case2 =
@@ -466,7 +466,7 @@ TEST_CASE("testing splitter quote and escape and trim") {
     }
 }
 
-TEST_CASE("testing splitter constnes if quoting and escaping are disabled") {
+TEST_CASE("splitter test constnes if quoting and escaping are disabled") {
     // to compile is enough
     return;
     const char* const line{};
@@ -476,7 +476,7 @@ TEST_CASE("testing splitter constnes if quoting and escaping are disabled") {
     s2.split(line);
 }
 
-TEST_CASE("testing error mode") {
+TEST_CASE("splitter test error mode") {
 
     {
         // empty delimiter
@@ -529,7 +529,7 @@ public:
 };
 } /* ss */
 
-TEST_CASE("testing unterminated quote") {
+TEST_CASE("splitter test unterminated quote") {
     {
         ss::converter<ss::quote<'"'>> c;
         auto& s = c.splitter;
@@ -690,7 +690,7 @@ TEST_CASE("testing unterminated quote") {
     }
 }
 
-TEST_CASE("testing invalid splits") {
+TEST_CASE("splitter test invalid splits") {
     ss::converter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>> c;
     auto& s = c.splitter;
 
