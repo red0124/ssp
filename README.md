@@ -387,6 +387,7 @@ std::string s;
 std::cin >> s;
 int num = c.convert<int>(s.c_str());
 ```
+# Using as a project dependency
 
 ## CMake
 
