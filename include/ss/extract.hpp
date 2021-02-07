@@ -2,6 +2,7 @@
 
 #include "type_traits.hpp"
 #include <cstring>
+#include <fast_float/fast_float.h>
 #include <functional>
 #include <limits>
 #include <optional>
@@ -14,104 +15,17 @@ namespace ss {
 ////////////////
 // number converters
 ////////////////
-template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, T> pow10(int n) {
-    T ret = 1.0;
-    T r = 10.0;
-    if (n < 0) {
-        n = -n;
-        r = 0.1;
-    }
 
-    while (n) {
-        if (n & 1) {
-            ret *= r;
-        }
-        r *= r;
-        n >>= 1;
-    }
-    return ret;
-}
-
-// TODO not working with large number of digits
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* begin, const char* const end) {
-    if (begin == end) {
+    T ret;
+    auto answer = fast_float::from_chars(begin, end, ret);
+
+    if (answer.ec != std::errc() || answer.ptr != end) {
         return std::nullopt;
     }
-    int sign = 1;
-    T int_part = 0.0;
-    T frac_part = 0.0;
-    bool has_frac = false;
-    bool has_exp = false;
-
-    // +/- sign
-    if (*begin == '-') {
-        ++begin;
-        sign = -1;
-    }
-
-    while (begin != end) {
-        if (*begin >= '0' && *begin <= '9') {
-            int_part = int_part * 10 + (*begin - '0');
-        } else if (*begin == '.') {
-            has_frac = true;
-            ++begin;
-            break;
-        } else if (*begin == 'e') {
-            has_exp = true;
-            ++begin;
-            break;
-        } else {
-            return std::nullopt;
-        }
-        ++begin;
-    }
-
-    if (has_frac) {
-        T frac_exp = 0.1;
-
-        while (begin != end) {
-            if (*begin >= '0' && *begin <= '9') {
-                frac_part += frac_exp * (*begin - '0');
-                frac_exp *= 0.1;
-            } else if (*begin == 'e') {
-                has_exp = true;
-                ++begin;
-                break;
-            } else {
-                return std::nullopt;
-            }
-            ++begin;
-        }
-    }
-
-    // parsing exponent part
-    T exp_part = 1.0;
-    if (begin != end && has_exp) {
-        int exp_sign = 1;
-        if (*begin == '-') {
-            exp_sign = -1;
-            ++begin;
-        } else if (*begin == '+') {
-            ++begin;
-        }
-
-        int e = 0;
-        while (begin != end && *begin >= '0' && *begin <= '9') {
-            e = e * 10 + *begin - '0';
-            ++begin;
-        }
-
-        exp_part = pow10<T>(exp_sign * e);
-    }
-
-    if (begin != end) {
-        return std::nullopt;
-    }
-
-    return sign * (int_part + frac_part) * exp_part;
+    return ret;
 }
 
 inline std::optional<short> from_char(char c) {
@@ -249,7 +163,7 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 }
 #else
 
-#warning "use clang or gcc!!!"
+#warning "Use clang or gcc if possible."
 template <typename T, typename U>
 bool shift_and_add_overflow(T& value, T digit, U is_negative) {
     digit = (is_negative) ? -digit : digit;
