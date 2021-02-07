@@ -10,8 +10,10 @@
 
 namespace ss {
 
+// TODO move to common
 using string_range = std::pair<const char*, const char*>;
 using split_input = std::vector<string_range>;
+constexpr static auto default_delimiter = ",";
 
 // the error can be set inside a string, or a bool
 enum class error_mode { error_string, error_bool };
@@ -19,8 +21,6 @@ enum class error_mode { error_string, error_bool };
 template <typename... Ts>
 class splitter {
 private:
-    constexpr static auto default_delimiter = ",";
-
     using quote = typename setup<Ts...>::quote;
     using trim = typename setup<Ts...>::trim;
     using escape = typename setup<Ts...>::escape;
