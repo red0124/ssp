@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-// TODO rule of 5-3-1
 namespace ss {
 
 template <typename... Matchers>
@@ -17,10 +16,10 @@ class parser {
     struct none {};
 
 public:
-    parser(const std::string& file_name, const std::string& delimiter)
-        : file_name_{file_name}, delim_{delimiter},
-          file_{fopen(file_name_.c_str(), "rb")} {
-        if (file_) {
+    parser(const std::string& file_name,
+           const std::string& delim = ss::default_delimiter)
+        : file_name_{file_name}, reader_{file_name_, delim} {
+        if (reader_.file_) {
             read_line();
         } else {
             set_error_file_not_open();
@@ -28,11 +27,12 @@ public:
         }
     }
 
-    ~parser() {
-        if (file_) {
-            fclose(file_);
-        }
-    }
+    parser(parser&& other) = default;
+    parser& operator=(parser&& other) = default;
+
+    parser() = delete;
+    parser(const parser& other) = delete;
+    parser& operator=(const parser& other) = delete;
 
     bool valid() const {
         return (error_mode_ == error_mode::error_string) ? string_error_.empty()
@@ -53,7 +53,7 @@ public:
     }
 
     bool ignore_next() {
-        return reader_.read(file_);
+        return reader_.read_next();
     }
 
     template <typename T, typename... Ts>
@@ -70,9 +70,9 @@ public:
             return {};
         }
 
-        auto value = reader_.get_converter().template convert<T, Ts...>();
+        auto value = reader_.converter_.template convert<T, Ts...>();
 
-        if (!reader_.get_converter().valid()) {
+        if (!reader_.converter_.valid()) {
             set_error_invalid_conversion();
         }
 
@@ -161,8 +161,8 @@ public:
         no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
-                parser_.reader_.get_converter().template convert<U, Us...>();
-            if (!parser_.reader_.get_converter().valid()) {
+                parser_.reader_.converter_.template convert<U, Us...>();
+            if (!parser_.reader_.converter_.valid()) {
                 parser_.set_error_invalid_conversion();
             }
             return value;
@@ -242,151 +242,6 @@ private:
     }
 
     ////////////////
-    // line reading
-    ////////////////
-
-    class reader {
-        char* buffer_{nullptr};
-        char* next_line_buffer_{nullptr};
-        char* helper_buffer_{nullptr};
-
-        converter<Matchers...> converter_;
-        converter<Matchers...> next_line_converter_;
-
-        size_t size_{0};
-        size_t helper_size_{0};
-        const std::string& delim_;
-
-        bool crlf;
-
-        bool escaped_eol(size_t size) {
-            const char* curr;
-            for (curr = next_line_buffer_ + size - 1;
-                 curr >= next_line_buffer_ &&
-                 setup<Matchers...>::escape::match(*curr);
-                 --curr) {
-            }
-            return (next_line_buffer_ - curr + size) % 2 == 0;
-        }
-
-        bool unterminated_quote() {
-            if (next_line_converter_.unterminated_quote()) {
-                return true;
-            }
-            return false;
-        }
-
-        void undo_remove_eol(size_t& string_end) {
-            if (crlf) {
-                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
-                string_end += 2;
-            } else {
-                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
-                string_end += 1;
-            }
-        }
-
-        size_t remove_eol(char*& buffer, size_t size) {
-            size_t new_size = size - 1;
-            if (size >= 2 && buffer[size - 2] == '\r') {
-                crlf = true;
-                new_size--;
-            } else {
-                crlf = false;
-            }
-
-            buffer[new_size] = '\0';
-            return new_size;
-        }
-
-        void realloc_concat(char*& first, size_t& first_size,
-                            const char* const second, size_t second_size) {
-            first = static_cast<char*>(realloc(static_cast<void*>(first),
-                                               first_size + second_size + 2));
-
-            std::copy_n(second, second_size + 1, first + first_size);
-            first_size += second_size;
-        }
-
-        bool append_line(FILE* file, char*& dst_buffer, size_t& dst_size) {
-            undo_remove_eol(dst_size);
-
-            ssize_t ssize = getline(&helper_buffer_, &helper_size_, file);
-            if (ssize == -1) {
-                return false;
-            }
-
-            size_t size = remove_eol(helper_buffer_, ssize);
-            realloc_concat(dst_buffer, dst_size, helper_buffer_, size);
-            return true;
-        }
-
-    public:
-        reader(const std::string& delimiter) : delim_{delimiter} {
-        }
-
-        ~reader() {
-            free(buffer_);
-            free(next_line_buffer_);
-            free(helper_buffer_);
-        }
-
-        bool read(FILE* file) {
-            ssize_t ssize = getline(&next_line_buffer_, &size_, file);
-
-            if (ssize == -1) {
-                return false;
-            }
-
-            size_t size = remove_eol(next_line_buffer_, ssize);
-
-            if constexpr (setup<Matchers...>::escape::enabled) {
-                while (escaped_eol(size)) {
-                    if (!append_line(file, next_line_buffer_, size)) {
-                        return false;
-                    }
-                }
-            }
-
-            next_line_converter_.split(next_line_buffer_, delim_);
-
-            if constexpr (setup<Matchers...>::quote::enabled) {
-                while (unterminated_quote()) {
-                    if (!append_line(file, next_line_buffer_, size)) {
-                        return false;
-                    }
-                    next_line_converter_.resplit(next_line_buffer_, size);
-                }
-            }
-
-            return true;
-        }
-
-        void set_error_mode(error_mode mode) {
-            converter_.set_error_mode(mode);
-            next_line_converter_.set_error_mode(mode);
-        }
-
-        converter<Matchers...>& get_converter() {
-            return converter_;
-        }
-
-        const char* get_buffer() const {
-            return buffer_;
-        }
-
-        void update() {
-            std::swap(buffer_, next_line_buffer_);
-            std::swap(converter_, next_line_converter_);
-        }
-    };
-
-    void read_line() {
-        eof_ = !reader_.read(file_);
-        ++line_number_;
-    }
-
-    ////////////////
     // error
     ////////////////
 
@@ -422,9 +277,9 @@ private:
                 .append(" ")
                 .append(std::to_string(line_number_))
                 .append(": ")
-                .append(reader_.get_converter().error_msg())
+                .append(reader_.converter_.error_msg())
                 .append(": \"")
-                .append(reader_.get_buffer())
+                .append(reader_.buffer_)
                 .append("\"");
         } else {
             bool_error_ = true;
@@ -432,16 +287,201 @@ private:
     }
 
     ////////////////
+    // line reading
+    ////////////////
+
+    void read_line() {
+        eof_ = !reader_.read_next();
+        ++line_number_;
+    }
+
+    struct reader {
+        reader(const std::string& file_name_, const std::string& delim)
+            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
+        }
+
+        reader(reader&& other)
+            : buffer_{other.buffer_},
+              next_line_buffer_{other.next_line_buffer_},
+              helper_buffer_{other.helper_buffer_}, converter_{std::move(
+                                                        other.converter_)},
+              next_line_converter_{std::move(other.next_line_converter_)},
+              size_{other.size_},
+              helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
+              file_{other.file_}, crlf_{other.crlf_} {
+            other.buffer_ = nullptr;
+            other.next_line_buffer_ = nullptr;
+            other.helper_buffer_ = nullptr;
+            other.file_ = nullptr;
+        }
+
+        reader& operator=(reader&& other) {
+            if (this != &other) {
+                buffer_ = other.buffer_;
+                next_line_buffer_ = other.next_line_buffer_;
+                helper_buffer_ = other.helper_buffer_;
+                converter_ = std::move(other.converter_);
+                next_line_converter_ = std::move(other.next_line_converter_);
+                size_ = other.size_;
+                helper_size_ = other.helper_size_;
+                delim_ = std::move(other.delim_);
+                file_ = other.file_;
+                crlf_ = other.crlf_;
+
+                other.buffer_ = nullptr;
+                other.next_line_buffer_ = nullptr;
+                other.helper_buffer_ = nullptr;
+                other.file_ = nullptr;
+            }
+
+            return *this;
+        }
+
+        ~reader() {
+            free(buffer_);
+            free(next_line_buffer_);
+            free(helper_buffer_);
+
+            if (file_) {
+                fclose(file_);
+            }
+        }
+
+        reader() = delete;
+        reader(const reader& other) = delete;
+        reader& operator=(const reader& other) = delete;
+
+        bool read_next() {
+            ssize_t ssize = getline(&next_line_buffer_, &size_, file_);
+
+            if (ssize == -1) {
+                return false;
+            }
+
+            size_t size = remove_eol(next_line_buffer_, ssize);
+
+            if constexpr (setup<Matchers...>::escape::enabled) {
+                while (escaped_eol(size)) {
+                    if (!append_line(next_line_buffer_, size)) {
+                        return false;
+                    }
+                }
+            }
+
+            next_line_converter_.split(next_line_buffer_, delim_);
+
+            if constexpr (setup<Matchers...>::quote::enabled) {
+                while (unterminated_quote()) {
+                    if (!append_line(next_line_buffer_, size)) {
+                        return false;
+                    }
+                    next_line_converter_.resplit(next_line_buffer_, size);
+                }
+            }
+
+            return true;
+        }
+
+        void set_error_mode(error_mode mode) {
+            converter_.set_error_mode(mode);
+            next_line_converter_.set_error_mode(mode);
+        }
+
+        void update() {
+            std::swap(buffer_, next_line_buffer_);
+            std::swap(converter_, next_line_converter_);
+        }
+
+        bool escaped_eol(size_t size) {
+            const char* curr;
+            for (curr = next_line_buffer_ + size - 1;
+                 curr >= next_line_buffer_ &&
+                 setup<Matchers...>::escape::match(*curr);
+                 --curr) {
+            }
+            return (next_line_buffer_ - curr + size) % 2 == 0;
+        }
+
+        bool unterminated_quote() {
+            if (next_line_converter_.unterminated_quote()) {
+                return true;
+            }
+            return false;
+        }
+
+        void undo_remove_eol(size_t& string_end) {
+            if (crlf_) {
+                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
+                string_end += 2;
+            } else {
+                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
+                string_end += 1;
+            }
+        }
+
+        size_t remove_eol(char*& buffer, size_t size) {
+            size_t new_size = size - 1;
+            if (size >= 2 && buffer[size - 2] == '\r') {
+                crlf_ = true;
+                new_size--;
+            } else {
+                crlf_ = false;
+            }
+
+            buffer[new_size] = '\0';
+            return new_size;
+        }
+
+        void realloc_concat(char*& first, size_t& first_size,
+                            const char* const second, size_t second_size) {
+            first = static_cast<char*>(realloc(static_cast<void*>(first),
+                                               first_size + second_size + 2));
+
+            std::copy_n(second, second_size + 1, first + first_size);
+            first_size += second_size;
+        }
+
+        bool append_line(char*& dst_buffer, size_t& dst_size) {
+            undo_remove_eol(dst_size);
+
+            ssize_t ssize = getline(&helper_buffer_, &helper_size_, file_);
+            if (ssize == -1) {
+                return false;
+            }
+
+            size_t size = remove_eol(helper_buffer_, ssize);
+            realloc_concat(dst_buffer, dst_size, helper_buffer_, size);
+            return true;
+        }
+
+        ////////////////
+        // members
+        ////////////////
+        char* buffer_{nullptr};
+        char* next_line_buffer_{nullptr};
+        char* helper_buffer_{nullptr};
+
+        converter<Matchers...> converter_;
+        converter<Matchers...> next_line_converter_;
+
+        size_t size_{0};
+        size_t helper_size_{0};
+
+        std::string delim_;
+        FILE* file_{nullptr};
+
+        bool crlf_;
+    };
+
+    ////////////////
     // members
     ////////////////
 
-    const std::string file_name_;
-    const std::string delim_;
+    std::string file_name_;
     std::string string_error_;
     bool bool_error_{false};
     error_mode error_mode_{error_mode::error_bool};
-    FILE* file_{nullptr};
-    reader reader_{delim_};
+    reader reader_;
     size_t line_number_{0};
     bool eof_{false};
 };

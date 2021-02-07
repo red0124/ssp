@@ -49,13 +49,16 @@ static void make_and_write(const std::string& file_name,
     }
 }
 
-TEST_CASE("testing parser") {
+TEST_CASE("parser test various cases") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
     {
         ss::parser p{f.name, ","};
+        ss::parser p0{std::move(p)};
+        p = std::move(p0);
+
         p.set_error_mode(ss::error_mode::error_string);
         std::vector<X> i;
 
@@ -176,7 +179,7 @@ void expect_test_struct(const test_struct&) {
 }
 
 // various scenarios
-TEST_CASE("testing composite conversion") {
+TEST_CASE("parser test composite conversion") {
     unique_file_name f;
     {
         std::ofstream out{f.name};
@@ -433,7 +436,7 @@ struct xyz {
     }
 };
 
-TEST_CASE("testing the moving of parsed values") {
+TEST_CASE("parser test the moving of parsed values") {
     size_t move_called_one_col;
 
     {
@@ -479,7 +482,7 @@ TEST_CASE("testing the moving of parsed values") {
     }
 }
 
-TEST_CASE("testing the moving of parsed composite values") {
+TEST_CASE("parser test the moving of parsed composite values") {
     // to compile is enough
     return;
     ss::parser p{"", ""};
@@ -492,7 +495,7 @@ TEST_CASE("testing the moving of parsed composite values") {
             [](auto&, auto&, auto&) {});
 }
 
-TEST_CASE("testing error mode") {
+TEST_CASE("parser test error mode") {
     unique_file_name f;
     {
         std::ofstream out{f.name};
@@ -522,7 +525,7 @@ std::string no_quote(const std::string& s) {
     return s;
 }
 
-TEST_CASE("testing csv on multiple lines with quotes") {
+TEST_CASE("parser test csv on multiple lines with quotes") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
                            {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
@@ -552,7 +555,7 @@ std::string no_escape(std::string& s) {
     return s;
 }
 
-TEST_CASE("testing csv on multiple lines with escapes") {
+TEST_CASE("parser test csv on multiple lines with escapes") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {3, 4, "y\\\ny\\\ny"},
                            {5, 6, "z\\\nz"},      {7, 8, "u"},
