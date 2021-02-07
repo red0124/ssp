@@ -60,8 +60,14 @@ Bill (Heath) Gates 65 3.3
  * Fast
 
 # Installation
-TODO
 
+$ git clone https://github.com/red0124/ssp
+$ cd ssp
+$ cmake --configure .
+$ sudo make install
+
+*Note, this will also install the fast_float library*
+```
 # Usage
 
 ## Conversions

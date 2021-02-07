@@ -18,6 +18,7 @@ endif()
 
 # ---- Dependencies ----
 
+include(FetchContent)
 FetchContent_Declare(
   fast_float
   GIT_REPOSITORY https://github.com/red0124/fast_float.git
@@ -25,6 +26,7 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE)
 
 FetchContent_MakeAvailable(fast_float)
+set(fast_float_source_dir "${FETCHCONTENT_BASE_DIR}/fast_float-src")
 
 # ---- Declare library ----
 
@@ -36,7 +38,7 @@ target_include_directories(
     ${ssp_warning_guard}
     INTERFACE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-    fast_float
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/fast_float>"
 )
 
 target_compile_features(ssp INTERFACE cxx_std_17)
@@ -57,7 +59,7 @@ set(ssp_directory "ssp-${PROJECT_VERSION}")
 set(ssp_include_directory "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(
-    DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
+    DIRECTORY "${PROJECT_SOURCE_DIR}/include/" "${fast_float_source_dir}/include/"
     DESTINATION "${ssp_include_directory}"
     COMPONENT ssp_Development
 )
