@@ -67,7 +67,8 @@ $ cmake --configure .
 $ sudo make install
 
 *Note, this will also install the fast_float library*
-```
+The library supports [CMake](#Cmake) and [meson](#Meson) build systems
+
 # Usage
 
 ## Conversions
@@ -384,3 +385,27 @@ std::string s;
 std::cin >> s;
 int num = c.convert<int>(s.c_str());
 ```
+
+# CMake
+
+If you have the repository cloned in your CMake project, simply add it:
+```
+add_subdirectory(ssp)
+```
+Othervise, you can fetch it from the repository:
+```
+include(FetchContent)
+FetchContent_Declare(
+  ssp
+  GIT_REPOSITORY https://github.com/red0124/ssp.git
+  GIT_TAG origin/master
+  GIT_SHALLOW TRUE)
+
+FetchContent_MakeAvailable(ssp)
+```
+Either way, after you prepare the target, you just have to invoke it in your project:
+```
+target_link_libraries(project PUBLIC ssp)
+```
+# Meson
+
