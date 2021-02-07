@@ -295,8 +295,7 @@ private:
         ++line_number_;
     }
 
-    class reader {
-    public:
+    struct reader {
         reader(const std::string& file_name_, const std::string& delim)
             : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
         }
@@ -304,14 +303,12 @@ private:
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
-              helper_buffer_{other.helper_buffer_}, 
-              converter_{std::move(other.converter_)},
+              helper_buffer_{other.helper_buffer_}, converter_{std::move(
+                                                        other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
               size_{other.size_},
-              helper_size_{other.helper_size_}, 
-              delim_{std::move(other.delim_)},
-              file_{other.file_}, 
-              crlf_{other.crlf_} {
+              helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
+              file_{other.file_}, crlf_{other.crlf_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -395,7 +392,6 @@ private:
             std::swap(converter_, next_line_converter_);
         }
 
-    private:
         bool escaped_eol(size_t size) {
             const char* curr;
             for (curr = next_line_buffer_ + size - 1;
@@ -461,7 +457,6 @@ private:
         ////////////////
         // members
         ////////////////
-    public:
         char* buffer_{nullptr};
         char* next_line_buffer_{nullptr};
         char* helper_buffer_{nullptr};
