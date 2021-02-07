@@ -390,11 +390,11 @@ int num = c.convert<int>(s.c_str());
 
 ## CMake
 
-If the repository is cloned in the CMake project, it can simply be added:
+If the repository is cloned within the CMake project, it can be added in the following way:
 ```cmake
 add_subdirectory(ssp)
 ```
-Othervise, it can just be fetched from the repository:
+Alternatively, it can be fetched from the repository:
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
@@ -411,7 +411,13 @@ target_link_libraries(project PUBLIC ssp)
 ```
 ## Meson
 
-Simply fetch the dependency and it is ready to be invoked:
+Create an *ssp.wrap* file in your *subprojects* directory with the following content:
+```wrap
+[wrap-git]
+url = https://github.com/red0124/ssp
+revision = origin/master
+```
+Then simply fetch the dependency and it is ready to be used:
 ```meson
 ssp_sub = subproject('ssp')
 ssp_dep = ssp_sub.get_variable('ssp_dep')
