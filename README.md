@@ -59,6 +59,9 @@ Bill (Heath) Gates 65 3.3
  * Conversions can be chained if invalid
  * Fast
 
+# Installation
+TODO
+
 # Usage
 
 ## Conversions

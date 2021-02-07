@@ -47,3 +47,49 @@ target_link_libraries(
     "$<$<AND:$<CXX_COMPILER_ID:AppleClang,Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>"
     "$<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>"
 )
+
+# ---- Install ----
+
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
+set(ssp_directory "ssp-${PROJECT_VERSION}")
+set(ssp_include_directory "${CMAKE_INSTALL_INCLUDEDIR}")
+
+install(
+    DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
+    DESTINATION "${ssp_include_directory}"
+    COMPONENT ssp_Development
+)
+
+install(
+    TARGETS ssp
+    EXPORT sspTargets
+    INCLUDES DESTINATION "${ssp_include_directory}"
+)
+
+write_basic_package_version_file(
+    ssp-config-version.cmake
+    COMPATIBILITY SameMajorVersion
+    ARCH_INDEPENDENT
+)
+
+set(ssp_install_cmakedir "${CMAKE_INSTALL_LIBDIR}/cmake/${ssp_directory}")
+
+install(
+    FILES "${PROJECT_BINARY_DIR}/ssp-config-version.cmake"
+    DESTINATION "${ssp_install_cmakedir}"
+    COMPONENT ssp_Development
+)
+
+install(
+    EXPORT sspTargets
+    FILE ssp-config.cmake
+    NAMESPACE ssp::
+    DESTINATION "${ssp_install_cmakedir}"
+    COMPONENT ssp_Development
+)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  include(CPack)
+endif()
