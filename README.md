@@ -8,7 +8,7 @@ Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/sr
 # Example 
 Lets say we have a csv file containing students in a given format (NAME,AGE,GRADE) and we want to parse and print all the valid values:
 
-```
+```shell
 $ cat students.csv
 James Bailey,65,2.5
 Brian S. Wolfe,40,1.9
@@ -38,7 +38,7 @@ int main() {
 }
 ```
 And if we compile and execute the program we get the following output:
-```
+```shell
 $ ./a.out
 James Bailey 65 2.5
 Brian S. Wolfe 40 1.9
@@ -58,6 +58,18 @@ Bill (Heath) Gates 65 3.3
  * Works with **CRLF** and **LF**
  * Conversions can be chained if invalid
  * Fast
+
+# Installation
+
+```shell
+$ git clone https://github.com/red0124/ssp
+$ cd ssp
+$ cmake --configure .
+$ sudo make install
+```
+
+*Note, this will also install the fast_float library*   
+The library supports [CMake](#Cmake) and [meson](#Meson) build systems    
 
 # Usage
 
@@ -374,4 +386,40 @@ ss::converter c;
 std::string s;
 std::cin >> s;
 int num = c.convert<int>(s.c_str());
+```
+# Using as a project dependency
+
+## CMake
+
+If the repository is cloned within the CMake project, it can be added in the following way:
+```cmake
+add_subdirectory(ssp)
+```
+Alternatively, it can be fetched from the repository:
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  ssp
+  GIT_REPOSITORY https://github.com/red0124/ssp.git
+  GIT_TAG origin/master
+  GIT_SHALLOW TRUE)
+
+FetchContent_MakeAvailable(ssp)
+```
+Either way, after you prepare the target, you just have to invoke it in your project:
+```cmake
+target_link_libraries(project PUBLIC ssp)
+```
+## Meson
+
+Create an *ssp.wrap* file in your *subprojects* directory with the following content:
+```wrap
+[wrap-git]
+url = https://github.com/red0124/ssp
+revision = origin/master
+```
+Then simply fetch the dependency and it is ready to be used:
+```meson
+ssp_sub = subproject('ssp')
+ssp_dep = ssp_sub.get_variable('ssp_dep')
 ```
