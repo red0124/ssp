@@ -388,13 +388,13 @@ std::cin >> s;
 int num = c.convert<int>(s.c_str());
 ```
 
-# CMake
+## CMake
 
-If you have the repository cloned in your CMake project, simply add it:
+If the repository is cloned in the CMake project, it can simply be added:
 ```cmake
 add_subdirectory(ssp)
 ```
-Othervise, you can fetch just it from the repository:
+Othervise, it can just be fetched from the repository:
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
@@ -409,5 +409,10 @@ Either way, after you prepare the target, you just have to invoke it in your pro
 ```cmake
 target_link_libraries(project PUBLIC ssp)
 ```
-# Meson
+## Meson
 
+Simply fetch the dependency and it is ready to be invoked:
+```meson
+ssp_sub = subproject('ssp')
+ssp_dep = ssp_sub.get_variable('ssp_dep')
+```
