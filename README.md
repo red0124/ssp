@@ -8,7 +8,7 @@ Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/sr
 # Example 
 Lets say we have a csv file containing students in a given format (NAME,AGE,GRADE) and we want to parse and print all the valid values:
 
-```
+```shell
 $ cat students.csv
 James Bailey,65,2.5
 Brian S. Wolfe,40,1.9
@@ -38,7 +38,7 @@ int main() {
 }
 ```
 And if we compile and execute the program we get the following output:
-```
+```shell
 $ ./a.out
 James Bailey 65 2.5
 Brian S. Wolfe 40 1.9
@@ -61,13 +61,15 @@ Bill (Heath) Gates 65 3.3
 
 # Installation
 
+```shell
 $ git clone https://github.com/red0124/ssp
 $ cd ssp
 $ cmake --configure .
 $ sudo make install
+```
 
-*Note, this will also install the fast_float library*
-The library supports [CMake](#Cmake) and [meson](#Meson) build systems
+*Note, this will also install the fast_float library*   
+The library supports [CMake](#Cmake) and [meson](#Meson) build systems    
 
 # Usage
 
@@ -389,11 +391,11 @@ int num = c.convert<int>(s.c_str());
 # CMake
 
 If you have the repository cloned in your CMake project, simply add it:
-```
+```cmake
 add_subdirectory(ssp)
 ```
-Othervise, you can fetch it from the repository:
-```
+Othervise, you can fetch just it from the repository:
+```cmake
 include(FetchContent)
 FetchContent_Declare(
   ssp
@@ -404,7 +406,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(ssp)
 ```
 Either way, after you prepare the target, you just have to invoke it in your project:
-```
+```cmake
 target_link_libraries(project PUBLIC ssp)
 ```
 # Meson
