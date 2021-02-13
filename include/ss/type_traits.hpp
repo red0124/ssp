@@ -230,8 +230,11 @@ using filter_not_t = typename filter_not<Trait, Ts...>::type;
 // count
 ////////////////
 
+template <template <typename...> class Trait, typename... Ts>
+struct count;
+
 template <template <typename...> class Trait, typename T, typename... Ts>
-struct count {
+struct count<Trait, T, Ts...> {
     static constexpr size_t size =
         std::tuple_size<filter_if_t<Trait, T, Ts...>>::value;
 };
@@ -241,12 +244,20 @@ struct count<Trait, T> {
     static constexpr size_t size = Trait<T>::value;
 };
 
+template <template <typename...> class Trait>
+struct count<Trait> {
+    static constexpr size_t size = 0;
+};
+
 ////////////////
 // count not
 ////////////////
 
+template <template <typename...> class Trait, typename... Ts>
+struct count_not;
+
 template <template <typename...> class Trait, typename T, typename... Ts>
-struct count_not {
+struct count_not<Trait, T, Ts...> {
     static constexpr size_t size =
         std::tuple_size<filter_not_t<Trait, T, Ts...>>::value;
 };
@@ -254,6 +265,11 @@ struct count_not {
 template <template <typename...> class Trait, typename T>
 struct count_not<Trait, T> {
     static constexpr size_t size = !Trait<T>::value;
+};
+
+template <template <typename...> class Trait>
+struct count_not<Trait> {
+    static constexpr size_t size = 0;
 };
 
 ////////////////
@@ -330,6 +346,9 @@ template <typename T, typename U>
 struct ternary<false, T, U> {
     using type = U;
 };
+
+template <bool B, typename T, typename U>
+using ternary_t = typename ternary<B, T, U>::type;
 
 ////////////////
 // tuple to struct

@@ -384,13 +384,7 @@ TEST_CASE(
 }
 
 TEST_CASE("converter test error mode") {
-    ss::converter c;
-
-    c.convert<int>("junk");
-    CHECK(!c.valid());
-    CHECK(c.error_msg().empty());
-
-    c.set_error_mode(ss::error_mode::error_string);
+    ss::converter<ss::string_error> c;
     c.convert<int>("junk");
     CHECK(!c.valid());
     CHECK(!c.error_msg().empty());
@@ -444,8 +438,9 @@ TEST_CASE("converter test converter with quotes spacing and escaping") {
 }
 
 TEST_CASE("converter test invalid split conversions") {
-    ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>> c;
-    c.set_error_mode(ss::error_mode::error_string);
+    ss::converter<ss::string_error, ss::escape<'\\'>, ss::trim<' '>,
+                  ss::quote<'"'>>
+        c;
 
     {
         // mismatched quote
@@ -453,6 +448,7 @@ TEST_CASE("converter test invalid split conversions") {
             buff(R"(  "just  , some ,   "12.3","a"  )"));
         CHECK(!c.valid());
         CHECK(!c.unterminated_quote());
+        CHECK(!c.error_msg().empty());
     }
 
     {
@@ -461,5 +457,6 @@ TEST_CASE("converter test invalid split conversions") {
             buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)"));
         CHECK(!c.valid());
         CHECK(c.unterminated_quote());
+        CHECK(!c.error_msg().empty());
     }
 }

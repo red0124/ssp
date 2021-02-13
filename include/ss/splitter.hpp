@@ -10,13 +10,10 @@
 
 namespace ss {
 
-// TODO move to common
+// TODO move to common or something
 using string_range = std::pair<const char*, const char*>;
 using split_input = std::vector<string_range>;
 constexpr static auto default_delimiter = ",";
-
-// the error can be set inside a string, or a bool
-enum class error_mode { error_string, error_bool };
 
 template <typename... Ts>
 class splitter {
@@ -25,27 +22,30 @@ private:
     using trim = typename setup<Ts...>::trim;
     using escape = typename setup<Ts...>::escape;
 
+    constexpr static auto string_error = setup<Ts...>::string_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
+    using error_type = ss::ternary_t<string_error, std::string, bool>;
+
 public:
-    using line_ptr_type =
-        typename ternary<is_const_line, const char*, char*>::type;
+    using line_ptr_type = ternary_t<is_const_line, const char*, char*>;
 
     bool valid() const {
-        return (error_mode_ == error_mode::error_string) ? string_error_.empty()
-                                                         : bool_error_ == false;
+        if constexpr (string_error) {
+            return error_.empty();
+        } else {
+            return !error_;
+        }
+    }
+
+    const std::string& error_msg() const {
+        static_assert(string_error,
+                      "'string_error' needs to be enabled to use 'error_msg'");
+        return error_;
     }
 
     bool unterminated_quote() const {
         return unterminated_quote_;
-    }
-
-    const std::string& error_msg() const {
-        return string_error_;
-    }
-
-    void set_error_mode(error_mode mode) {
-        error_mode_ = mode;
     }
 
     const split_input& split(line_ptr_type new_line,
@@ -54,17 +54,17 @@ public:
         return resplit(new_line, -1, delimiter);
     }
 
+private:
+    ////////////////
+    // resplit
+    ////////////////
+
     void adjust_ranges(const char* old_line) {
         for (auto& [begin, end] : split_input_) {
             begin = begin - old_line + line_;
             end = end - old_line + line_;
         }
     }
-
-private:
-    ////////////////
-    // resplit
-    ////////////////
 
     const split_input& resplit(
         line_ptr_type new_line, ssize_t new_size,
@@ -96,48 +96,50 @@ private:
     ////////////////
 
     void clear_error() {
-        string_error_.clear();
-        bool_error_ = false;
+        if constexpr (string_error) {
+            error_.clear();
+        } else {
+            error_ = false;
+        }
         unterminated_quote_ = false;
     }
 
     void set_error_empty_delimiter() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("empty delimiter");
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("empt  delimiter");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_mismatched_quote(size_t n) {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("mismatched quote at position: " +
-                                 std::to_string(n));
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("mismatched quote at position: " + std::to_string(n));
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_unterminated_quote() {
         unterminated_quote_ = true;
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("unterminated quote");
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("unterminated quote");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_invalid_resplit() {
         unterminated_quote_ = false;
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("invalid resplit, new line must be longer"
-                                 "than the end of the last slice");
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("invalid resplit, new line must be longer"
+                          "than the end of the last slice");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
@@ -373,10 +375,10 @@ private:
     // members
     ////////////////
 
-    std::string string_error_;
-    bool bool_error_{false};
+    static_assert(std::is_same_v<error_type, bool> ||
+                  std::is_same_v<error_type, std::string>);
+    error_type error_;
     bool unterminated_quote_{false};
-    enum error_mode error_mode_ { error_mode::error_bool };
     line_ptr_type begin_;
     line_ptr_type curr_;
     line_ptr_type end_;

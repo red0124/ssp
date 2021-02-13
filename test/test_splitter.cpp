@@ -480,13 +480,7 @@ TEST_CASE("splitter test error mode") {
 
     {
         // empty delimiter
-        ss::splitter s;
-        s.split(buff("just,some,strings"), "");
-        CHECK(!s.valid());
-        CHECK(!s.unterminated_quote());
-        CHECK(s.error_msg().empty());
-
-        s.set_error_mode(ss::error_mode::error_string);
+        ss::splitter<ss::string_error> s;
         s.split(buff("just,some,strings"), "");
         CHECK(!s.valid());
         CHECK(!s.unterminated_quote());
@@ -495,13 +489,7 @@ TEST_CASE("splitter test error mode") {
 
     {
         // unterminated quote
-        ss::splitter<ss::quote<'"'>> s;
-        s.split(buff("\"just"));
-        CHECK(!s.valid());
-        CHECK(s.unterminated_quote());
-        CHECK(s.error_msg().empty());
-
-        s.set_error_mode(ss::error_mode::error_string);
+        ss::splitter<ss::string_error, ss::quote<'"'>> s;
         s.split(buff("\"just"));
         CHECK(!s.valid());
         CHECK(s.unterminated_quote());
@@ -691,27 +679,33 @@ TEST_CASE("splitter test unterminated quote") {
 }
 
 TEST_CASE("splitter test invalid splits") {
-    ss::converter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>> c;
+    ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
+                  ss::escape<'\\'>>
+        c;
     auto& s = c.splitter;
 
     // empty delimiter
     s.split(buff("some,random,strings"), "");
     CHECK(!s.valid());
     CHECK(!s.unterminated_quote());
+    CHECK(!s.error_msg().empty());
 
     // mismatched delimiter
     s.split(buff(R"(some,"random,"strings")"));
     CHECK(!s.valid());
     CHECK(!s.unterminated_quote());
+    CHECK(!s.error_msg().empty());
 
     // unterminated quote
     s.split(buff("some,random,\"strings"));
     CHECK(!s.valid());
     CHECK(s.unterminated_quote());
+    CHECK(!s.error_msg().empty());
 
     // invalid resplit
     char new_line[] = "some";
     auto a = c.resplit(new_line, strlen(new_line));
     CHECK(!s.valid());
     CHECK(!s.unterminated_quote());
+    CHECK(!s.error_msg().empty());
 }

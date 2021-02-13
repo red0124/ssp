@@ -79,9 +79,8 @@ struct get_matcher;
 
 template <template <char...> class Matcher, typename T, typename... Ts>
 struct get_matcher<Matcher, T, Ts...> {
-    using type =
-        typename ternary<is_instance_of_matcher<T, Matcher>::value, T,
-                         typename get_matcher<Matcher, Ts...>::type>::type;
+    using type = ternary_t<is_instance_of_matcher<T, Matcher>::value, T,
+                           typename get_matcher<Matcher, Ts...>::type>;
 };
 
 template <template <char...> class Matcher>
@@ -92,11 +91,33 @@ struct get_matcher<Matcher> {
 template <template <char...> class Matcher, typename... Ts>
 using get_matcher_t = typename get_matcher<Matcher, Ts...>::type;
 
+class multiline;
+class string_error;
+
 template <typename... Ts>
 struct setup {
+private:
+    template <typename T>
+    struct is_multiline : std::is_same<T, multiline> {};
+
+    constexpr static auto count_multiline = count<is_multiline, Ts...>::size;
+
+    template <typename T>
+    struct is_string_error : std::is_same<T, string_error> {};
+
+    constexpr static auto count_string_error =
+        count<is_string_error, Ts...>::size;
+
+public:
     using quote = get_matcher_t<quote, Ts...>;
     using trim = get_matcher_t<trim, Ts...>;
     using escape = get_matcher_t<escape, Ts...>;
+    constexpr static bool multiline = (count_multiline == 1);
+    constexpr static bool string_error = (count_string_error == 1);
+
+    static_assert(
+        !multiline || (multiline && (quote::enabled || escape::enabled)),
+        "to enable multiline either quote or escape need to be enabled");
 
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"
     static_assert(!matches_intersect<quote, trim>(), ASSERT_MSG);
