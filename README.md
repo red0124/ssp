@@ -22,7 +22,6 @@ Bill (Heath) Gates,65,3.3
 int main() {
     ss::parser p{"students.csv", ","};
     if (!p.valid()) {
-        std::cout << p.error_msg() << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -232,14 +231,16 @@ Not yet documented.
 
 ## Error handling
 
-Detailed error messages can be accessed via the **error_msg** method, and to enable them the error mode has to be changed to **error_mode::error_string** using the **set_error_mode** method:
+Detailed error messages can be accessed via the **error_msg** method, and to enable them ss::string_error needs to be included in the setup.
 ```cpp
-void parser::set_error_mode(ss::error_mode);
 const std::string& parser::error_msg();
 bool parser::valid();
 bool parser::eof();
+
+// ...
+ss::parser<ss::string_error> parser;
 ```
-Error messages can always be disabled by setting the error mode to **error_mode::error_bool**. An error can be detected using the **valid** method which would return **false** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...). The **eof** method can be used to detect if the end of the file was reached.
+An error can be detected using the **valid** method which would return **false** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...). The **eof** method can be used to detect if the end of the file was reached.
 
 ## Substitute conversions
 
@@ -340,7 +341,7 @@ p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
             }
         });
 ```
-It is a bit less readable, but it removes the need to check which conversion was invoked. The **composite** also has an **on_error** method which accepts a lambda which will be invoked if no previous conversions were successful. The lambda can take no arguments or just one argument, an **std::string**, in which the error message is stored if **error_mode** is set to **error_mode::error_string**: 
+It is a bit less readable, but it removes the need to check which conversion was invoked. The **composite** also has an **on_error** method which accepts a lambda which will be invoked if no previous conversions were successful. The lambda can take no arguments or just one argument, an **std::string**, in which the error message is stored if **string_error** is enabled: 
 ```cpp
 p.try_next<int>()
     .on_error([](const std::string& e) { /* int conversion failed */ })
@@ -371,8 +372,8 @@ if (c.valid()) {
     // do something with s
 }
 ```
-All special types and restrictions work on the converter too. Error handling is
-also identical to error handling of the parser.
+All setup parameters, special types and restrictions work on the converter too.  
+Error handling is also identical to error handling of the parser.
 
 The converter has also the ability to just split the line, tho it does not change it (kinda statically), hence the name of the library. It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
 ```cpp

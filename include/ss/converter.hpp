@@ -109,8 +109,12 @@ constexpr bool tied_class_v = tied_class<Ts...>::value;
 
 template <typename... Matchers>
 class converter {
-    constexpr static auto default_delimiter = ",";
     using line_ptr_type = typename splitter<Matchers...>::line_ptr_type;
+
+    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto default_delimiter = ",";
+
+    using error_type = ss::ternary_t<string_error, std::string, bool>;
 
 public:
     // parses line with given delimiter, returns a 'T' object created with
@@ -173,21 +177,21 @@ public:
     }
 
     bool valid() const {
-        return (error_mode_ == error_mode::error_string) ? string_error_.empty()
-                                                         : bool_error_ == false;
+        if constexpr (string_error) {
+            return error_.empty();
+        } else {
+            return !error_;
+        }
+    }
+
+    const std::string& error_msg() const {
+        static_assert(string_error,
+                      "'string_error' needs to be enabled to use 'error_msg'");
+        return error_;
     }
 
     bool unterminated_quote() const {
         return splitter_.unterminated_quote();
-    }
-
-    const std::string& error_msg() const {
-        return string_error_;
-    }
-
-    void set_error_mode(error_mode mode) {
-        splitter_.set_error_mode(mode);
-        error_mode_ = mode;
     }
 
     // 'splits' string by given delimiter, returns vector of pairs which
@@ -203,7 +207,6 @@ public:
     }
 
 private:
-
     ////////////////
     // resplit
     ////////////////
@@ -218,8 +221,11 @@ private:
     ////////////////
 
     void clear_error() {
-        string_error_.clear();
-        bool_error_ = false;
+        if constexpr (string_error) {
+            error_.clear();
+        } else {
+            error_ = false;
+        }
     }
 
     std::string error_sufix(const string_range msg, size_t pos) const {
@@ -234,44 +240,43 @@ private:
     }
 
     void set_error_unterminated_quote() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append(splitter_.error_msg());
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(splitter_.error_msg());
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_invalid_conversion(const string_range msg, size_t pos) {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("invalid conversion for parameter ")
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("invalid conversion for parameter ")
                 .append(error_sufix(msg, pos));
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_validate(const char* const error, const string_range msg,
                             size_t pos) {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append(error).append(" ").append(
-                error_sufix(msg, pos));
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(error).append(" ").append(error_sufix(msg, pos));
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_number_of_colums(size_t expected_pos, size_t pos) {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.clear();
-            string_error_.append("invalid number of columns, expected: ")
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("invalid number of columns, expected: ")
                 .append(std::to_string(expected_pos))
                 .append(", got: ")
                 .append(std::to_string(pos));
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
@@ -374,12 +379,10 @@ private:
     // members
     ////////////////
 
-    std::string string_error_;
-    bool bool_error_;
-    enum error_mode error_mode_ { error_mode::error_bool };
+    error_type error_;
     splitter<Matchers...> splitter_;
 
-    template <typename ...>
+    template <typename...>
     friend class parser;
 };
 

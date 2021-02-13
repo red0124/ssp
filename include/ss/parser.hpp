@@ -15,6 +15,11 @@ template <typename... Matchers>
 class parser {
     struct none {};
 
+    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto multiline = setup<Matchers...>::multiline;
+
+    using error_type = ss::ternary_t<string_error, std::string, bool>;
+
 public:
     parser(const std::string& file_name,
            const std::string& delim = ss::default_delimiter)
@@ -35,17 +40,17 @@ public:
     parser& operator=(const parser& other) = delete;
 
     bool valid() const {
-        return (error_mode_ == error_mode::error_string) ? string_error_.empty()
-                                                         : bool_error_ == false;
-    }
-
-    void set_error_mode(error_mode mode) {
-        error_mode_ = mode;
-        reader_.set_error_mode(mode);
+        if constexpr (string_error) {
+            return error_.empty();
+        } else {
+            return !error_;
+        }
     }
 
     const std::string& error_msg() const {
-        return string_error_;
+        static_assert(string_error,
+                      "'string_error' needs to be enabled to use 'error_msg'");
+        return error_;
     }
 
     bool eof() const {
@@ -124,6 +129,10 @@ public:
                 if constexpr (std::is_invocable_v<Fun>) {
                     fun();
                 } else {
+                    static_assert(string_error,
+                                  "to enable error messages within the "
+                                  "on_error method "
+                                  "callback string_error needs to be enabled");
                     std::invoke(std::forward<Fun>(fun), parser_.error_msg());
                 }
             }
@@ -246,34 +255,40 @@ private:
     ////////////////
 
     void clear_error() {
-        string_error_.clear();
-        bool_error_ = false;
+        if constexpr (string_error) {
+            error_.clear();
+        } else {
+            error_ = false;
+        }
     }
 
     void set_error_failed_check() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.append(file_name_).append(" failed check.");
+        if constexpr (string_error) {
+            error_.append(file_name_).append(" failed check.");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_file_not_open() {
-        string_error_.append(file_name_).append(" could not be opened.");
-        bool_error_ = true;
+        if constexpr (string_error) {
+            error_.append(file_name_).append(" could not be opened.");
+        } else {
+            error_ = true;
+        }
     }
 
     void set_error_eof_reached() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.append(file_name_).append(" reached end of file.");
+        if constexpr (string_error) {
+            error_.append(file_name_).append(" reached end of file.");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
     void set_error_invalid_conversion() {
-        if (error_mode_ == error_mode::error_string) {
-            string_error_.append(file_name_)
+        if constexpr (string_error) {
+            error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(line_number_))
                 .append(": ")
@@ -282,7 +297,7 @@ private:
                 .append(reader_.buffer_)
                 .append("\"");
         } else {
-            bool_error_ = true;
+            error_ = true;
         }
     }
 
@@ -360,7 +375,7 @@ private:
 
             size_t size = remove_eol(next_line_buffer_, ssize);
 
-            if constexpr (setup<Matchers...>::escape::enabled) {
+            if constexpr (multiline && setup<Matchers...>::escape::enabled) {
                 while (escaped_eol(size)) {
                     if (!append_line(next_line_buffer_, size)) {
                         return false;
@@ -370,7 +385,7 @@ private:
 
             next_line_converter_.split(next_line_buffer_, delim_);
 
-            if constexpr (setup<Matchers...>::quote::enabled) {
+            if constexpr (multiline && setup<Matchers...>::quote::enabled) {
                 while (unterminated_quote()) {
                     if (!append_line(next_line_buffer_, size)) {
                         return false;
@@ -380,11 +395,6 @@ private:
             }
 
             return true;
-        }
-
-        void set_error_mode(error_mode mode) {
-            converter_.set_error_mode(mode);
-            next_line_converter_.set_error_mode(mode);
         }
 
         void update() {
@@ -478,9 +488,7 @@ private:
     ////////////////
 
     std::string file_name_;
-    std::string string_error_;
-    bool bool_error_{false};
-    error_mode error_mode_{error_mode::error_bool};
+    error_type error_;
     reader reader_;
     size_t line_number_{0};
     bool eof_{false};

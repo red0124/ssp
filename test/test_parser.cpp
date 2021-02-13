@@ -59,7 +59,6 @@ TEST_CASE("parser test various cases") {
         ss::parser p0{std::move(p)};
         p = std::move(p0);
 
-        p.set_error_mode(ss::error_mode::error_string);
         std::vector<X> i;
 
         while (!p.eof()) {
@@ -190,8 +189,7 @@ TEST_CASE("parser test composite conversion") {
         }
     }
 
-    ss::parser p{f.name, ","};
-    p.set_error_mode(ss::error_mode::error_string);
+    ss::parser<ss::string_error> p{f.name, ","};
     auto fail = [] { FAIL(""); };
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
 
@@ -503,14 +501,7 @@ TEST_CASE("parser test error mode") {
         out << "junk" << std::endl;
     }
 
-    ss::parser p(f.name, ",");
-
-    REQUIRE(!p.eof());
-    p.get_next<int>();
-    CHECK(!p.valid());
-    CHECK(p.error_msg().empty());
-
-    p.set_error_mode(ss::error_mode::error_string);
+    ss::parser<ss::string_error> p(f.name, ",");
 
     REQUIRE(!p.eof());
     p.get_next<int>();
@@ -538,8 +529,7 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
         }
     }
 
-    ss::parser<ss::quote<'"'>> p{f.name, ","};
-    p.set_error_mode(ss::error_mode::error_string);
+    ss::parser<ss::multiline, ss::quote<'"'>> p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -548,6 +538,12 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
     }
 
     CHECK(std::equal(i.begin(), i.end(), data.begin()));
+
+    ss::parser<ss::quote<'"'>> p_no_multiline{f.name, ","};
+    while (!p.eof()) {
+        auto a = p_no_multiline.get_next<int, double, std::string>();
+        CHECK(!p.valid());
+    }
 }
 
 std::string no_escape(std::string& s) {
@@ -569,8 +565,7 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
         }
     }
 
-    ss::parser<ss::escape<'\\'>> p{f.name, ","};
-    p.set_error_mode(ss::error_mode::error_string);
+    ss::parser<ss::multiline, ss::escape<'\\'>> p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -579,4 +574,10 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
     }
 
     CHECK(std::equal(i.begin(), i.end(), data.begin()));
+
+    ss::parser<ss::escape<'\\'>> p_no_multiline{f.name, ","};
+    while (!p.eof()) {
+        auto a = p_no_multiline.get_next<int, double, std::string>();
+        CHECK(!p.valid());
+    }
 }
