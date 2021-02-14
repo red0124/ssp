@@ -17,7 +17,7 @@ struct set_combinations_size {
     }
 };
 
-std::vector<std::string> words(const ss::split_input& input) {
+std::vector<std::string> words(const ss::split_data& input) {
     std::vector<std::string> ret;
     for (const auto& [begin, end] : input) {
         ret.emplace_back(begin, end);
@@ -83,6 +83,30 @@ auto spaced(const case_type& input, const std::string& s1,
         ret.push_back(concat(i, s1, s2, s1, s2));
         ret.push_back(concat(s1, s1, s1, i, s2, s2, s2));
         ret.push_back(concat(s2, s2, s2, i, s1, s1, s1));
+    }
+
+    return ret;
+}
+
+auto spaced_left(const case_type& input, const std::string& s) {
+    case_type ret = input;
+    for (const auto& i : input) {
+        ret.push_back(concat(i));
+        ret.push_back(concat(s, i));
+        ret.push_back(concat(s, s, i));
+        ret.push_back(concat(s, s, s, i));
+    }
+
+    return ret;
+}
+
+auto spaced_right(const case_type& input, const std::string& s) {
+    case_type ret = input;
+    for (const auto& i : input) {
+        ret.push_back(concat(i));
+        ret.push_back(concat(i, s));
+        ret.push_back(concat(i, s, s));
+        ret.push_back(concat(i, s, s, s));
     }
 
     return ret;
@@ -708,4 +732,105 @@ TEST_CASE("splitter test invalid splits") {
     CHECK(!s.valid());
     CHECK(!s.unterminated_quote());
     CHECK(!s.error_msg().empty());
+}
+
+TEST_CASE("splitter test with trim_left") {
+    auto guard = set_combinations_size(3);
+    case_type case1 = spaced_left({R"(x )"}, " ");
+    case_type case2 = spaced_left({R"(yy )"}, " ");
+    case_type case3 = spaced_left({R"(y y )"}, " ");
+    case_type case4 = spaced_left({R"()"}, " ");
+
+    std::vector<std::string> delims = {",", "::", "\t", "\n"};
+
+    {
+        matches_type p{{case1, "x "},
+                       {case2, "yy "},
+                       {case3, "y y "},
+                       {case4, ""}};
+        test_combinations<ss::trim_left<' '>>(p, delims);
+    }
+
+    case_type case5 = spaced_left({"z "}, "\t");
+    case_type case6 = spaced_left({"ab\t "}, " \t");
+    case_type case7 = spaced_left({"a\tb "}, " \t");
+    case_type case8 = spaced_left({"a \t b "}, " \t");
+
+    {
+        matches_type p{{case1, "x "},    {case2, "yy "},    {case3, "y y "},
+                       {case4, ""},      {case5, "z "},     {case6, "ab\t "},
+                       {case7, "a\tb "}, {case8, "a \t b "}};
+        test_combinations<ss::trim_left<' ', '\t'>>(p, {",", "::", "\n"});
+    }
+}
+
+TEST_CASE("splitter test with trim_right") {
+    auto guard = set_combinations_size(3);
+    case_type case1 = spaced_right({R"( x)"}, " ");
+    case_type case2 = spaced_right({R"( yy)"}, " ");
+    case_type case3 = spaced_right({R"( y y)"}, " ");
+    case_type case4 = spaced_right({R"()"}, " ");
+
+    std::vector<std::string> delims = {",", "::", "\t", "\n"};
+
+    {
+        matches_type p{{case1, " x"},
+                       {case2, " yy"},
+                       {case3, " y y"},
+                       {case4, ""}};
+        test_combinations<ss::trim_right<' '>>(p, delims);
+    }
+
+    case_type case5 = spaced_right({" z"}, "\t");
+    case_type case6 = spaced_right({"\t ab"}, " \t");
+    case_type case7 = spaced_right({"\ta\tb"}, " \t");
+    case_type case8 = spaced_right({" \t a \t b"}, " \t");
+
+    {
+        matches_type p{{case1, " x"},     {case2, " yy"},
+                       {case3, " y y"},   {case4, ""},
+                       {case5, " z"},     {case6, "\t ab"},
+                       {case7, "\ta\tb"}, {case8, " \t a \t b"}};
+        test_combinations<ss::trim_right<' ', '\t'>>(p, {",", "::", "\n"});
+    }
+}
+
+TEST_CASE("splitter test with trim_right and trim_left") {
+    auto guard = set_combinations_size(3);
+    case_type case1 = spaced_right({R"(-x)"}, "-");
+    case_type case2 = spaced_left({R"(yy_)"}, "_");
+    case_type case3 = spaced_right({R"(-y y)"}, "-");
+    case_type case4 = spaced_left({R"()"}, "-");
+    case_type case5 = spaced_left({R"()"}, "_");
+    case_type case6 = {"___---", "_-", "______-"};
+
+    std::vector<std::string> delims = {",", "::", "\t", "\n"};
+
+    {
+        matches_type p{{case1, "-x"}, {case2, "yy_"}, {case3, "-y y"},
+                       {case4, ""},   {case5, ""},    {case6, ""}};
+        test_combinations<ss::trim_left<'_'>, ss::trim_right<'-'>>(p, delims);
+    }
+}
+
+TEST_CASE("splitter test with quote and escape, trim_left and trim_right") {
+    auto guard = set_combinations_size(3);
+    case_type case1 = spaced_left({R"("\"")", R"(\")", R"("""")"}, "_");
+    case_type case2 =
+        spaced_left({R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"}, "_");
+    case_type case3 = spaced_left({R"("")", R"()"}, "_");
+    case_type case4 = spaced_left({R"("x")", R"(x)"}, "_");
+    case_type case5 =
+        spaced_right({R"("\"\"")", R"("""""")", R"("\"""")", R"("""\"")"}, "-");
+    case_type case6 = spaced_right({R"("\\")", R"(\\)"}, "-");
+    case_type case7 = spaced_right({R"("xxxxxxxxxx")", R"(xxxxxxxxxx)"}, "-");
+
+    std::vector<std::string> delims = {"::", "\n"};
+
+    {
+        matches_type p{{case1, "\""},   {case2, "x\"x"}, {case3, ""},
+                       {case5, "\"\""}, {case6, "\\"},   {case7, "xxxxxxxxxx"}};
+        test_combinations<ss::quote<'"'>, ss::escape<'\\'>, ss::trim_left<'_'>,
+                          ss::trim_right<'-'>>(p, delims);
+    }
 }

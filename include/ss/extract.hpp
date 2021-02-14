@@ -225,8 +225,8 @@ struct unsupported_type {
 
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
-                     !is_instance_of<T, std::optional>::value &&
-                     !is_instance_of<T, std::variant>::value,
+                     !is_instance_of_v<std::optional, T> &&
+                     !is_instance_of_v<std::variant, T>,
                  bool>
 extract(const char*, const char*, T&) {
     static_assert(error::unsupported_type<T>::value,
@@ -246,7 +246,7 @@ extract(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of<T, std::optional>::value, bool> extract(
+std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
     const char* begin, const char* end, T& value) {
     typename T::value_type raw_value;
     if (extract(begin, end, raw_value)) {
@@ -271,7 +271,7 @@ bool extract_variant(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of<T, std::variant>::value, bool> extract(
+std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
     const char* begin, const char* end, T& value) {
     return extract_variant<T, 0>(begin, end, value);
 }

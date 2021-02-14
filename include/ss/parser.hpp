@@ -13,8 +13,6 @@ namespace ss {
 
 template <typename... Matchers>
 class parser {
-    struct none {};
-
     constexpr static auto string_error = setup<Matchers...>::string_error;
     constexpr static auto multiline = setup<Matchers...>::multiline;
 
@@ -48,8 +46,7 @@ public:
     }
 
     const std::string& error_msg() const {
-        static_assert(string_error,
-                      "'string_error' needs to be enabled to use 'error_msg'");
+        assert_string_error_defined<string_error>();
         return error_;
     }
 
@@ -157,11 +154,13 @@ public:
                 if (!parser_.valid()) {
                     return;
                 }
+
                 if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
                     value = to_object<U>(std::move(tuple_output));
                 } else {
                     value = std::move(tuple_output);
                 }
+
                 parser_.try_invoke(*value, std::forward<Fun>(fun));
             }
         }
@@ -176,6 +175,10 @@ public:
             }
             return value;
         }
+
+        ////////////////
+        // members
+        ////////////////
 
         std::tuple<Ts...> values_;
         parser& parser_;
@@ -488,7 +491,7 @@ private:
     ////////////////
 
     std::string file_name_;
-    error_type error_;
+    error_type error_{};
     reader reader_;
     size_t line_number_{0};
     bool eof_{false};
