@@ -8,10 +8,9 @@
 #include <doctest.h>
 #endif
 
-class buffer {
+struct buffer {
     char* data_{nullptr};
 
-public:
     char* operator()(const char* data) {
         if (data_) {
             delete[] data_;

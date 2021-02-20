@@ -9,13 +9,16 @@
 #include <string>
 #include <vector>
 
+// TODO remove
+#include <iostream>
+
 namespace ss {
 
 template <typename... Matchers>
 class parser {
     constexpr static auto string_error = setup<Matchers...>::string_error;
-    constexpr static auto multiline = setup<Matchers...>::multiline;
 
+    using multiline = typename setup<Matchers...>::multiline;
     using error_type = ss::ternary_t<string_error, std::string, bool>;
 
 public:
@@ -324,7 +327,7 @@ private:
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              size_{other.size_},
+              size_{other.size_}, next_line_size_{other.size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
               file_{other.file_}, crlf_{other.crlf_} {
             other.buffer_ = nullptr;
@@ -341,6 +344,7 @@ private:
                 converter_ = std::move(other.converter_);
                 next_line_converter_ = std::move(other.next_line_converter_);
                 size_ = other.size_;
+                next_line_size_ = other.next_line_size_;
                 helper_size_ = other.helper_size_;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
@@ -370,16 +374,23 @@ private:
         reader& operator=(const reader& other) = delete;
 
         bool read_next() {
-            ssize_t ssize = getline(&next_line_buffer_, &size_, file_);
+            memset(next_line_buffer_, '\0', next_line_size_);
+            ssize_t ssize =
+                getline(&next_line_buffer_, &next_line_size_, file_);
 
             if (ssize == -1) {
                 return false;
             }
 
             size_t size = remove_eol(next_line_buffer_, ssize);
+            size_t limit = 0;
 
-            if constexpr (multiline && setup<Matchers...>::escape::enabled) {
+            if constexpr (multiline::enabled &&
+                          setup<Matchers...>::escape::enabled) {
                 while (escaped_eol(size)) {
+                    if (multiline_limit_reached(limit)) {
+                        return true;
+                    }
                     if (!append_line(next_line_buffer_, size)) {
                         return false;
                     }
@@ -388,8 +399,12 @@ private:
 
             next_line_converter_.split(next_line_buffer_, delim_);
 
-            if constexpr (multiline && setup<Matchers...>::quote::enabled) {
+            if constexpr (multiline::enabled &&
+                          setup<Matchers...>::quote::enabled) {
                 while (unterminated_quote()) {
+                    if (multiline_limit_reached(limit)) {
+                        return true;
+                    }
                     if (!append_line(next_line_buffer_, size)) {
                         return false;
                     }
@@ -402,7 +417,18 @@ private:
 
         void update() {
             std::swap(buffer_, next_line_buffer_);
+            std::swap(size_, next_line_size_);
             std::swap(converter_, next_line_converter_);
+        }
+
+        bool multiline_limit_reached(size_t& limit) {
+            if constexpr (multiline::size > 0) {
+                if (limit++ >= multiline::size) {
+                    next_line_converter_.set_error_multiline_limit_reached();
+                    return true;
+                }
+            }
+            return false;
         }
 
         bool escaped_eol(size_t size) {
@@ -422,12 +448,15 @@ private:
             return false;
         }
 
-        void undo_remove_eol(size_t& string_end) {
+        void undo_remove_eol(char* buffer, size_t& string_end) {
+            if (next_line_converter_.unterminated_quote()) {
+                string_end -= next_line_converter_.splitter_.escaped_;
+            }
             if (crlf_) {
-                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
+                std::copy_n("\r\n\0", 3, buffer + string_end);
                 string_end += 2;
             } else {
-                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
+                std::copy_n("\n\0", 2, buffer + string_end);
                 string_end += 1;
             }
         }
@@ -447,15 +476,15 @@ private:
 
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            first = static_cast<char*>(realloc(static_cast<void*>(first),
-                                               first_size + second_size + 2));
-
+            next_line_size_ = first_size + second_size + 2;
+            first = static_cast<char*>(
+                realloc(static_cast<void*>(first), next_line_size_));
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }
 
         bool append_line(char*& dst_buffer, size_t& dst_size) {
-            undo_remove_eol(dst_size);
+            undo_remove_eol(dst_buffer, dst_size);
 
             ssize_t ssize = getline(&helper_buffer_, &helper_size_, file_);
             if (ssize == -1) {
@@ -478,6 +507,7 @@ private:
         converter<Matchers...> next_line_converter_;
 
         size_t size_{0};
+        size_t next_line_size_{0};
         size_t helper_size_{0};
 
         std::string delim_;

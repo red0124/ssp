@@ -67,7 +67,11 @@ public:
 };
 
 ////////////////
-// setup parameters
+// setup
+////////////////
+
+////////////////
+// matcher
 ////////////////
 
 template <char C>
@@ -84,15 +88,6 @@ struct trim_right : matcher<Cs...> {};
 
 template <char... Cs>
 struct escape : matcher<Cs...> {};
-
-// TODO add limit
-class multiline;
-
-class string_error;
-
-////////////////
-// setup implementation
-////////////////
 
 template <typename T, template <char...> class Template>
 struct is_instance_of_matcher : std::false_type {};
@@ -128,6 +123,54 @@ struct get_matcher<Matcher> {
 template <template <char...> class Matcher, typename... Ts>
 using get_matcher_t = typename get_matcher<Matcher, Ts...>::type;
 
+////////////////
+// multiline
+////////////////
+
+template <size_t S, bool B = true>
+struct multiline_restricted {
+    constexpr static auto size = S;
+    constexpr static auto enabled = B;
+};
+
+using multiline = multiline_restricted<0>;
+
+template <typename T>
+struct is_instance_of_multiline : std::false_type {};
+
+template <size_t S, bool B>
+struct is_instance_of_multiline<multiline_restricted<S, B>> : std::true_type {};
+
+template <typename T>
+using is_instance_of_multiline_t = typename is_instance_of_multiline<T>::type;
+
+template <typename... Ts>
+struct get_multiline;
+
+template <typename T, typename... Ts>
+struct get_multiline<T, Ts...> {
+    using type = ternary_t<is_instance_of_multiline<T>::value, T,
+                           typename get_multiline<Ts...>::type>;
+};
+
+template <>
+struct get_multiline<> {
+    using type = multiline_restricted<0, false>;
+};
+
+template <typename... Ts>
+using get_multiline_t = typename get_multiline<Ts...>::type;
+
+////////////////
+// string_error
+////////////////
+
+class string_error;
+
+////////////////
+// setup implementation
+////////////////
+
 template <typename... Ts>
 struct setup {
 private:
@@ -140,13 +183,11 @@ private:
                            is_instance_of_matcher_t<T, trim_right>> {};
 
     template <typename T>
-    struct is_multiline : std::is_same<T, multiline> {};
-
-    template <typename T>
     struct is_string_error : std::is_same<T, string_error> {};
 
     constexpr static auto count_matcher = count_v<is_matcher, Ts...>;
-    constexpr static auto count_multiline = count_v<is_multiline, Ts...>;
+    constexpr static auto count_multiline =
+        count_v<is_instance_of_multiline, Ts...>;
     constexpr static auto count_string_error = count_v<is_string_error, Ts...>;
 
     constexpr static auto number_of_valid_setup_types =
@@ -163,7 +204,7 @@ public:
     using trim_left = ternary_t<trim_all::enabled, trim_all, trim_left_only>;
     using trim_right = ternary_t<trim_all::enabled, trim_all, trim_right_only>;
 
-    constexpr static bool multiline = (count_multiline == 1);
+    using multiline = get_multiline_t<Ts...>;
     constexpr static bool string_error = (count_string_error == 1);
 
 private:
@@ -181,7 +222,8 @@ private:
 #undef ASSERT_MSG
 
     static_assert(
-        !multiline || (multiline && (quote::enabled || escape::enabled)),
+        !multiline::enabled ||
+            (multiline::enabled && (quote::enabled || escape::enabled)),
         "to enable multiline either quote or escape need to be enabled");
 
     static_assert(!(trim_all::enabled && trim_left_only::enabled) &&

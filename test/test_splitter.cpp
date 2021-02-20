@@ -541,7 +541,7 @@ public:
 };
 } /* ss */
 
-TEST_CASE("splitter test unterminated quote") {
+TEST_CASE("splitter test resplit unterminated quote") {
     {
         ss::converter<ss::quote<'"'>> c;
         auto& s = c.splitter;
@@ -578,6 +578,7 @@ TEST_CASE("splitter test unterminated quote") {
         std::vector<std::string> expected{"just", "some", R"("just","some",")"};
         CHECK(words(vec) == expected);
 
+        buff.data_[strlen(buff.data_) - c.splitter.escaped_] = '\0';
         auto new_line = buff.append(R"(,dom","strings")");
         vec = c.resplit(new_line, strlen(new_line));
         CHECK(s.valid());
@@ -632,12 +633,34 @@ TEST_CASE("splitter test unterminated quote") {
     {
         ss::converter<ss::quote<'"'>, ss::escape<'\\'>> c;
         auto& s = c.splitter;
+        auto vec =
+            expect_unterminated_quote(s, "3,4,"
+                                         "\"just0\\\n1\\\n22\\\n33333x\\\n4");
+
+        std::vector<std::string> expected{"3", "4"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK(w == expected);
+        {
+            buff.data_[strlen(buff.data_) - c.splitter.escaped_] = '\0';
+            auto new_line = buff.append("\nx5strings\"");
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK(!s.unterminated_quote());
+            expected = {"3", "4", "just0\n1\n22\n33333x\n4\nx5strings"};
+            CHECK(words(vec) == expected);
+        }
+    }
+    {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>> c;
+        auto& s = c.splitter;
         auto vec = expect_unterminated_quote(s, R"("just\"some","ra"")");
         std::vector<std::string> expected{"just\"some"};
         auto w = words(vec);
         w.pop_back();
         CHECK(w == expected);
         {
+            buff.data_[strlen(buff.data_) - c.splitter.escaped_] = '\0';
             auto new_line = buff.append(R"(n,dom",str\"ings)");
             vec = c.resplit(new_line, strlen(new_line));
             CHECK(s.valid());
@@ -650,17 +673,18 @@ TEST_CASE("splitter test unterminated quote") {
     {
         ss::converter<ss::quote<'"'>, ss::escape<'\\'>> c;
         auto& s = c.splitter;
-        auto vec = expect_unterminated_quote(s, R"("just\"some","ra\")");
+        auto vec = expect_unterminated_quote(s, R"("just\"some","r\a\a\\\a\")");
         std::vector<std::string> expected{"just\"some"};
         auto w = words(vec);
         w.pop_back();
         CHECK(w == expected);
         {
+            buff.data_[strlen(buff.data_) - c.splitter.escaped_] = '\0';
             auto new_line = buff.append(R"(n,dom",str\"ings)");
             vec = c.resplit(new_line, strlen(new_line));
             CHECK(s.valid());
             CHECK(!s.unterminated_quote());
-            expected = {"just\"some", "ra\"n,dom", "str\"ings"};
+            expected = {"just\"some", "raa\\a\"n,dom", "str\"ings"};
             CHECK(words(vec) == expected);
         }
     }
@@ -692,6 +716,7 @@ TEST_CASE("splitter test unterminated quote") {
         w.pop_back();
         CHECK(w == expected);
         {
+            buff.data_[strlen(buff.data_) - c.splitter.escaped_] = '\0';
             auto new_line = buff.append(R"( n,dom"  , strings   )");
             vec = c.resplit(new_line, strlen(new_line));
             CHECK(s.valid());

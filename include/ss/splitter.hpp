@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+// TODO remove
+#include <iostream>
+
 namespace ss {
 
 template <typename... Ts>
@@ -82,7 +85,13 @@ private:
                     return split_data_;
                 }
 
+                std::cout << "======================" << std::endl;
+                std::cout << "resplitting" << std::endl;
+                resplitting_ = true;
                 begin_ = line_ + begin;
+                size_t end = end_ - old_line - escaped_;
+                end_ = line_ + end;
+                curr_ = end_;
             }
         }
 
@@ -284,6 +293,12 @@ private:
     void read(const Delim& delim) {
         escaped_ = 0;
         if constexpr (quote::enabled) {
+            if (resplitting_) {
+                resplitting_ = false;
+                ++begin_;
+                read_quoted(delim);
+                return;
+            }
             if (quote::match(*begin_)) {
                 curr_ = end_ = ++begin_;
                 read_quoted(delim);
@@ -321,7 +336,9 @@ private:
     template <typename Delim>
     void read_quoted(const Delim& delim) {
         if constexpr (quote::enabled) {
+            std::cout << "start loop: " << std::endl;
             while (true) {
+                std::cout << "- " << *end_ << std::endl;
                 if (!quote::match(*end_)) {
                     if constexpr (escape::enabled) {
                         if (escape::match(*end_)) {
@@ -334,6 +351,7 @@ private:
                     // unterminated quote error
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
+                        shift_and_set_current();
                         set_error_unterminated_quote();
                         split_data_.emplace_back(line_, begin_);
                         done_ = true;
@@ -381,9 +399,11 @@ private:
     // members
     ////////////////
 
+public:
     error_type error_{};
     bool unterminated_quote_{false};
-    bool done_;
+    bool done_{true};
+    bool resplitting_{false};
     size_t escaped_{0};
     split_data split_data_;
 
