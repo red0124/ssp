@@ -1,6 +1,19 @@
 name: MSYS2-CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
 
 jobs:
   windows-mingw:
@@ -35,13 +48,16 @@ jobs:
           update: true
           msystem: ${{ matrix.msystem }}
           install: ${{ matrix.install }}
-      - name: Fetch doctest
+
+      - name: Install dependencies
         run: script/ci_install_deps.sh
-      - name: Prepare build dir
-        run: mkdir build
+
       - name: Configure
-        run: cd build && cmake -DCMAKE_BUILD_TYPE=${{ matrix.type }} ..
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
       - name: Build
-        run: cmake --build build
-      - name: Run basic tests
-        run: cd build && ctest --output-on-failure -R basictest
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
