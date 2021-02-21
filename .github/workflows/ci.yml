@@ -5,11 +5,15 @@ on:
     branches:
       - master
       - feature/**
+      - improvement/**
+      - bugfix/**
 
   pull_request:
     branches:
       - master
       - feature/**
+      - improvement/**
+      - bugfix/**
 
 jobs:
   clang_tests:
