@@ -8,7 +8,7 @@
         std::string s = #input;                                                \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
-        CHECK(std::abs(t.value() - type(input)) < eps);                        \
+        CHECK_LT(std::abs(t.value() - type(input)), eps);                      \
     }                                                                          \
     {                                                                          \
         /* check negative too */                                               \
@@ -16,7 +16,7 @@
         auto s = std::string("-") + #input;                                    \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
-        CHECK(std::abs(t.value() - type(-input)) < eps);                       \
+        CHECK_LT(std::abs(t.value() - type(-input)), eps);                     \
     }
 
 TEST_CASE("testing extract functions for floating point values") {
@@ -41,7 +41,7 @@ TEST_CASE("testing extract functions for floating point values") {
         std::string s = #input;                                                \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
-        CHECK(t.value() == type(input));                                       \
+        CHECK_EQ(t.value(), type(input));                                      \
     }                                                                          \
     {                                                                          \
         /* check negative too */                                               \
@@ -49,7 +49,7 @@ TEST_CASE("testing extract functions for floating point values") {
             auto s = std::string("-") + #input;                                \
             auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());        \
             REQUIRE(t.has_value());                                            \
-            CHECK(t.value() == type(-input));                                  \
+            CHECK_EQ(t.value(), type(-input));                                 \
         }                                                                      \
     }
 
@@ -74,7 +74,7 @@ TEST_CASE("extract test functions for decimal values") {
     {                                                                          \
         std::string s = input;                                                 \
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
-        CHECK(!t.has_value());                                                 \
+        CHECK_FALSE(t.has_value());                                            \
     }
 
 TEST_CASE("extract test functions for numbers with invalid inputs") {
@@ -106,7 +106,7 @@ TEST_CASE("extract test functions for numbers with invalid inputs") {
             }                                                                  \
         }                                                                      \
         t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());                 \
-        CHECK(!t.has_value());                                                 \
+        CHECK_FALSE(t.has_value());                                            \
     }                                                                          \
     {                                                                          \
         std::string s = std::to_string(std::numeric_limits<type>::min());      \
@@ -122,7 +122,7 @@ TEST_CASE("extract test functions for numbers with invalid inputs") {
             }                                                                  \
         }                                                                      \
         t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());                 \
-        CHECK(!t.has_value());                                                 \
+        CHECK_FALSE(t.has_value());                                            \
     }
 
 TEST_CASE("extract test functions for numbers with out of range inputs") {
@@ -143,12 +143,12 @@ TEST_CASE("extract test functions for boolean values") {
                                {false, "false"}}) {
         bool v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
-        CHECK(v == b);
+        CHECK_EQ(v, b);
     }
 
     for (const std::string& s : {"2", "tru", "truee", "xxx", ""}) {
         bool v;
-        REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), v));
+        CHECK_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
     }
 }
 
@@ -157,12 +157,12 @@ TEST_CASE("extract test functions for char values") {
          {std::pair<char, std::string>{'a', "a"}, {'x', "x"}, {' ', " "}}) {
         char v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
-        CHECK(v == c);
+        CHECK_EQ(v, c);
     }
 
     for (const std::string& s : {"aa", "xxx", ""}) {
         char v;
-        REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), v));
+        CHECK_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
     }
 }
 
@@ -174,7 +174,7 @@ TEST_CASE("extract test functions for std::optional") {
         std::optional<int> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
         REQUIRE(v.has_value());
-        CHECK(*v == i);
+        CHECK_EQ(*v, i);
     }
 
     for (const auto& [c, s] :
@@ -184,19 +184,19 @@ TEST_CASE("extract test functions for std::optional") {
         std::optional<char> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
         REQUIRE(v.has_value());
-        CHECK(*v == c);
+        CHECK_EQ(*v, c);
     }
 
     for (const std::string& s : {"aa", "xxx", ""}) {
         std::optional<int> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
-        REQUIRE(!v.has_value());
+        CHECK_FALSE(v.has_value());
     }
 
     for (const std::string& s : {"aa", "xxx", ""}) {
         std::optional<char> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
-        REQUIRE(!v.has_value());
+        CHECK_FALSE(v.has_value());
     }
 }
 
@@ -204,7 +204,7 @@ TEST_CASE("extract test functions for std::optional") {
     {                                                                          \
         auto ptr = std::get_if<type>(&var);                                    \
         REQUIRE(ptr);                                                          \
-        REQUIRE(el == *ptr);                                                   \
+        REQUIRE_EQ(el, *ptr);                                                  \
     }
 
 #define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
@@ -288,21 +288,21 @@ TEST_CASE("extract test functions for std::variant") {
         }
         {
             std::variant<int, double> var;
-            REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), var));
+            REQUIRE_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), var));
 
             REQUIRE_VARIANT(var, int{}, int);
             CHECK_NOT_VARIANT(var, double);
         }
         {
             std::variant<double, int> var;
-            REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), var));
+            REQUIRE_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), var));
 
             REQUIRE_VARIANT(var, double{}, double);
             CHECK_NOT_VARIANT(var, int);
         }
         {
             std::variant<int> var;
-            REQUIRE(!ss::extract(s.c_str(), s.c_str() + s.size(), var));
+            REQUIRE_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), var));
 
             REQUIRE_VARIANT(var, int{}, int);
         }

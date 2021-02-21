@@ -198,6 +198,10 @@ private:
         return splitter_.resplit(new_line, new_size, delim);
     }
 
+    size_t size_shifted() {
+        return splitter_.size_shifted();
+    }
+
     ////////////////
     // error
     ////////////////

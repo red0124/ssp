@@ -33,6 +33,11 @@ struct buffer {
         }
     }
 
+    char* append_overwrite_last(const char* data, size_t size) {
+        data_[strlen(data_) - size] = '\0';
+        return append(data);
+    }
+
     ~buffer() {
         if (data_) {
             delete[] data_;

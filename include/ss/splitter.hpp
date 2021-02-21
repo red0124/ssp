@@ -9,9 +9,6 @@
 #include <string>
 #include <vector>
 
-// TODO remove
-#include <iostream>
-
 namespace ss {
 
 template <typename... Ts>
@@ -21,6 +18,7 @@ private:
     using trim_left = typename setup<Ts...>::trim_left;
     using trim_right = typename setup<Ts...>::trim_right;
     using escape = typename setup<Ts...>::escape;
+    using multiline = typename setup<Ts...>::multiline;
 
     constexpr static auto string_error = setup<Ts...>::string_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
@@ -50,13 +48,20 @@ public:
     const split_data& split(line_ptr_type new_line,
                             const std::string& delimiter = default_delimiter) {
         split_data_.clear();
-        return resplit(new_line, -1, delimiter);
+        line_ = new_line;
+        begin_ = line_;
+        return split_impl_select_delim(delimiter);
     }
 
 private:
     ////////////////
     // resplit
     ////////////////
+
+    // number of characters the end of line is shifted backwards
+    size_t size_shifted() const {
+        return escaped_;
+    }
 
     void adjust_ranges(const char* old_line) {
         for (auto& [begin, end] : split_data_) {
@@ -68,32 +73,34 @@ private:
     const split_data& resplit(
         line_ptr_type new_line, ssize_t new_size,
         const std::string& delimiter = default_delimiter) {
-        line_ = new_line;
 
         // resplitting, continue from last slice
-        if constexpr (quote::enabled) {
-            if (!split_data_.empty() && unterminated_quote()) {
-                const auto& last = std::prev(split_data_.end());
-                const auto [old_line, old_begin] = *last;
-                size_t begin = old_begin - old_line - 1;
-                split_data_.pop_back();
-                adjust_ranges(old_line);
-
-                // safety measure
-                if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
-                    set_error_invalid_resplit();
-                    return split_data_;
-                }
-
-                std::cout << "======================" << std::endl;
-                std::cout << "resplitting" << std::endl;
-                resplitting_ = true;
-                begin_ = line_ + begin;
-                size_t end = end_ - old_line - escaped_;
-                end_ = line_ + end;
-                curr_ = end_;
-            }
+        if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
+            !unterminated_quote()) {
+            set_error_invalid_resplit();
+            return split_data_;
         }
+
+        const auto [old_line, old_begin] = *std::prev(split_data_.end());
+        size_t begin = old_begin - old_line - 1;
+
+        // safety measure
+        if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
+            set_error_invalid_resplit();
+            return split_data_;
+        }
+
+        // if unterminated quote, the last element is junk
+        split_data_.pop_back();
+
+        line_ = new_line;
+        adjust_ranges(old_line);
+
+        begin_ = line_ + begin;
+        end_ = line_ - old_line + end_ - escaped_;
+        curr_ = end_;
+
+        resplitting_ = true;
 
         return split_impl_select_delim(delimiter);
     }
@@ -124,6 +131,15 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append("mismatched quote at position: " + std::to_string(n));
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_unterminated_escape() {
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("unterminated escape at the end of the line");
         } else {
             error_ = true;
         }
@@ -215,25 +231,14 @@ private:
     // shifting
     ////////////////
 
-    void shift_and_set_current() {
-        if constexpr (!is_const_line) {
-            if (escaped_ > 0) {
-                std::copy_n(curr_ + escaped_, end_ - curr_ - escaped_, curr_);
-                curr_ = end_ - escaped_;
-                return;
-            }
-        }
-        curr_ = end_;
-    }
-
-    void shift_and_push() {
-        shift_and_set_current();
-        split_data_.emplace_back(begin_, curr_);
-    }
-
     void shift_if_escaped(line_ptr_type& curr) {
         if constexpr (escape::enabled) {
             if (escape::match(*curr)) {
+                if (curr[1] == '\0') {
+                    set_error_unterminated_escape();
+                    done_ = true;
+                    return;
+                }
                 shift_and_jump_escape();
             }
         }
@@ -250,6 +255,22 @@ private:
     void shift_push_and_start_next(size_t n) {
         shift_and_push();
         begin_ = end_ + n;
+    }
+
+    void shift_and_push() {
+        shift_and_set_current();
+        split_data_.emplace_back(begin_, curr_);
+    }
+
+    void shift_and_set_current() {
+        if constexpr (!is_const_line) {
+            if (escaped_ > 0) {
+                std::copy_n(curr_ + escaped_, end_ - curr_ - escaped_, curr_);
+                curr_ = end_ - escaped_;
+                return;
+            }
+        }
+        curr_ = end_;
     }
 
     ////////////////
@@ -273,10 +294,6 @@ private:
     template <typename Delim>
     const split_data& split_impl(const Delim& delim) {
 
-        if (split_data_.empty()) {
-            begin_ = line_;
-        }
-
         trim_left_if_enabled(begin_);
 
         for (done_ = false; !done_; read(delim))
@@ -293,11 +310,13 @@ private:
     void read(const Delim& delim) {
         escaped_ = 0;
         if constexpr (quote::enabled) {
-            if (resplitting_) {
-                resplitting_ = false;
-                ++begin_;
-                read_quoted(delim);
-                return;
+            if constexpr (multiline::enabled) {
+                if (resplitting_) {
+                    resplitting_ = false;
+                    ++begin_;
+                    read_quoted(delim);
+                    return;
+                }
             }
             if (quote::match(*begin_)) {
                 curr_ = end_ = ++begin_;
@@ -336,19 +355,27 @@ private:
     template <typename Delim>
     void read_quoted(const Delim& delim) {
         if constexpr (quote::enabled) {
-            std::cout << "start loop: " << std::endl;
             while (true) {
-                std::cout << "- " << *end_ << std::endl;
                 if (!quote::match(*end_)) {
                     if constexpr (escape::enabled) {
                         if (escape::match(*end_)) {
+                            if (end_[1] == '\0') {
+                                // eol, unterminated escape
+                                // eg: ... "hel\\0
+                                set_error_unterminated_escape();
+                                done_ = true;
+                                break;
+                            }
+                            // not eol
+
                             shift_and_jump_escape();
                             ++end_;
                             continue;
                         }
                     }
+                    // not escaped
 
-                    // unterminated quote error
+                    // eol, unterminated quote error
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
                         shift_and_set_current();
@@ -357,9 +384,13 @@ private:
                         done_ = true;
                         break;
                     }
+                    // not eol
+
                     ++end_;
                     continue;
                 }
+                // quote found
+                // ...
 
                 auto [width, valid] = match_delimiter(end_ + 1, delim);
 
@@ -368,6 +399,7 @@ private:
                     shift_push_and_start_next(width + 1);
                     break;
                 }
+                // not delimiter
 
                 // double quote
                 // eg: ...,"hel""lo",... -> hel"lo
@@ -376,8 +408,8 @@ private:
                     ++end_;
                     continue;
                 }
+                // not double quote
 
-                // not a delimiter
                 if (width == 0) {
                     // eol
                     // eg: ...,"hello"   \0 -> hello

@@ -9,9 +9,6 @@
 #include <string>
 #include <vector>
 
-// TODO remove
-#include <iostream>
-
 namespace ss {
 
 template <typename... Matchers>
@@ -20,6 +17,12 @@ class parser {
 
     using multiline = typename setup<Matchers...>::multiline;
     using error_type = ss::ternary_t<string_error, std::string, bool>;
+
+    constexpr static bool escaped_multiline_enabled =
+        multiline::enabled && setup<Matchers...>::escape::enabled;
+
+    constexpr static bool quoted_multiline_enabled =
+        multiline::enabled && setup<Matchers...>::quote::enabled;
 
 public:
     parser(const std::string& file_name,
@@ -385,13 +388,12 @@ private:
             size_t size = remove_eol(next_line_buffer_, ssize);
             size_t limit = 0;
 
-            if constexpr (multiline::enabled &&
-                          setup<Matchers...>::escape::enabled) {
+            if constexpr (escaped_multiline_enabled) {
                 while (escaped_eol(size)) {
                     if (multiline_limit_reached(limit)) {
                         return true;
                     }
-                    if (!append_line(next_line_buffer_, size)) {
+                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
                         return false;
                     }
                 }
@@ -399,15 +401,27 @@ private:
 
             next_line_converter_.split(next_line_buffer_, delim_);
 
-            if constexpr (multiline::enabled &&
-                          setup<Matchers...>::quote::enabled) {
+            if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
                     if (multiline_limit_reached(limit)) {
                         return true;
                     }
-                    if (!append_line(next_line_buffer_, size)) {
+                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
                         return false;
                     }
+
+                    if constexpr (escaped_multiline_enabled) {
+                        while (escaped_eol(size)) {
+                            if (multiline_limit_reached(limit)) {
+                                return true;
+                            }
+                            if (!append_next_line_to_buffer(next_line_buffer_,
+                                                            size)) {
+                                return false;
+                            }
+                        }
+                    }
+
                     next_line_converter_.resplit(next_line_buffer_, size);
                 }
             }
@@ -450,7 +464,7 @@ private:
 
         void undo_remove_eol(char* buffer, size_t& string_end) {
             if (next_line_converter_.unterminated_quote()) {
-                string_end -= next_line_converter_.splitter_.escaped_;
+                string_end -= next_line_converter_.size_shifted();
             }
             if (crlf_) {
                 std::copy_n("\r\n\0", 3, buffer + string_end);
@@ -483,16 +497,16 @@ private:
             first_size += second_size;
         }
 
-        bool append_line(char*& dst_buffer, size_t& dst_size) {
-            undo_remove_eol(dst_buffer, dst_size);
+        bool append_next_line_to_buffer(char*& buffer, size_t& size) {
+            undo_remove_eol(buffer, size);
 
-            ssize_t ssize = getline(&helper_buffer_, &helper_size_, file_);
-            if (ssize == -1) {
+            ssize_t next_ssize = getline(&helper_buffer_, &helper_size_, file_);
+            if (next_ssize == -1) {
                 return false;
             }
 
-            size_t size = remove_eol(helper_buffer_, ssize);
-            realloc_concat(dst_buffer, dst_size, helper_buffer_, size);
+            size_t next_size = remove_eol(helper_buffer_, next_ssize);
+            realloc_concat(buffer, size, helper_buffer_, next_size);
             return true;
         }
 

@@ -72,6 +72,7 @@ TEST_CASE("parser test various cases") {
     {
         ss::parser p{f.name, ","};
         std::vector<X> i;
+        std::vector<X> expected = {std::begin(data) + 1, std::end(data)};
 
         p.ignore_next();
         while (!p.eof()) {
@@ -80,7 +81,7 @@ TEST_CASE("parser test various cases") {
             i.emplace_back(ss::to_object<X>(a));
         }
 
-        CHECK_EQ(i, data);
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -129,10 +130,17 @@ TEST_CASE("parser test various cases") {
                 i.push_back(a);
             }
         }
-        std::vector<X> expected = data;
-        std::remove_if(expected.begin(), expected.end(),
-                       [](const X& x) { return x.i == excluded; });
-        CHECK_EQ(i, data);
+
+        std::vector<X> expected;
+        for (auto& x : data) {
+            if (x.i != excluded) {
+                expected.push_back(x);
+            }
+        }
+
+        std::copy_if(data.begin(), data.end(), expected.begin(),
+                     [](const X& x) { return x.i != excluded; });
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -146,7 +154,7 @@ TEST_CASE("parser test various cases") {
             }
         }
         std::vector<X> expected = {{3, 4, "y"}};
-        CHECK_EQ(i, data);
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -203,7 +211,7 @@ TEST_CASE("parser test composite conversion") {
             p.try_next<int, int, double>(fail)
                 .or_else<test_struct>(fail)
                 .or_else<int, char, double>(
-                    [](auto&& data) { CHECK(data == expectedData); })
+                    [](auto&& data) { CHECK_EQ(data, expectedData); })
                 .on_error(fail)
                 .or_else<test_tuple>(fail)
                 .values();
@@ -222,7 +230,7 @@ TEST_CASE("parser test composite conversion") {
 
         auto [d1, d2, d3, d4] =
             p.try_next<int, int, double>([](auto& i1, auto i2, double d) {
-                 CHECK(std::tie(i1, i2, d) == expectedData);
+                 CHECK_EQ(std::tie(i1, i2, d), expectedData);
              })
                 .on_error(fail)
                 .or_object<test_struct, int, double, char>(fail)
@@ -237,7 +245,7 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE_FALSE(d2);
         REQUIRE_FALSE(d3);
         REQUIRE_FALSE(d4);
-        CHECK_EQ(*d1 ,expectedData);
+        CHECK_EQ(*d1, expectedData);
     }
 
     {
@@ -265,7 +273,7 @@ TEST_CASE("parser test composite conversion") {
 
         auto [d1, d2] =
             p.try_next<int, double>([](auto& i, auto& d) {
-                 REQUIRE(std::tie(i, d) == std::tuple{10, 11.1});
+                 REQUIRE_EQ(std::tie(i, d), std::tuple{10, 11.1});
              })
                 .or_else<int, double>([](auto&, auto&) { FAIL(""); })
                 .values();
@@ -551,7 +559,7 @@ std::string no_escape(std::string& s) {
     return s;
 }
 
-TEST_CASE("parser test csv on multiple lines with escapes xxx") {
+TEST_CASE("parser test csv on multiple lines with escapes") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {5, 6, "z\\\nz\\\nz"},
                            {7, 8, "u"},           {3, 4, "y\\\ny\\\ny"},
@@ -571,7 +579,6 @@ TEST_CASE("parser test csv on multiple lines with escapes xxx") {
     while (!p.eof()) {
         auto a = p.get_next<int, double, std::string>();
         i.emplace_back(ss::to_object<X>(a));
-        // std::cout << i.back().s << std::endl;
     }
 
     CHECK_EQ(i, data);
@@ -583,15 +590,15 @@ TEST_CASE("parser test csv on multiple lines with escapes xxx") {
     }
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes and escapes yyy") {
+TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
     unique_file_name f;
     {
         std::ofstream out{f.name};
-        //     out << "1,2,\"just\\\n\nstrings\"" << std::endl;
-        out << "3,4,\"j\\\ns\n\\\nx\\\ny\ng\"" << std::endl;
-        //    out << "5,6,\"just\\\n\\\n\n\nstrings" << std::endl;
-        //    out << "7,8,\"just strings\"" << std::endl;
-        //    out << "9,10,just strings" << std::endl;
+        out << "1,2,\"just\\\n\nstrings\"" << std::endl;
+        out << "3,4,\"just\nsome\\\n\n\\\nstrings\"" << std::endl;
+        out << "5,6,\"just\\\n\\\n\n\nstrings" << std::endl;
+        out << "7,8,\"just strings\"" << std::endl;
+        out << "9,10,just strings" << std::endl;
     }
 
     ss::parser<ss::multiline, ss::escape<'\\'>, ss::quote<'"'>> p{f.name};
@@ -611,28 +618,26 @@ TEST_CASE("parser test csv on multiple lines with quotes and escapes yyy") {
     CHECK_EQ(i, data);
 }
 
-/*
 TEST_CASE("parser test multiline restricted") {
     unique_file_name f;
     {
         std::ofstream out{f.name};
-        //out << "1,2,\"just\n\nstrings\"" << std::endl;
-        //out << "3,4,\"ju\n\n\nnk\"" << std::endl;
-        //out << "5,6,just\\\n\\\nstrings" << std::endl;
-        //out << "7,8,ju\\\n\\\n\\\nnk" << std::endl;
-        //out << "9,10,\"just\\\n\nstrings\"" << std::endl;
+        out << "1,2,\"just\n\nstrings\"" << std::endl;
+        out << "3,4,\"ju\n\n\nnk\"" << std::endl;
+        out << "5,6,just\\\n\\\nstrings" << std::endl;
+        out << "7,8,ju\\\n\\\n\\\nnk" << std::endl;
+        out << "9,10,\"just\\\n\nstrings\"" << std::endl;
         out << "11,12,\"ju\\\n|\n\n\n\n\nk\"" << std::endl;
-   //     out << "13,14,\"ju\\\n\\\n15,16\"\\\n\\\\\n\nnk\"" << std::endl;
-   //     out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
+        out << "13,14,\"ju\\\n\\\n15,16\"\\\n\\\\\n\nnk\"" << std::endl;
+        out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
         out << "19,20,just strings" << std::endl;
     }
 
-    ss::parser<ss::multiline_restricted<120>, ss::quote<'"'>, ss::escape<'\\'>>
+    ss::parser<ss::multiline_restricted<2>, ss::quote<'"'>, ss::escape<'\\'>>
         p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
-        std::cout << "==========================" << std::endl;
         auto a = p.get_next<int, double, std::string>();
         if (p.valid()) {
             i.emplace_back(ss::to_object<X>(a));
@@ -643,6 +648,5 @@ TEST_CASE("parser test multiline restricted") {
                            {5, 6, "just\n\nstrings"},
                            {9, 10, "just\n\nstrings"},
                            {19, 20, "just strings"}};
-    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+    CHECK_EQ(i, data);
 }
-*/
