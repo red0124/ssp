@@ -16,7 +16,11 @@ inline void assert_string_error_defined() {
                   "'string_error' needs to be enabled to use 'error_msg'");
 }
 
-#if defined(_WIN64) || defined(_WIN32)
+#if __unix__
+inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
+    return getline(lineptr, n, stream);
+}
+#else
 #include <cstdint>
 using ssize_t = int64_t;
 inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
@@ -66,10 +70,6 @@ inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
 
     (*lineptr)[pos] = '\0';
     return pos;
-}
-#else
-inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
-    return getline(lineptr, n, stream);
 }
 #endif
 
