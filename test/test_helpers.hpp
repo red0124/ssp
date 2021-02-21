@@ -8,10 +8,9 @@
 #include <doctest.h>
 #endif
 
-class buffer {
+struct buffer {
     char* data_{nullptr};
 
-public:
     char* operator()(const char* data) {
         if (data_) {
             delete[] data_;
@@ -32,6 +31,11 @@ public:
         } else {
             return operator()(data);
         }
+    }
+
+    char* append_overwrite_last(const char* data, size_t size) {
+        data_[strlen(data_) - size] = '\0';
+        return append(data);
     }
 
     ~buffer() {

@@ -103,6 +103,9 @@ struct apply_trait<Trait, std::tuple<T>> {
     using type = std::tuple<typename Trait<T>::type>;
 };
 
+template <template <typename...> class Trait, typename... Ts>
+using apply_trait_t = typename apply_trait<Trait, Ts...>::type;
+
 ////////////////
 // apply optional trait
 ////////////////
@@ -142,6 +145,9 @@ struct apply_optional_trait<Trait, std::tuple<T>> {
     using type =
         std::tuple<typename optional_trait<typename Trait<T>::type, T>::type>;
 };
+
+template <template <typename...> class Trait, typename... Ts>
+using apply_trait_optional_t = apply_optional_trait<Trait, Ts...>;
 
 ////////////////
 // filter false_type
@@ -192,6 +198,9 @@ struct negate_impl {
     using type = std::integral_constant<bool, !Trait<Ts...>::value>;
 };
 
+template <template <typename...> class Trait>
+using negate_impl_t = typename negate_impl<Trait>::type;
+
 ////////////////
 // filter by trait
 ////////////////
@@ -235,19 +244,22 @@ struct count;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct count<Trait, T, Ts...> {
-    static constexpr size_t size =
+    static constexpr size_t value =
         std::tuple_size<filter_if_t<Trait, T, Ts...>>::value;
 };
 
 template <template <typename...> class Trait, typename T>
 struct count<Trait, T> {
-    static constexpr size_t size = Trait<T>::value;
+    static constexpr size_t value = Trait<T>::value;
 };
 
 template <template <typename...> class Trait>
 struct count<Trait> {
-    static constexpr size_t size = 0;
+    static constexpr size_t value = 0;
 };
+
+template <template <typename...> class Trait, typename... Ts>
+constexpr size_t count_v = count<Trait, Ts...>::value;
 
 ////////////////
 // count not
@@ -258,19 +270,22 @@ struct count_not;
 
 template <template <typename...> class Trait, typename T, typename... Ts>
 struct count_not<Trait, T, Ts...> {
-    static constexpr size_t size =
+    static constexpr size_t value =
         std::tuple_size<filter_not_t<Trait, T, Ts...>>::value;
 };
 
 template <template <typename...> class Trait, typename T>
 struct count_not<Trait, T> {
-    static constexpr size_t size = !Trait<T>::value;
+    static constexpr size_t value = !Trait<T>::value;
 };
 
 template <template <typename...> class Trait>
 struct count_not<Trait> {
-    static constexpr size_t size = 0;
+    static constexpr size_t value = 0;
 };
+
+template <template <typename...> class Trait, typename... Ts>
+constexpr size_t count_not_v = count_not<Trait, Ts...>::value;
 
 ////////////////
 // all of
@@ -278,13 +293,16 @@ struct count_not<Trait> {
 
 template <template <typename...> class Trait, typename... Ts>
 struct all_of {
-    static constexpr bool value = count<Trait, Ts...>::size == sizeof...(Ts);
+    static constexpr bool value = count_v<Trait, Ts...> == sizeof...(Ts);
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct all_of<Trait, std::tuple<Ts...>> {
-    static constexpr bool value = count<Trait, Ts...>::size == sizeof...(Ts);
+    static constexpr bool value = count_v<Trait, Ts...> == sizeof...(Ts);
 };
+
+template <template <typename...> class Trait, typename... Ts>
+constexpr bool all_of_v = all_of<Trait, Ts...>::value;
 
 ////////////////
 // any of
@@ -293,14 +311,17 @@ struct all_of<Trait, std::tuple<Ts...>> {
 template <template <typename...> class Trait, typename... Ts>
 struct any_of {
     static_assert(sizeof...(Ts) > 0);
-    static constexpr bool value = count<Trait, Ts...>::size > 0;
+    static constexpr bool value = count_v<Trait, Ts...> > 0;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct any_of<Trait, std::tuple<Ts...>> {
     static_assert(sizeof...(Ts) > 0);
-    static constexpr bool value = count<Trait, Ts...>::size > 0;
+    static constexpr bool value = count_v<Trait, Ts...> > 0;
 };
+
+template <template <typename...> class Trait, typename... Ts>
+constexpr bool any_of_v = any_of<Trait, Ts...>::value;
 
 ////////////////
 // none  of
@@ -308,27 +329,33 @@ struct any_of<Trait, std::tuple<Ts...>> {
 
 template <template <typename...> class Trait, typename... Ts>
 struct none_of {
-    static constexpr bool value = count<Trait, Ts...>::size == 0;
+    static constexpr bool value = count_v<Trait, Ts...> == 0;
 };
 
 template <template <typename...> class Trait, typename... Ts>
 struct none_of<Trait, std::tuple<Ts...>> {
-    static constexpr bool value = count<Trait, Ts...>::size == 0;
+    static constexpr bool value = count_v<Trait, Ts...> == 0;
 };
+
+template <template <typename...> class Trait, typename... Ts>
+constexpr bool none_of_v = none_of<Trait, Ts...>::value;
 
 ////////////////
 // is instance of
 ////////////////
 
-template <typename T, template <typename...> class Template>
+template <template <typename...> class Template, typename T>
 struct is_instance_of {
     constexpr static bool value = false;
 };
 
-template <typename... Ts, template <typename...> class Template>
-struct is_instance_of<Template<Ts...>, Template> {
+template <template <typename...> class Template, typename... Ts>
+struct is_instance_of<Template, Template<Ts...>> {
     constexpr static bool value = true;
 };
+
+template <template <typename...> class Template, typename... Ts>
+constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 
 ////////////////
 // ternary
@@ -354,17 +381,21 @@ using ternary_t = typename ternary<B, T, U>::type;
 // tuple to struct
 ////////////////
 
-template <class S, std::size_t... Is, class Tup>
-S to_object(std::index_sequence<Is...>, Tup&& tup) {
-    return {std::get<Is>(std::forward<Tup>(tup))...};
+template <class T, std::size_t... Is, class U>
+T to_object_impl(std::index_sequence<Is...>, U&& data) {
+    return {std::get<Is>(std::forward<U>(data))...};
 }
 
-// TODO Tup may not be a tuple ...
-template <class S, class Tup>
-S to_object(Tup&& tup) {
-    using T = std::remove_reference_t<Tup>;
-    return to_object<S>(std::make_index_sequence<std::tuple_size<T>{}>{},
-                        std::forward<Tup>(tup));
+template <class T, class U>
+T to_object(U&& data) {
+    using NoRefU = std::remove_reference_t<U>;
+    if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
+        return to_object_impl<
+            T>(std::make_index_sequence<std::tuple_size<NoRefU>{}>{},
+               std::forward<U>(data));
+    } else {
+        return T{std::forward<U>(data)};
+    }
 }
 
 } /* trait */

@@ -40,19 +40,13 @@ template <typename T>
 using no_validator_t = typename no_validator<T>::type;
 
 template <typename... Ts>
-struct no_validator_tup {
-    using type = typename apply_trait<no_validator, std::tuple<Ts...>>::type;
-};
+struct no_validator_tup : apply_trait<no_validator, std::tuple<Ts...>> {};
 
 template <typename... Ts>
-struct no_validator_tup<std::tuple<Ts...>> {
-    using type = typename no_validator_tup<Ts...>::type;
-};
+struct no_validator_tup<std::tuple<Ts...>> : no_validator_tup<Ts...> {};
 
 template <typename T>
-struct no_validator_tup<std::tuple<T>> {
-    using type = no_validator_t<T>;
-};
+struct no_validator_tup<std::tuple<T>> : no_validator<T> {};
 
 template <typename... Ts>
 using no_validator_tup_t = typename no_validator_tup<Ts...>::type;
@@ -62,10 +56,7 @@ using no_validator_tup_t = typename no_validator_tup<Ts...>::type;
 ////////////////
 
 template <typename... Ts>
-struct no_void_tup {
-    using type =
-        typename filter_not<std::is_void, no_validator_tup_t<Ts...>>::type;
-};
+struct no_void_tup : filter_not<std::is_void, no_validator_tup_t<Ts...>> {};
 
 template <typename... Ts>
 using no_void_tup_t = filter_not_t<std::is_void, Ts...>;
@@ -76,14 +67,11 @@ using no_void_tup_t = filter_not_t<std::is_void, Ts...>;
 
 // replace 'validators' and remove void from tuple
 template <typename... Ts>
-struct no_void_validator_tup {
-    using type = no_validator_tup_t<no_void_tup_t<Ts...>>;
-};
+struct no_void_validator_tup : no_validator_tup<no_void_tup_t<Ts...>> {};
 
 template <typename... Ts>
-struct no_void_validator_tup<std::tuple<Ts...>> {
-    using type = no_validator_tup_t<no_void_tup_t<Ts...>>;
-};
+struct no_void_validator_tup<std::tuple<Ts...>>
+    : no_validator_tup<no_void_tup_t<Ts...>> {};
 
 template <typename... Ts>
 using no_void_validator_tup_t = typename no_void_validator_tup<Ts...>::type;
@@ -131,12 +119,12 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
-        return convert<Ts...>(splitter_.split_input_);
+        return convert<Ts...>(splitter_.split_data_);
     }
 
     // parses already split line, returns 'T' object with extracted values
     template <typename T, typename... Ts>
-    T convert_object(const split_input& elems) {
+    T convert_object(const split_data& elems) {
         return to_object<T>(convert<Ts...>(elems));
     }
 
@@ -151,17 +139,12 @@ public:
     // one argument is given which is a class which has a tied
     // method which returns a tuple, returns that type
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert(const split_input& elems) {
-        if constexpr (sizeof...(Ts) == 0 &&
-                      is_instance_of<T, std::tuple>::value) {
+    no_void_validator_tup_t<T, Ts...> convert(const split_data& elems) {
+        if constexpr (sizeof...(Ts) == 0 && is_instance_of_v<std::tuple, T>) {
             return convert_impl(elems, static_cast<T*>(nullptr));
-
         } else if constexpr (tied_class_v<T, Ts...>) {
-            using arg_ref_tuple =
-                typename std::result_of_t<decltype (&T::tied)(T)>;
-
-            using arg_tuple =
-                typename apply_trait<std::decay, arg_ref_tuple>::type;
+            using arg_ref_tuple = std::result_of_t<decltype (&T::tied)(T)>;
+            using arg_tuple = apply_trait_t<std::decay, arg_ref_tuple>;
 
             return to_object<T>(
                 convert_impl(elems, static_cast<arg_tuple*>(nullptr)));
@@ -173,7 +156,7 @@ public:
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.split_input_);
+        return convert<T, Ts...>(splitter_.split_data_);
     }
 
     bool valid() const {
@@ -185,8 +168,7 @@ public:
     }
 
     const std::string& error_msg() const {
-        static_assert(string_error,
-                      "'string_error' needs to be enabled to use 'error_msg'");
+        assert_string_error_defined<string_error>();
         return error_;
     }
 
@@ -196,11 +178,11 @@ public:
 
     // 'splits' string by given delimiter, returns vector of pairs which
     // contain the beginnings and the ends of each column of the string
-    const split_input& split(line_ptr_type line,
-                             const std::string& delim = default_delimiter) {
-        splitter_.split_input_.clear();
+    const split_data& split(line_ptr_type line,
+                            const std::string& delim = default_delimiter) {
+        splitter_.split_data_.clear();
         if (line[0] == '\0') {
-            return splitter_.split_input_;
+            return splitter_.split_data_;
         }
 
         return splitter_.split(line, delim);
@@ -211,9 +193,13 @@ private:
     // resplit
     ////////////////
 
-    const split_input& resplit(line_ptr_type new_line, ssize_t new_size,
-                               const std::string& delim = default_delimiter) {
+    const split_data& resplit(line_ptr_type new_line, ssize_t new_size,
+                              const std::string& delim = default_delimiter) {
         return splitter_.resplit(new_line, new_size, delim);
+    }
+
+    size_t size_shifted() {
+        return splitter_.size_shifted();
     }
 
     ////////////////
@@ -243,6 +229,15 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_multiline_limit_reached() {
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("multiline limit reached.");
         } else {
             error_ = true;
         }
@@ -285,7 +280,7 @@ private:
     ////////////////
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert_impl(const split_input& elems) {
+    no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
         clear_error();
 
         if (!splitter_.valid()) {
@@ -306,7 +301,7 @@ private:
     // do not know how to specialize by return type :(
     template <typename... Ts>
     no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
-        const split_input& elems, const std::tuple<Ts...>*) {
+        const split_data& elems, const std::tuple<Ts...>*) {
         return convert_impl<Ts...>(elems);
     }
 
@@ -345,11 +340,11 @@ private:
 
     template <size_t ArgN, size_t TupN, typename... Ts>
     void extract_multiple(no_void_validator_tup_t<Ts...>& tup,
-                          const split_input& elems) {
+                          const split_data& elems) {
         using elem_t = std::tuple_element_t<ArgN, std::tuple<Ts...>>;
 
         constexpr bool not_void = !std::is_void_v<elem_t>;
-        constexpr bool one_element = count_not<std::is_void, Ts...>::size == 1;
+        constexpr bool one_element = count_not_v<std::is_void, Ts...> == 1;
 
         if constexpr (not_void) {
             if constexpr (one_element) {
@@ -367,8 +362,8 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> extract_tuple(const split_input& elems) {
-        static_assert(!all_of<std::is_void, Ts...>::value,
+    no_void_validator_tup_t<Ts...> extract_tuple(const split_data& elems) {
+        static_assert(!all_of_v<std::is_void, Ts...>,
                       "at least one parameter must be non void");
         no_void_validator_tup_t<Ts...> ret{};
         extract_multiple<0, 0, Ts...>(ret, elems);
@@ -379,7 +374,7 @@ private:
     // members
     ////////////////
 
-    error_type error_;
+    error_type error_{};
     splitter<Matchers...> splitter_;
 
     template <typename...>

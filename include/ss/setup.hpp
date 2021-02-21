@@ -4,6 +4,10 @@
 
 namespace ss {
 
+////////////////
+// matcher
+////////////////
+
 template <char... Cs>
 struct matcher {
 private:
@@ -36,7 +40,7 @@ public:
 };
 
 template <typename FirstMatcher, typename SecondMatcher>
-constexpr bool matches_intersect() {
+inline constexpr bool matches_intersect() {
     for (const auto& first_match : FirstMatcher::matches) {
         for (const auto& second_match : SecondMatcher::matches) {
             if (first_match != '\0' && first_match == second_match) {
@@ -47,6 +51,13 @@ constexpr bool matches_intersect() {
     return false;
 }
 
+template <typename FirstMatcher, typename SecondMatcher1,
+          typename SecondMatcher2>
+inline constexpr bool matches_intersect_union() {
+    return matches_intersect<FirstMatcher, SecondMatcher1>() ||
+           matches_intersect<FirstMatcher, SecondMatcher2>();
+}
+
 template <>
 class matcher<'\0'> {
 public:
@@ -55,6 +66,14 @@ public:
     static bool match(char c) = delete;
 };
 
+////////////////
+// setup
+////////////////
+
+////////////////
+// matcher
+////////////////
+
 template <char C>
 struct quote : matcher<C> {};
 
@@ -62,24 +81,37 @@ template <char... Cs>
 struct trim : matcher<Cs...> {};
 
 template <char... Cs>
+struct trim_left : matcher<Cs...> {};
+
+template <char... Cs>
+struct trim_right : matcher<Cs...> {};
+
+template <char... Cs>
 struct escape : matcher<Cs...> {};
 
 template <typename T, template <char...> class Template>
-struct is_instance_of_matcher {
-    constexpr static bool value = false;
-};
+struct is_instance_of_matcher : std::false_type {};
 
 template <char... Ts, template <char...> class Template>
-struct is_instance_of_matcher<Template<Ts...>, Template> {
-    constexpr static bool value = true;
-};
+struct is_instance_of_matcher<Template<Ts...>, Template> : std::true_type {};
+
+template <typename T, template <char...> class Template>
+using is_instance_of_matcher_t =
+    typename is_instance_of_matcher<T, Template>::type;
 
 template <template <char...> class Matcher, typename... Ts>
 struct get_matcher;
 
 template <template <char...> class Matcher, typename T, typename... Ts>
 struct get_matcher<Matcher, T, Ts...> {
-    using type = ternary_t<is_instance_of_matcher<T, Matcher>::value, T,
+
+    template <typename U>
+    struct is_matcher : is_instance_of_matcher<U, Matcher> {};
+
+    static_assert(count_v<is_matcher, T, Ts...> <= 1,
+                  "the same matcher is cannot"
+                  "be defined multiple times");
+    using type = ternary_t<is_matcher<T>::value, T,
                            typename get_matcher<Matcher, Ts...>::type>;
 };
 
@@ -91,39 +123,119 @@ struct get_matcher<Matcher> {
 template <template <char...> class Matcher, typename... Ts>
 using get_matcher_t = typename get_matcher<Matcher, Ts...>::type;
 
-class multiline;
+////////////////
+// multiline
+////////////////
+
+template <size_t S, bool B = true>
+struct multiline_restricted {
+    constexpr static auto size = S;
+    constexpr static auto enabled = B;
+};
+
+using multiline = multiline_restricted<0>;
+
+template <typename T>
+struct is_instance_of_multiline : std::false_type {};
+
+template <size_t S, bool B>
+struct is_instance_of_multiline<multiline_restricted<S, B>> : std::true_type {};
+
+template <typename T>
+using is_instance_of_multiline_t = typename is_instance_of_multiline<T>::type;
+
+template <typename... Ts>
+struct get_multiline;
+
+template <typename T, typename... Ts>
+struct get_multiline<T, Ts...> {
+    using type = ternary_t<is_instance_of_multiline<T>::value, T,
+                           typename get_multiline<Ts...>::type>;
+};
+
+template <>
+struct get_multiline<> {
+    using type = multiline_restricted<0, false>;
+};
+
+template <typename... Ts>
+using get_multiline_t = typename get_multiline<Ts...>::type;
+
+////////////////
+// string_error
+////////////////
+
 class string_error;
+
+////////////////
+// setup implementation
+////////////////
 
 template <typename... Ts>
 struct setup {
 private:
     template <typename T>
-    struct is_multiline : std::is_same<T, multiline> {};
-
-    constexpr static auto count_multiline = count<is_multiline, Ts...>::size;
+    struct is_matcher
+        : std::disjunction<is_instance_of_matcher_t<T, quote>,
+                           is_instance_of_matcher_t<T, escape>,
+                           is_instance_of_matcher_t<T, trim>,
+                           is_instance_of_matcher_t<T, trim_left>,
+                           is_instance_of_matcher_t<T, trim_right>> {};
 
     template <typename T>
     struct is_string_error : std::is_same<T, string_error> {};
 
-    constexpr static auto count_string_error =
-        count<is_string_error, Ts...>::size;
+    constexpr static auto count_matcher = count_v<is_matcher, Ts...>;
+    constexpr static auto count_multiline =
+        count_v<is_instance_of_multiline, Ts...>;
+    constexpr static auto count_string_error = count_v<is_string_error, Ts...>;
+
+    constexpr static auto number_of_valid_setup_types =
+        count_matcher + count_multiline + count_string_error;
+
+    using trim_left_only = get_matcher_t<trim_left, Ts...>;
+    using trim_right_only = get_matcher_t<trim_right, Ts...>;
+    using trim_all = get_matcher_t<trim, Ts...>;
 
 public:
     using quote = get_matcher_t<quote, Ts...>;
-    using trim = get_matcher_t<trim, Ts...>;
     using escape = get_matcher_t<escape, Ts...>;
-    constexpr static bool multiline = (count_multiline == 1);
+
+    using trim_left = ternary_t<trim_all::enabled, trim_all, trim_left_only>;
+    using trim_right = ternary_t<trim_all::enabled, trim_all, trim_right_only>;
+
+    using multiline = get_multiline_t<Ts...>;
     constexpr static bool string_error = (count_string_error == 1);
 
+private:
+#define ASSERT_MSG "cannot have the same match character in multiple matchers"
+    static_assert(!matches_intersect<escape, quote>(), ASSERT_MSG);
+
+    constexpr static auto quote_trim_intersect =
+        matches_intersect_union<quote, trim_left, trim_right>();
+    static_assert(!quote_trim_intersect, ASSERT_MSG);
+
+    constexpr static auto escape_trim_intersect =
+        matches_intersect_union<escape, trim_left, trim_right>();
+    static_assert(!escape_trim_intersect, ASSERT_MSG);
+
+#undef ASSERT_MSG
+
     static_assert(
-        !multiline || (multiline && (quote::enabled || escape::enabled)),
+        !multiline::enabled ||
+            (multiline::enabled && (quote::enabled || escape::enabled)),
         "to enable multiline either quote or escape need to be enabled");
 
-#define ASSERT_MSG "cannot have the same match character in multiple matchers"
-    static_assert(!matches_intersect<quote, trim>(), ASSERT_MSG);
-    static_assert(!matches_intersect<trim, escape>(), ASSERT_MSG);
-    static_assert(!matches_intersect<escape, quote>(), ASSERT_MSG);
-#undef ASSERT_MSG
+    static_assert(!(trim_all::enabled && trim_left_only::enabled) &&
+                      !(trim_all::enabled && trim_right_only::enabled),
+                  "ambiguous trim setup");
+
+    static_assert(count_multiline <= 1, "mutliline defined multiple times");
+    static_assert(count_string_error <= 1,
+                  "string_error defined multiple times");
+
+    static_assert(number_of_valid_setup_types == sizeof...(Ts),
+                  "one or multiple invalid setup parameters defined");
 };
 
 template <typename... Ts>

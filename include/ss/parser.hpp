@@ -13,12 +13,16 @@ namespace ss {
 
 template <typename... Matchers>
 class parser {
-    struct none {};
-
     constexpr static auto string_error = setup<Matchers...>::string_error;
-    constexpr static auto multiline = setup<Matchers...>::multiline;
 
+    using multiline = typename setup<Matchers...>::multiline;
     using error_type = ss::ternary_t<string_error, std::string, bool>;
+
+    constexpr static bool escaped_multiline_enabled =
+        multiline::enabled && setup<Matchers...>::escape::enabled;
+
+    constexpr static bool quoted_multiline_enabled =
+        multiline::enabled && setup<Matchers...>::quote::enabled;
 
 public:
     parser(const std::string& file_name,
@@ -48,8 +52,7 @@ public:
     }
 
     const std::string& error_msg() const {
-        static_assert(string_error,
-                      "'string_error' needs to be enabled to use 'error_msg'");
+        assert_string_error_defined<string_error>();
         return error_;
     }
 
@@ -157,11 +160,13 @@ public:
                 if (!parser_.valid()) {
                     return;
                 }
+
                 if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
                     value = to_object<U>(std::move(tuple_output));
                 } else {
                     value = std::move(tuple_output);
                 }
+
                 parser_.try_invoke(*value, std::forward<Fun>(fun));
             }
         }
@@ -176,6 +181,10 @@ public:
             }
             return value;
         }
+
+        ////////////////
+        // members
+        ////////////////
 
         std::tuple<Ts...> values_;
         parser& parser_;
@@ -321,7 +330,7 @@ private:
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              size_{other.size_},
+              size_{other.size_}, next_line_size_{other.size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
               file_{other.file_}, crlf_{other.crlf_} {
             other.buffer_ = nullptr;
@@ -338,6 +347,7 @@ private:
                 converter_ = std::move(other.converter_);
                 next_line_converter_ = std::move(other.next_line_converter_);
                 size_ = other.size_;
+                next_line_size_ = other.next_line_size_;
                 helper_size_ = other.helper_size_;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
@@ -367,17 +377,23 @@ private:
         reader& operator=(const reader& other) = delete;
 
         bool read_next() {
-            ssize_t ssize = getline(&next_line_buffer_, &size_, file_);
+            memset(next_line_buffer_, '\0', next_line_size_);
+            ssize_t ssize =
+                getline(&next_line_buffer_, &next_line_size_, file_);
 
             if (ssize == -1) {
                 return false;
             }
 
             size_t size = remove_eol(next_line_buffer_, ssize);
+            size_t limit = 0;
 
-            if constexpr (multiline && setup<Matchers...>::escape::enabled) {
+            if constexpr (escaped_multiline_enabled) {
                 while (escaped_eol(size)) {
-                    if (!append_line(next_line_buffer_, size)) {
+                    if (multiline_limit_reached(limit)) {
+                        return true;
+                    }
+                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
                         return false;
                     }
                 }
@@ -385,11 +401,27 @@ private:
 
             next_line_converter_.split(next_line_buffer_, delim_);
 
-            if constexpr (multiline && setup<Matchers...>::quote::enabled) {
+            if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
-                    if (!append_line(next_line_buffer_, size)) {
+                    if (multiline_limit_reached(limit)) {
+                        return true;
+                    }
+                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
                         return false;
                     }
+
+                    if constexpr (escaped_multiline_enabled) {
+                        while (escaped_eol(size)) {
+                            if (multiline_limit_reached(limit)) {
+                                return true;
+                            }
+                            if (!append_next_line_to_buffer(next_line_buffer_,
+                                                            size)) {
+                                return false;
+                            }
+                        }
+                    }
+
                     next_line_converter_.resplit(next_line_buffer_, size);
                 }
             }
@@ -399,7 +431,18 @@ private:
 
         void update() {
             std::swap(buffer_, next_line_buffer_);
+            std::swap(size_, next_line_size_);
             std::swap(converter_, next_line_converter_);
+        }
+
+        bool multiline_limit_reached(size_t& limit) {
+            if constexpr (multiline::size > 0) {
+                if (limit++ >= multiline::size) {
+                    next_line_converter_.set_error_multiline_limit_reached();
+                    return true;
+                }
+            }
+            return false;
         }
 
         bool escaped_eol(size_t size) {
@@ -419,12 +462,15 @@ private:
             return false;
         }
 
-        void undo_remove_eol(size_t& string_end) {
+        void undo_remove_eol(char* buffer, size_t& string_end) {
+            if (next_line_converter_.unterminated_quote()) {
+                string_end -= next_line_converter_.size_shifted();
+            }
             if (crlf_) {
-                std::copy_n("\r\n\0", 3, next_line_buffer_ + string_end);
+                std::copy_n("\r\n\0", 3, buffer + string_end);
                 string_end += 2;
             } else {
-                std::copy_n("\n\0", 2, next_line_buffer_ + string_end);
+                std::copy_n("\n\0", 2, buffer + string_end);
                 string_end += 1;
             }
         }
@@ -444,23 +490,23 @@ private:
 
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            first = static_cast<char*>(realloc(static_cast<void*>(first),
-                                               first_size + second_size + 2));
-
+            next_line_size_ = first_size + second_size + 2;
+            first = static_cast<char*>(
+                realloc(static_cast<void*>(first), next_line_size_));
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }
 
-        bool append_line(char*& dst_buffer, size_t& dst_size) {
-            undo_remove_eol(dst_size);
+        bool append_next_line_to_buffer(char*& buffer, size_t& size) {
+            undo_remove_eol(buffer, size);
 
-            ssize_t ssize = getline(&helper_buffer_, &helper_size_, file_);
-            if (ssize == -1) {
+            ssize_t next_ssize = getline(&helper_buffer_, &helper_size_, file_);
+            if (next_ssize == -1) {
                 return false;
             }
 
-            size_t size = remove_eol(helper_buffer_, ssize);
-            realloc_concat(dst_buffer, dst_size, helper_buffer_, size);
+            size_t next_size = remove_eol(helper_buffer_, next_ssize);
+            realloc_concat(buffer, size, helper_buffer_, next_size);
             return true;
         }
 
@@ -475,6 +521,7 @@ private:
         converter<Matchers...> next_line_converter_;
 
         size_t size_{0};
+        size_t next_line_size_{0};
         size_t helper_size_{0};
 
         std::string delim_;
@@ -488,7 +535,7 @@ private:
     ////////////////
 
     std::string file_name_;
-    error_type error_;
+    error_type error_{};
     reader reader_;
     size_t line_number_{0};
     bool eof_{false};

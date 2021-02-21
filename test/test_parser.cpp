@@ -66,12 +66,13 @@ TEST_CASE("parser test various cases") {
             i.emplace_back(ss::to_object<X>(a));
         }
 
-        CHECK(std::equal(i.begin(), i.end(), data.begin()));
+        CHECK_EQ(i, data);
     }
 
     {
         ss::parser p{f.name, ","};
         std::vector<X> i;
+        std::vector<X> expected = {std::begin(data) + 1, std::end(data)};
 
         p.ignore_next();
         while (!p.eof()) {
@@ -80,7 +81,7 @@ TEST_CASE("parser test various cases") {
             i.emplace_back(ss::to_object<X>(a));
         }
 
-        CHECK(std::equal(i.begin(), i.end(), data.begin() + 1));
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -91,7 +92,7 @@ TEST_CASE("parser test various cases") {
             i.push_back(p.get_object<X, int, double, std::string>());
         }
 
-        CHECK(std::equal(i.begin(), i.end(), data.begin()));
+        CHECK_EQ(i, data);
     }
 
     {
@@ -103,7 +104,7 @@ TEST_CASE("parser test various cases") {
             i.push_back(p.get_object<X, tup>());
         }
 
-        CHECK(std::equal(i.begin(), i.end(), data.begin()));
+        CHECK_EQ(i, data);
     }
 
     {
@@ -114,7 +115,7 @@ TEST_CASE("parser test various cases") {
             i.push_back(p.get_next<X>());
         }
 
-        CHECK(std::equal(i.begin(), i.end(), data.begin()));
+        CHECK_EQ(i, data);
     }
 
     {
@@ -129,10 +130,17 @@ TEST_CASE("parser test various cases") {
                 i.push_back(a);
             }
         }
-        std::vector<X> expected = data;
-        std::remove_if(expected.begin(), expected.end(),
-                       [](const X& x) { return x.i == excluded; });
-        CHECK(std::equal(i.begin(), i.end(), expected.begin()));
+
+        std::vector<X> expected;
+        for (auto& x : data) {
+            if (x.i != excluded) {
+                expected.push_back(x);
+            }
+        }
+
+        std::copy_if(data.begin(), data.end(), expected.begin(),
+                     [](const X& x) { return x.i != excluded; });
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -146,7 +154,7 @@ TEST_CASE("parser test various cases") {
             }
         }
         std::vector<X> expected = {{3, 4, "y"}};
-        CHECK(std::equal(i.begin(), i.end(), expected.begin()));
+        CHECK_EQ(i, expected);
     }
 
     {
@@ -194,7 +202,7 @@ TEST_CASE("parser test composite conversion") {
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
 
     REQUIRE(p.valid());
-    REQUIRE(!p.eof());
+    REQUIRE_FALSE(p.eof());
 
     {
         constexpr static auto expectedData = std::tuple{10, 'a', 11.1};
@@ -203,17 +211,17 @@ TEST_CASE("parser test composite conversion") {
             p.try_next<int, int, double>(fail)
                 .or_else<test_struct>(fail)
                 .or_else<int, char, double>(
-                    [](auto&& data) { CHECK(data == expectedData); })
+                    [](auto&& data) { CHECK_EQ(data, expectedData); })
                 .on_error(fail)
                 .or_else<test_tuple>(fail)
                 .values();
 
         REQUIRE(p.valid());
-        REQUIRE(!d1);
-        REQUIRE(!d2);
+        REQUIRE_FALSE(d1);
+        REQUIRE_FALSE(d2);
         REQUIRE(d3);
-        REQUIRE(!d4);
-        CHECK(*d3 == expectedData);
+        REQUIRE_FALSE(d4);
+        CHECK_EQ(*d3, expectedData);
     }
 
     {
@@ -222,7 +230,7 @@ TEST_CASE("parser test composite conversion") {
 
         auto [d1, d2, d3, d4] =
             p.try_next<int, int, double>([](auto& i1, auto i2, double d) {
-                 CHECK(std::tie(i1, i2, d) == expectedData);
+                 CHECK_EQ(std::tie(i1, i2, d), expectedData);
              })
                 .on_error(fail)
                 .or_object<test_struct, int, double, char>(fail)
@@ -234,10 +242,10 @@ TEST_CASE("parser test composite conversion") {
 
         REQUIRE(p.valid());
         REQUIRE(d1);
-        REQUIRE(!d2);
-        REQUIRE(!d3);
-        REQUIRE(!d4);
-        CHECK(*d1 == expectedData);
+        REQUIRE_FALSE(d2);
+        REQUIRE_FALSE(d3);
+        REQUIRE_FALSE(d4);
+        CHECK_EQ(*d1, expectedData);
     }
 
     {
@@ -252,12 +260,12 @@ TEST_CASE("parser test composite conversion") {
                 .or_else<int, char, double>(fail)
                 .values();
 
-        REQUIRE(!p.valid());
-        REQUIRE(!d1);
-        REQUIRE(!d2);
-        REQUIRE(!d3);
-        REQUIRE(!d4);
-        REQUIRE(!d5);
+        REQUIRE_FALSE(p.valid());
+        REQUIRE_FALSE(d1);
+        REQUIRE_FALSE(d2);
+        REQUIRE_FALSE(d3);
+        REQUIRE_FALSE(d4);
+        REQUIRE_FALSE(d5);
     }
 
     {
@@ -265,14 +273,14 @@ TEST_CASE("parser test composite conversion") {
 
         auto [d1, d2] =
             p.try_next<int, double>([](auto& i, auto& d) {
-                 REQUIRE(std::tie(i, d) == std::tuple{10, 11.1});
+                 REQUIRE_EQ(std::tie(i, d), std::tuple{10, 11.1});
              })
                 .or_else<int, double>([](auto&, auto&) { FAIL(""); })
                 .values();
 
         REQUIRE(p.valid());
         REQUIRE(d1);
-        REQUIRE(!d2);
+        REQUIRE_FALSE(d2);
     }
 
     {
@@ -283,9 +291,9 @@ TEST_CASE("parser test composite conversion") {
                             .values();
 
         REQUIRE(p.valid());
-        REQUIRE(!d1);
+        REQUIRE_FALSE(d1);
         REQUIRE(d2);
-        CHECK(d2->tied() == std::tuple{1, 11.1, 'a'});
+        CHECK_EQ(d2->tied(), std::tuple{1, 11.1, 'a'});
     }
 
     {
@@ -300,12 +308,12 @@ TEST_CASE("parser test composite conversion") {
                 .on_error(expect_error)
                 .values();
 
-        REQUIRE(!p.valid());
-        REQUIRE(!d1);
-        REQUIRE(!d2);
-        REQUIRE(!d3);
-        REQUIRE(!d4);
-        REQUIRE(!d5);
+        REQUIRE_FALSE(p.valid());
+        REQUIRE_FALSE(d1);
+        REQUIRE_FALSE(d2);
+        REQUIRE_FALSE(d3);
+        REQUIRE_FALSE(d4);
+        REQUIRE_FALSE(d5);
     }
 
     {
@@ -319,12 +327,12 @@ TEST_CASE("parser test composite conversion") {
 
         REQUIRE(p.valid());
         REQUIRE(d1);
-        REQUIRE(!d2);
-        CHECK(*d1 == std::tuple{10, std::nullopt});
+        REQUIRE_FALSE(d2);
+        CHECK_EQ(*d1, std::tuple{10, std::nullopt});
     }
 
     {
-        REQUIRE(!p.eof());
+        REQUIRE_FALSE(p.eof());
 
         auto [d1, d2] = p.try_next<int, std::variant<int, std::string>>()
                             .on_error(fail)
@@ -334,8 +342,8 @@ TEST_CASE("parser test composite conversion") {
 
         REQUIRE(p.valid());
         REQUIRE(d1);
-        REQUIRE(!d2);
-        CHECK(*d1 == std::tuple{11, std::variant<int, std::string>{"junk"}});
+        REQUIRE_FALSE(d2);
+        CHECK_EQ(*d1, std::tuple{11, std::variant<int, std::string>{"junk"}});
     }
 
     {
@@ -346,12 +354,12 @@ TEST_CASE("parser test composite conversion") {
                             .values();
         REQUIRE(p.valid());
         REQUIRE(d1);
-        REQUIRE(!d2);
-        CHECK(d1->tied() == std::tuple{10, 11.1, 'c'});
+        REQUIRE_FALSE(d2);
+        CHECK_EQ(d1->tied(), std::tuple{10, 11.1, 'c'});
     }
 
     {
-        REQUIRE(!p.eof());
+        REQUIRE_FALSE(p.eof());
 
         auto [d1, d2, d3, d4] =
             p.try_next<int, int>([] { return false; })
@@ -361,11 +369,11 @@ TEST_CASE("parser test composite conversion") {
                 .values();
 
         REQUIRE(p.valid());
-        REQUIRE(!d1);
-        REQUIRE(!d2);
+        REQUIRE_FALSE(d1);
+        REQUIRE_FALSE(d2);
         REQUIRE(d3);
-        REQUIRE(!d4);
-        CHECK(d3.value() == std::tuple{10, 20});
+        REQUIRE_FALSE(d4);
+        CHECK_EQ(d3.value(), std::tuple{10, 20});
     }
 
     {
@@ -379,11 +387,11 @@ TEST_CASE("parser test composite conversion") {
                 .values();
 
         REQUIRE(p.valid());
-        REQUIRE(!d1);
-        REQUIRE(!d2);
+        REQUIRE_FALSE(d1);
+        REQUIRE_FALSE(d2);
         REQUIRE(d3);
-        REQUIRE(!d4);
-        CHECK(d3->tied() == std::tuple{10, 22.2, 'f'});
+        REQUIRE_FALSE(d4);
+        CHECK_EQ(d3->tied(), std::tuple{10, 22.2, 'f'});
     }
 
     CHECK(p.eof());
@@ -446,7 +454,7 @@ TEST_CASE("parser test the moving of parsed values") {
 
         ss::parser p{f.name, ","};
         auto x = p.get_next<my_string>();
-        CHECK(move_called < 3);
+        CHECK_LT(move_called, 3);
         move_called_one_col = move_called;
         move_called = 0;
     }
@@ -461,21 +469,21 @@ TEST_CASE("parser test the moving of parsed values") {
 
         ss::parser p{f.name, ","};
         auto x = p.get_next<my_string, my_string, my_string>();
-        CHECK(move_called <= 3 * move_called_one_col);
+        CHECK_LE(move_called, 3 * move_called_one_col);
         move_called = 0;
     }
 
     {
         ss::parser p{f.name, ","};
         auto x = p.get_object<xyz, my_string, my_string, my_string>();
-        CHECK(move_called <= 6 * move_called_one_col);
+        CHECK_LE(move_called, 6 * move_called_one_col);
         move_called = 0;
     }
 
     {
         ss::parser p{f.name, ","};
         auto x = p.get_next<xyz>();
-        CHECK(move_called <= 6 * move_called_one_col);
+        CHECK_LE(move_called, 6 * move_called_one_col);
         move_called = 0;
     }
 }
@@ -503,10 +511,10 @@ TEST_CASE("parser test error mode") {
 
     ss::parser<ss::string_error> p(f.name, ",");
 
-    REQUIRE(!p.eof());
+    REQUIRE_FALSE(p.eof());
     p.get_next<int>();
-    CHECK(!p.valid());
-    CHECK(!p.error_msg().empty());
+    CHECK_FALSE(p.valid());
+    CHECK_FALSE(p.error_msg().empty());
 }
 
 std::string no_quote(const std::string& s) {
@@ -516,7 +524,7 @@ std::string no_quote(const std::string& s) {
     return s;
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes") {
+TEST_CASE("parser test csv on multiple lines with quotes zzz") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
                            {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
@@ -537,7 +545,7 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
         i.emplace_back(ss::to_object<X>(a));
     }
 
-    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+    CHECK_EQ(i, data);
 
     ss::parser<ss::quote<'"'>> p_no_multiline{f.name, ","};
     while (!p.eof()) {
@@ -553,8 +561,8 @@ std::string no_escape(std::string& s) {
 
 TEST_CASE("parser test csv on multiple lines with escapes") {
     unique_file_name f;
-    std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {3, 4, "y\\\ny\\\ny"},
-                           {5, 6, "z\\\nz"},      {7, 8, "u"},
+    std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {5, 6, "z\\\nz\\\nz"},
+                           {7, 8, "u"},           {3, 4, "y\\\ny\\\ny"},
                            {9, 10, "v\\\\"},      {11, 12, "w\\\n"}};
 
     make_and_write(f.name, data);
@@ -573,11 +581,72 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
         i.emplace_back(ss::to_object<X>(a));
     }
 
-    CHECK(std::equal(i.begin(), i.end(), data.begin()));
+    CHECK_EQ(i, data);
 
     ss::parser<ss::escape<'\\'>> p_no_multiline{f.name, ","};
     while (!p.eof()) {
         auto a = p_no_multiline.get_next<int, double, std::string>();
-        CHECK(!p.valid());
+        CHECK_FALSE(p.valid());
     }
+}
+
+TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
+    unique_file_name f;
+    {
+        std::ofstream out{f.name};
+        out << "1,2,\"just\\\n\nstrings\"" << std::endl;
+        out << "3,4,\"just\nsome\\\n\n\\\nstrings\"" << std::endl;
+        out << "5,6,\"just\\\n\\\n\n\nstrings" << std::endl;
+        out << "7,8,\"just strings\"" << std::endl;
+        out << "9,10,just strings" << std::endl;
+    }
+
+    ss::parser<ss::multiline, ss::escape<'\\'>, ss::quote<'"'>> p{f.name};
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        if (p.valid()) {
+            i.emplace_back(ss::to_object<X>(a));
+        }
+    }
+
+    std::vector<X> data = {{1, 2, "just\n\nstrings"},
+                           {3, 4, "just\nsome\n\n\nstrings"},
+                           {9, 10, "just strings"}};
+
+    CHECK_EQ(i, data);
+}
+
+TEST_CASE("parser test multiline restricted") {
+    unique_file_name f;
+    {
+        std::ofstream out{f.name};
+        out << "1,2,\"just\n\nstrings\"" << std::endl;
+        out << "3,4,\"ju\n\n\nnk\"" << std::endl;
+        out << "5,6,just\\\n\\\nstrings" << std::endl;
+        out << "7,8,ju\\\n\\\n\\\nnk" << std::endl;
+        out << "9,10,\"just\\\n\nstrings\"" << std::endl;
+        out << "11,12,\"ju\\\n|\n\n\n\n\nk\"" << std::endl;
+        out << "13,14,\"ju\\\n\\\n15,16\"\\\n\\\\\n\nnk\"" << std::endl;
+        out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
+        out << "19,20,just strings" << std::endl;
+    }
+
+    ss::parser<ss::multiline_restricted<2>, ss::quote<'"'>, ss::escape<'\\'>>
+        p{f.name, ","};
+    std::vector<X> i;
+
+    while (!p.eof()) {
+        auto a = p.get_next<int, double, std::string>();
+        if (p.valid()) {
+            i.emplace_back(ss::to_object<X>(a));
+        }
+    }
+
+    std::vector<X> data = {{1, 2, "just\n\nstrings"},
+                           {5, 6, "just\n\nstrings"},
+                           {9, 10, "just\n\nstrings"},
+                           {19, 20, "just strings"}};
+    CHECK_EQ(i, data);
 }
