@@ -524,7 +524,7 @@ std::string no_quote(const std::string& s) {
     return s;
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes zzz") {
+TEST_CASE("parser test csv on multiple lines with quotes") {
     unique_file_name f;
     std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
                            {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
