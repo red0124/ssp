@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: ubuntu-latest-clang-ci
 
 on:
   push:

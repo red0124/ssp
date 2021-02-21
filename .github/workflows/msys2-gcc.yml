@@ -1,4 +1,4 @@
-name: MSYS2-CI
+name: msys2-gcc-ci
 
 on:
   push:
