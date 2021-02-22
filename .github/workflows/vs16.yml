@@ -1,0 +1,44 @@
+name: vs16-ci
+
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  ci:
+    name: windows-vs16
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {gen: Visual Studio 16 2019, arch: Win32}
+          - {gen: Visual Studio 16 2019, arch: x64}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
