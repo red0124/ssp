@@ -19,6 +19,9 @@ jobs:
   ci:
     name: windows-vs16
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     strategy:
       fail-fast: false
       matrix:
