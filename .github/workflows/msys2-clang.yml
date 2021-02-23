@@ -51,6 +51,7 @@ jobs:
 
       - name: Install dependencies
         run: script/ci_install_deps.sh
+        run: clang++ -dM -E - < /dev/null
 
       - name: Configure
         run: cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build -DCMAKE_BUILD_TYPE=Debug
