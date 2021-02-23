@@ -175,6 +175,7 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 #else
 #warning "Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning."
 #endif
+#endif
 template <typename T, typename U>
 bool shift_and_add_overflow(T& value, T digit, U is_negative) {
     digit = (is_negative) ? -digit : digit;
