@@ -1,4 +1,4 @@
-name: vs16-ci
+name: vs19-ci
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
 
 jobs:
   ci:
-    name: windows-vs16
+    name: windows-vs19
     runs-on: windows-latest
     defaults:
       run:
@@ -26,8 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {gen: Visual Studio 16 2019, install: git, arch: Win32}
-          - {gen: Visual Studio 16 2019, install: git, arch: x64}
+          - {gen: Visual Studio 19 2019, install: git, arch: Win32}
+          - {gen: Visual Studio 19 2019, install: git, arch: x64}
 
     steps:
       - name: checkout
