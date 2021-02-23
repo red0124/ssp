@@ -42,7 +42,6 @@ inline std::optional<short> from_char(char c) {
 // mingw32 clang does not support some of the builtin functions
 #if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
     !defined(MINGW32_CLANG)
-#warning "using mul functions"
 ////////////////
 // mul overflow detection
 ////////////////
@@ -170,7 +169,9 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 }
 #else
 
-#warning "Use clang or gcc if possible."
+#ifndef SS_NO_WARNINGS
+#warning "Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning."
+#endif
 template <typename T, typename U>
 bool shift_and_add_overflow(T& value, T digit, U is_negative) {
     digit = (is_negative) ? -digit : digit;
