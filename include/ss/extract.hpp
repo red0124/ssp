@@ -35,7 +35,9 @@ inline std::optional<short> from_char(char c) {
     return std::nullopt;
 }
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)
+// mingw32 clang does not support some of the builtin functions
+#if (defined(__clang__) && (!defined(__MINGW32__) || defined(__MINGW64__))) || \
+    defined(__GNUC__) || defined(__GUNG__)
 ////////////////
 // mul overflow detection
 ////////////////
