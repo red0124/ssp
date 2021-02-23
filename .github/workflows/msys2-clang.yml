@@ -50,7 +50,7 @@ jobs:
           install: ${{ matrix.install }}
 
       - name: Install dependencies
-        run: script/ci_install_deps.sh && clang++ -dM -E - < /dev/null
+        run: script/ci_install_deps.sh
 
       - name: Configure
         run: cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build -DCMAKE_BUILD_TYPE=Debug

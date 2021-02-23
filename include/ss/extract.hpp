@@ -35,12 +35,13 @@ inline std::optional<short> from_char(char c) {
     return std::nullopt;
 }
 
-#define MING32_CLANG                                                           \
-    defined(__clang__) && defined(__MINGW32__) && !defined(__MINGW64__)
+#if defined(__clang__) && defined(__MINGW32__) && !defined(__MINGW64__)
+#define MINGW32_CLANG
+#endif
 
 // mingw32 clang does not support some of the builtin functions
 #if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
-    (MING32_CLANG == false)
+    !defined(MINGW32_CLANG)
 #warning "using mul functions"
 ////////////////
 // mul overflow detection
@@ -200,7 +201,7 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     }
 
 #if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
-    (MING32_CLANG == false)
+    !defined(MINGW32_CLANG)
     auto add_last_digit_owerflow =
         (is_negative) ? sub_overflow<T> : add_overflow<T>;
 #else
