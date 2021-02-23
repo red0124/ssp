@@ -170,6 +170,9 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 #else
 
 #ifndef SS_NO_WARNINGS
+#ifdef _WIN32
+#pragma warning("Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning.")
+#else
 #warning "Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning."
 #endif
 template <typename T, typename U>
