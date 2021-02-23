@@ -2,18 +2,50 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <ss/parser.hpp>
+#include <sstream>
 
+std::string time_now_rand() {
+    std::stringstream ss;
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    ss << std::put_time(&tm, "%d%m%Y%H%M%S");
+    srand(time(nullptr));
+    return ss.str() + std::to_string(rand());
+}
+
+inline int i = 0;
 struct unique_file_name {
     const std::string name;
 
-    unique_file_name() : name{std::tmpnam(nullptr)} {
+    unique_file_name()
+        : name{"random_" + std::to_string(i++) + time_now_rand() +
+               "_file.csv"} {
     }
 
     ~unique_file_name() {
         std::filesystem::remove(name);
     }
 };
+
+void replace_all(std::string& s, const std::string& from,
+                 const std::string& to) {
+    if (from.empty()) return;
+    size_t start_pos = 0;
+    while ((start_pos = s.find(from, start_pos)) != std::string::npos) {
+        s.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}
+
+void update_if_crlf(std::string& s) {
+#ifdef _WIN32
+    replace_all(s, "\r\n", "\n");
+#else
+    (void)(s);
+#endif
+}
 
 struct X {
     constexpr static auto delim = ",";
@@ -43,7 +75,13 @@ template <typename T>
 static void make_and_write(const std::string& file_name,
                            const std::vector<T>& data) {
     std::ofstream out{file_name};
+
+#ifdef _WIN32
+    std::vector<const char*> new_lines = {"\n"};
+#else
     std::vector<const char*> new_lines = {"\n", "\r\n"};
+#endif
+
     for (size_t i = 0; i < data.size(); ++i) {
         out << data[i].to_string() << new_lines[i % new_lines.size()];
     }
@@ -55,7 +93,7 @@ TEST_CASE("parser test various cases") {
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
     {
-        ss::parser p{f.name, ","};
+        ss::parser<ss::string_error> p{f.name, ","};
         ss::parser p0{std::move(p)};
         p = std::move(p0);
 
@@ -526,9 +564,16 @@ std::string no_quote(const std::string& s) {
 
 TEST_CASE("parser test csv on multiple lines with quotes") {
     unique_file_name f;
-    std::vector<X> data = {{1, 2, "\"x\nx\nx\""}, {3, 4, "\"y\ny\ny\""},
-                           {5, 6, "\"z\nz\""},    {7, 8, "\"u\"\"\""},
-                           {9, 10, "v"},          {11, 12, "\"w\n\""}};
+    std::vector<X> data = {{1, 2, "\"x\r\nx\nx\""},
+                           {3, 4, "\"y\ny\r\ny\""},
+                           {5, 6, "\"z\nz\""},
+                           {7, 8, "\"u\"\"\""},
+                           {9, 10, "v"},
+                           {11, 12, "\"w\n\""}};
+    for (auto& [_, __, s] : data) {
+        update_if_crlf(s);
+    }
+
     make_and_write(f.name, data);
     for (auto& [_, __, s] : data) {
         s = no_quote(s);
@@ -545,6 +590,9 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
         i.emplace_back(ss::to_object<X>(a));
     }
 
+    for (auto& [_, __, s] : i) {
+        update_if_crlf(s);
+    }
     CHECK_EQ(i, data);
 
     ss::parser<ss::quote<'"'>> p_no_multiline{f.name, ","};
@@ -561,9 +609,15 @@ std::string no_escape(std::string& s) {
 
 TEST_CASE("parser test csv on multiple lines with escapes") {
     unique_file_name f;
-    std::vector<X> data = {{1, 2, "x\\\nx\\\nx"}, {5, 6, "z\\\nz\\\nz"},
-                           {7, 8, "u"},           {3, 4, "y\\\ny\\\ny"},
-                           {9, 10, "v\\\\"},      {11, 12, "w\\\n"}};
+    std::vector<X> data = {{1, 2, "x\\\nx\\\r\nx"},
+                           {5, 6, "z\\\nz\\\nz"},
+                           {7, 8, "u"},
+                           {3, 4, "y\\\ny\\\ny"},
+                           {9, 10, "v\\\\"},
+                           {11, 12, "w\\\n"}};
+    for (auto& [_, __, s] : data) {
+        update_if_crlf(s);
+    }
 
     make_and_write(f.name, data);
     for (auto& [_, __, s] : data) {
@@ -581,6 +635,9 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
         i.emplace_back(ss::to_object<X>(a));
     }
 
+    for (auto& [_, __, s] : i) {
+        update_if_crlf(s);
+    }
     CHECK_EQ(i, data);
 
     ss::parser<ss::escape<'\\'>> p_no_multiline{f.name, ","};
@@ -595,8 +652,13 @@ TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
     {
         std::ofstream out{f.name};
         out << "1,2,\"just\\\n\nstrings\"" << std::endl;
+#ifndef _WIN32
+        out << "3,4,\"just\r\nsome\\\r\n\n\\\nstrings\"" << std::endl;
+        out << "5,6,\"just\\\n\\\r\n\r\n\nstrings" << std::endl;
+#else
         out << "3,4,\"just\nsome\\\n\n\\\nstrings\"" << std::endl;
         out << "5,6,\"just\\\n\\\n\n\nstrings" << std::endl;
+#endif
         out << "7,8,\"just strings\"" << std::endl;
         out << "9,10,just strings" << std::endl;
     }
@@ -612,9 +674,16 @@ TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
     }
 
     std::vector<X> data = {{1, 2, "just\n\nstrings"},
+#ifndef _WIN32
+                           {3, 4, "just\r\nsome\r\n\n\nstrings"},
+#else
                            {3, 4, "just\nsome\n\n\nstrings"},
+#endif
                            {9, 10, "just strings"}};
 
+    for (auto& [_, __, s] : i) {
+        update_if_crlf(s);
+    }
     CHECK_EQ(i, data);
 }
 
@@ -623,8 +692,13 @@ TEST_CASE("parser test multiline restricted") {
     {
         std::ofstream out{f.name};
         out << "1,2,\"just\n\nstrings\"" << std::endl;
+#ifndef _WIN32
+        out << "3,4,\"ju\n\r\n\nnk\"" << std::endl;
+        out << "5,6,just\\\n\\\r\nstrings" << std::endl;
+#else
         out << "3,4,\"ju\n\n\nnk\"" << std::endl;
         out << "5,6,just\\\n\\\nstrings" << std::endl;
+#endif
         out << "7,8,ju\\\n\\\n\\\nnk" << std::endl;
         out << "9,10,\"just\\\n\nstrings\"" << std::endl;
         out << "11,12,\"ju\\\n|\n\n\n\n\nk\"" << std::endl;
@@ -645,8 +719,16 @@ TEST_CASE("parser test multiline restricted") {
     }
 
     std::vector<X> data = {{1, 2, "just\n\nstrings"},
+#ifndef _WIN32
+                           {5, 6, "just\n\r\nstrings"},
+#else
                            {5, 6, "just\n\nstrings"},
+#endif
                            {9, 10, "just\n\nstrings"},
                            {19, 20, "just strings"}};
+
+    for (auto& [_, __, s] : i) {
+        update_if_crlf(s);
+    }
     CHECK_EQ(i, data);
 }
