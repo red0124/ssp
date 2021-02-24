@@ -42,7 +42,7 @@ jobs:
           install-${{ env.LINUX_HPCKIT_URL }}-${{ env.LINUX_CPP_COMPONENTS_WEB }}-compiler-${{ hashFiles('**/scripts/cache_exclude_linux.sh') }}
 
     - name: Install icc
-      run: scripts/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
+      run: script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
 
     - name: Install dependencies
       run: script/ci_install_deps.sh
