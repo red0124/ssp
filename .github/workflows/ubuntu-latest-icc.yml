@@ -25,11 +25,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    steps:
-    - uses: actions/checkout@v2
 
     env:
       CXX: dpcpp
+
+    steps:
+    - uses: actions/checkout@v2
 
     - name: cache install
       id: cache-install
