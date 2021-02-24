@@ -1,6 +1,14 @@
 name: ubuntu-latest-icc-ci
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
     branches:
       - master
       - feature/**
