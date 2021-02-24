@@ -42,7 +42,7 @@ jobs:
       run: script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
 
     - name: Setup icc
-      run: source script/ci_setup_deps.sh
+      run: source script/ci_setup_icc.sh
 
     - name: Install dependencies
       run: sudo script/ci_install_deps.sh
