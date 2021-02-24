@@ -43,6 +43,9 @@ jobs:
         key:
           install-${{ env.LINUX_HPCKIT_URL }}-${{ env.LINUX_CPP_COMPONENTS_WEB }}-compiler-${{ hashFiles('**/scripts/cache_exclude_linux.sh') }}
 
+    - name: CMake
+      run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
     - name: Install dependencies
       run: script/ci_install_deps.sh
 
@@ -51,9 +54,6 @@ jobs:
 
     - name: Setup icc
       run: source script/ci_setup_icc.sh
-
-    - name: CMake
-      run: echo "/host_usr_local/bin" >> $GITHUB_PATH
 
     - name: Configure
       run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
