@@ -17,18 +17,17 @@ on:
 
 jobs:
   ci:
-    name: windows-vs19
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
+    runs-on: ${{matrix.config.os}}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {gen: Visual Studio 19 2019, install: git, arch: Win32}
-          - {gen: Visual Studio 19 2019, install: git, arch: x64}
+        config:
+        - { os: windows-2016, vs: "Visual Studio 2017" }
+        - { os: windows-2019, vs: "Visual Studio 2019" }
+        build: [Debug, Release]
+        platform: [Win32, x64]
 
+    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
     steps:
       - name: checkout
         uses: actions/checkout@v2
