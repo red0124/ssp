@@ -1,4 +1,4 @@
-name: msys2-clang-ci
+name: win-msys2-gcc-ci
 
 on:
   push:
@@ -27,16 +27,16 @@ jobs:
       matrix:
         include:
           - msystem: "MINGW64"
-            install: git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang
+            install: git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-gcc
             type: Release
           - msystem: "MINGW32"
-            install: git mingw-w64-i686-cmake mingw-w64-i686-ninja mingw-w64-i686-clang
+            install: git mingw-w64-i686-cmake mingw-w64-i686-ninja mingw-w64-i686-gcc
             type: Release
           - msystem: "MINGW64"
-            install: git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-clang
+            install: git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-gcc
             type: Debug
           - msystem: "MINGW32"
-            install: git mingw-w64-i686-cmake mingw-w64-i686-ninja mingw-w64-i686-clang
+            install: git mingw-w64-i686-cmake mingw-w64-i686-ninja mingw-w64-i686-gcc
             type: Debug
     env:
       CMAKE_GENERATOR: Ninja
@@ -53,7 +53,7 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
 
       - name: Build
         run: cmake --build build -j ${{ steps.cores.outputs.count }}

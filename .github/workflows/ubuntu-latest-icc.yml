@@ -1,0 +1,49 @@
+name: ubuntu-latest-icc-ci
+
+on: [push, pull_request]
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  gcc_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    strategy:
+      matrix:
+        version: [10, 9, 8]
+
+    runs-on: ubuntu-latest
+
+    name: GCC ${{ matrix.version }}
+
+    container:
+      image: gcc:${{ matrix.version }}
+
+      options: -v /usr/local:/host_usr_local
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: CMake
+        run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
