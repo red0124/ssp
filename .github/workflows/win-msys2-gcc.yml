@@ -46,7 +46,7 @@ jobs:
               mingw-w64-x86_64-gcc
             type: Debug
           - msystem: "MINGW32"
-            install: ->
+            install: >-
               git mingw-w64-i686-cmake mingw-w64-i686-ninja 
               mingw-w64-i686-gcc
             type: Debug
