@@ -61,6 +61,9 @@ jobs:
     - name: Set compiler
       run: CXX=dpcpp
 
+    - name: Set compiler
+      run: dpcpp -v
+
     - name: Configure
       run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
 
