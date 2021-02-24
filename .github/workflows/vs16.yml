@@ -17,6 +17,9 @@ on:
 
 jobs:
   ci:
+    defaults:
+      run:
+        shell: bash
     runs-on: ${{matrix.config.os}}
     strategy:
       fail-fast: false
