@@ -26,6 +26,10 @@ jobs:
       run:
         shell: bash
 
+    container:
+      image: gcc:${{ matrix.version }}
+      options: -v /usr/local:/host_usr_local
+
     steps:
     - uses: actions/checkout@v2
 
