@@ -17,6 +17,10 @@ on:
 
 jobs:
   windows-mingw:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
     name: ${{ matrix.msystem }}
     runs-on: windows-latest
     defaults:
@@ -61,7 +65,9 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build -DCMAKE_BUILD_TYPE=Debug
+        run: >- 
+          cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build 
+          -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build
         run: cmake --build build -j ${{ steps.cores.outputs.count }}
