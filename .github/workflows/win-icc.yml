@@ -1,4 +1,4 @@
-name: ubuntu-latest-icc-ci
+name: windows-latest-icc-ci
 
 on:
   push:
@@ -16,24 +16,19 @@ on:
       - bugfix/**
 
 env:
-  LINUX_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17431/l_BaseKit_p_2021.1.0.2659_offline.sh
-  LINUX_HPCKIT_URL: 
-    https://registrationcenter-download.intel.com/akdlm/irc_nas/17427/l_HPCKit_p_2021.1.0.2684_offline.sh
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17453/w_BaseKit_p_2021.1.0.2664_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
 
 jobs:
-  build_linux_cpp:
+  windows_icc:
     if: >-
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     defaults:
       run:
         shell: bash
-
-    container:
-      image: gcc:10
-      options: -v /usr/local:/host_usr_local
 
     steps:
     - uses: actions/checkout@v2
@@ -42,15 +37,11 @@ jobs:
       id: cache-install
       uses: actions/cache@v2
       with:
-        path: |
-          /opt/intel/oneapi/compiler
-        key: >-
-          install-${{ env.LINUX_HPCKIT_URL }}-
-          ${{ env.LINUX_CPP_COMPONENTS_WEB }}-
-          compiler-${{ hashFiles('**/scripts/cache_exclude_linux.sh') }}
+        path: C:\Program Files (x86)\Intel\oneAPI\compiler
+        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_CPP_COMPONENTS }}-compiler-${{ hashFiles('**/scripts/cache_exclude_windows.sh') }}
 
     - name: Install icc
-      run: script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
+      run: script/ci_install_icc.sh $WINDOWS_HPCKIT_URL $WINDOWS_CPP_COMPONENTS
 
     - name: CMake
       run: echo "/host_usr_local/bin" >> $GITHUB_PATH
