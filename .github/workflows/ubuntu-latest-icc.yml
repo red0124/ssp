@@ -26,16 +26,11 @@ jobs:
       run:
         shell: bash
 
-    container:
-      image: gcc:10
-      options: -v /usr/local:/host_usr_local
-
     steps:
     - uses: actions/checkout@v2
 
     - name: cache install
       id: cache-install
-
       uses: actions/cache@v2
       with:
         path: |
@@ -43,26 +38,17 @@ jobs:
         key:
           install-${{ env.LINUX_HPCKIT_URL }}-${{ env.LINUX_CPP_COMPONENTS_WEB }}-compiler-${{ hashFiles('**/scripts/cache_exclude_linux.sh') }}
 
-    - name: CMake
-      run: echo "/host_usr_local/bin" >> $GITHUB_PATH
-
-    - name: Install dependencies
-      run: script/ci_install_deps.sh
-
     - name: Install icc
       run: script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
 
     - name: Setup icc
-      run: source script/ci_setup_icc.sh
+      run: source script/ci_setup_deps.sh
 
-    - name: Test compiler
-      run: echo $CXX
+    - name: Install dependencies
+      run: sudo script/ci_install_deps.sh
 
-    - name: Set compiler
-      run: CXX=dpcpp
-
-    - name: Set compiler
-      run: dpcpp -v
+    - name: CMake
+      run: echo "/host_usr_local/bin" >> $GITHUB_PATH
 
     - name: Configure
       run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
