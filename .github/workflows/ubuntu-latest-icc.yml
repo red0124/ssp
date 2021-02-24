@@ -26,10 +26,6 @@ jobs:
       run:
         shell: bash
 
-    env:
-      CXX: dpcpp
-      CXXFLAGS: -stdlib=libc++
-
     steps:
     - uses: actions/checkout@v2
 
@@ -45,15 +41,6 @@ jobs:
     - name: Install icc
       run: script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
 
-    - name: Setup icc
-      run: source script/ci_setup_icc.sh
-
-    - name: Test setup icc
-      run: echo $CXX
-
-    - name: Test icc
-      run: dpcpp -v
-
     - name: Install dependencies
       run: sudo script/ci_install_deps.sh
 
@@ -61,10 +48,10 @@ jobs:
       run: echo "/host_usr_local/bin" >> $GITHUB_PATH
 
     - name: Configure
-      run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+      run: source script/ci_setup_icc.sh && cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
 
     - name: Build
-      run: cmake --build build -j ${{ steps.cores.outputs.count }}
+      run: source script/ci_setup_icc.sh && cmake --build build -j ${{ steps.cores.outputs.count }}
 
     - name: Run
       working-directory: build
