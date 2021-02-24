@@ -48,6 +48,12 @@ jobs:
     - name: Setup icc
       run: source script/ci_setup_icc.sh
 
+    - name: Test setup icc
+      run: echo $CXX
+
+    - name: Test icc
+      run: dpcpp -v
+
     - name: Install dependencies
       run: sudo script/ci_install_deps.sh
 
