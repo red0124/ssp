@@ -55,6 +55,12 @@ jobs:
     - name: Setup icc
       run: source script/ci_setup_icc.sh
 
+    - name: Test compiler
+      run: echo $CXX
+
+    - name: Set compiler
+      run: CXX=dpcpp
+
     - name: Configure
       run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
 
