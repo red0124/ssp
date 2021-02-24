@@ -26,11 +26,16 @@ jobs:
       run:
         shell: bash
 
+    container:
+      image: gcc:10
+      options: -v /usr/local:/host_usr_local
+
     steps:
     - uses: actions/checkout@v2
 
     - name: cache install
       id: cache-install
+
       uses: actions/cache@v2
       with:
         path: |
