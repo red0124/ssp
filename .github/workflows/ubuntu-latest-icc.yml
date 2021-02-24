@@ -27,7 +27,7 @@ jobs:
         shell: bash
 
     container:
-      image: gcc:${{ matrix.version }}
+      image: gcc:10
       options: -v /usr/local:/host_usr_local
 
     steps:
