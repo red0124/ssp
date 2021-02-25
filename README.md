@@ -1,5 +1,7 @@
 # Static split parser
 
+![example workflow](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml/gcc.svg)
+
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. 
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
