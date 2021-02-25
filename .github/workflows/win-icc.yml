@@ -64,7 +64,6 @@ jobs:
     - name: Build
       run: >-
         cmake --build build -j ${{ steps.cores.outputs.count }}
-        -G "dpcpp generator" -D CMAKE_CXX_COMPILER=dpcpp
 
     - name: Run
       working-directory: build
