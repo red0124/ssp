@@ -1,0 +1,63 @@
+name: ubuntu-latest-icc-ci
+
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+env:
+   WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17453/w_BaseKit_p_2021.1.0.2664_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
+
+jobs:
+  build_linux_cpp:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+   steps:
+    - uses: actions/checkout@v2
+    - name: cache install
+      id: cache-install
+      uses: actions/cache@v2
+      with:
+        path: C:\Program Files (x86)\Intel\oneAPI\compiler
+        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_CPP_COMPONENTS }}-compiler-${{ hashFiles('**/scripts/cache_exclude_windows.sh') }}
+
+    - name: Install icc
+      run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_CPP_COMPONENTS
+
+    - name: CMake
+      run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: script/ci_install_deps.sh
+
+    - name: Configure
+      run: >-
+        source script/ci_setup_icc.sh &&
+        cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+    - name: Build
+      run: >-
+        source script/ci_setup_icc.sh &&
+        cmake --build build -j ${{ steps.cores.outputs.count }}
+
+    - name: Run
+      working-directory: build
+      run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
