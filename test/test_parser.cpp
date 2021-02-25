@@ -1,5 +1,3 @@
-#include <optional>
-/*
 #include "test_helpers.hpp"
 #include <algorithm>
 #include <filesystem>
@@ -93,7 +91,6 @@ static void make_and_write(const std::string& file_name,
 
 TEST_CASE("parser test various cases") {
     unique_file_name f;
-    std::cout << __VERSION__ << std::endl;
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
@@ -737,4 +734,3 @@ TEST_CASE("parser test multiline restricted") {
     }
     CHECK_EQ(i, data);
 }
-*/

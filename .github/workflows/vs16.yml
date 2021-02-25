@@ -1,38 +1,19 @@
-name: vs19-ci
+name: Build & Test - MSVC
 
-on:
-  push:
-    branches:
-      - master
-      - feature/**
-      - improvement/**
-      - bugfix/**
-
-  pull_request:
-    branches:
-      - master
-      - feature/**
-      - improvement/**
-      - bugfix/**
+on: [push, pull_request]
 
 jobs:
-  ci:
+  build-windows:
+    runs-on: windows-latest
     defaults:
       run:
         shell: bash
-    runs-on: ${{matrix.config.os}}
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-        - { os: windows-2019, vs: "Visual Studio 2020" }
-        build: [Debug, Release]
-        platform: [Win32, x64]
 
-    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
     steps:
       - name: checkout
         uses: actions/checkout@v2
+        with:
+          cmake-version: '3.19.x'
 
       - name: Install dependencies
         run: script/ci_install_deps.sh
