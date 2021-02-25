@@ -54,7 +54,7 @@ jobs:
       run: script/ci_install_deps.sh
 
     - name: Setup icc
-        script/ci_win_setup_icc.bat
+      run: script/ci_win_setup_icc.bat
 
     - name: Configure
       run: CXX=dpcpp && cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
