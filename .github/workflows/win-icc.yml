@@ -57,10 +57,14 @@ jobs:
       run: script/ci_win_setup_icc.bat
 
     - name: Configure
-      run: CXX=dpcpp && cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+      run: >-
+        cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+        -D CMAKE_CXX_COMPILER=dpcpp
 
     - name: Build
-      run: CXX=dpcpp && cmake --build build -j ${{ steps.cores.outputs.count }}
+      run: >-
+        cmake --build build -j ${{ steps.cores.outputs.count }}
+        -D CMAKE_CXX_COMPILER=dpcpp
 
     - name: Run
       working-directory: build
