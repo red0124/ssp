@@ -20,7 +20,7 @@ env:
   WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
 
 jobs:
-  build_linux_cpp:
+  icc_tests:
     if: >-
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
@@ -37,10 +37,15 @@ jobs:
       uses: actions/cache@v2
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\compiler
-        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_CPP_COMPONENTS }}-compiler-${{ hashFiles('**/script/cache_exclude_windows.sh') }}
+        key: >-
+          install-${{ env.WINDOWS_HPCKIT_URL }}-
+          ${{ env.WINDOWS_CPP_COMPONENTS }}-
+          compiler-${{ hashFiles('**/script/cache_exclude_windows.sh') }}
 
     - name: Install icc
-      run: script/ci_install_icc.bat $WINDOWS_HPCKIT_URL $WINDOWS_CPP_COMPONENTS
+      run: >-
+        script/ci_win_install_icc.bat $WINDOWS_HPCKIT_URL 
+        $WINDOWS_CPP_COMPONENTS
 
     - name: CMake
       run: echo "/host_usr_local/bin" >> $GITHUB_PATH
@@ -48,15 +53,14 @@ jobs:
     - name: Install dependencies
       run: script/ci_install_deps.sh
 
+    - name: Setup icc
+        script/ci_win_setup_icc.bat
+
     - name: Configure
-      run: >-
-        source script/ci_setup_icc.sh &&
-        cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+      run: CXX=dpcpp && cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
 
     - name: Build
-      run: >-
-        source script/ci_setup_icc.sh &&
-        cmake --build build -j ${{ steps.cores.outputs.count }}
+      run: CXX=dpcpp && cmake --build build -j ${{ steps.cores.outputs.count }}
 
     - name: Run
       working-directory: build
