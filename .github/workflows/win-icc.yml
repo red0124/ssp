@@ -59,12 +59,12 @@ jobs:
     - name: Configure
       run: >-
         cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
-        -D CMAKE_CXX_COMPILER=dpcpp
+        -G "dpcpp generator" -D CMAKE_CXX_COMPILER=dpcpp
 
     - name: Build
       run: >-
         cmake --build build -j ${{ steps.cores.outputs.count }}
-        -D CMAKE_CXX_COMPILER=dpcpp
+        -G "dpcpp generator" -D CMAKE_CXX_COMPILER=dpcpp
 
     - name: Run
       working-directory: build
