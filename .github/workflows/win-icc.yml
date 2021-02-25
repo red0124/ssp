@@ -58,6 +58,7 @@ jobs:
 
     - name: Configure
       run: >-
+        dpcpp -v && 
         cmake -DCMAKE_CXX_COMPILER=dpcpp -S test -B build 
         -DCMAKE_BUILD_TYPE=Debug
 
