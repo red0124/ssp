@@ -137,7 +137,7 @@ auto s = p.get_next<student>();
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*
 
 ### Setup
-By default, many of the features supported by the parser a disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting
+By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting
 and escaping the parser would look like:
 ```cpp
 ss::parser<ss::quote<'"'>, ss::escape<'\\'>> p0{file_name};
@@ -155,10 +155,40 @@ ss::parser<my_setup> p1{file_name};
 ```
 
 ## Quoting
-Not yet documented.
+Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
+```
+James Bailey,65,2.5
+"James Bailey",65,2.5
+James Bailey,65,"2.5"
+"James Bailey","65","2.5"
+```
+Double quote can be used to escape a quote inside a quoted line.
+```
+"James ""Bailey""" -> James "Bailey"
+```
+Unterminated quotes result in an error.
+```
+"James Bailey,65,2.5 -> error
+```
 
 ## Escaping
-Not yet documented.
+Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters, for example to use **\** as an escaping character **ss::escape<'\\'>** needs to be defined. It simply removes any special meaning of the character behind the escaped character, anything can be escaped. Using the example above, if quoting is enabled, those lines would have an equivalent output:
+```
+James\ Bailey,\6\5,2\.5
+James Bailey,65,2.5
+```
+Double escape can be used to escape an escape.
+```
+James \\Bailey -> James \Bailey
+```
+Unterminated escapes result in an error.
+```
+James Bailey,65,2.5\ -> error
+```
+Its usage has more impact when used with quoting:
+```
+"James \"Bailey\"" -> James "Bailey"
+```
 
 ## Spacing
 Not yet documented.
