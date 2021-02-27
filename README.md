@@ -60,7 +60,6 @@ Bill (Heath) Gates 65 3.3
 # Features
  * [Works on any type](#Custom-conversions)
  * Easy to use
- * Fast
  * No exceptions
  * [Works with quotes, escapes and spacings](#Setup)
  * [Works with values containing new lines](#Multiline)
@@ -69,9 +68,10 @@ Bill (Heath) Gates 65 3.3
  * Can return whole objects composed of converted values
  * [Descriptive error handling can be enabled](#Error-handling)
  * [Restrictions can be added for each column](#Restrictions)
- * [Works with `std::optional` and `std::variant`]($Special-types)
+ * [Works with `std::optional` and `std::variant`](#Special-types)
  * Works with **CRLF** and **LF**
  * [Conversions can be chained if invalid](#Substitute-conversions)
+ * Fast
 
 # Installation
 
@@ -355,7 +355,7 @@ The shape enum will be used in an example below. The **inline** is there just to
 
 ## Error handling
 
-Detailed error messages can be accessed via the **error_msg** method, and to enable them ss::string_error needs to be included in the setup. If **ss::string_error** is not defined, the **error_msg** method will not be defined.
+Detailed error messages can be accessed via the **error_msg** method, and to enable them **ss::string_error** needs to be included in the setup. If **ss::string_error** is not defined, the **error_msg** method will not be defined either.
 
 ```cpp
 const std::string& parser::error_msg();
@@ -430,7 +430,7 @@ while (!p.eof()) {
 ```
 It is quite hard to make an error this way since most things will be checked at compile time.
 
-The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like tl::expected) which is able to try additional conversions if the previous failed. **or_else** also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** of the new conversion. (sounds more complicated than it is.
+The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like **tl::expected**) which is able to try additional conversions if the previous failed. **or_else** also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** of the new conversion. (sounds more complicated than it is.
 
 To fetch the **tuple** from the **composite** the **values** method is used. The value of the above used conversion would look something like this:
 ```cpp
