@@ -18,11 +18,11 @@ namespace ss {
 
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* begin, const char* const end) {
+    const char* const begin, const char* const end) {
     T ret;
-    auto answer = fast_float::from_chars(begin, end, ret);
+    auto [ptr, ec] = fast_float::from_chars(begin, end, ret);
 
-    if (answer.ec != std::errc() || answer.ptr != end) {
+    if (ec != std::errc() || ptr != end) {
         return std::nullopt;
     }
     return ret;
@@ -35,7 +35,13 @@ inline std::optional<short> from_char(char c) {
     return std::nullopt;
 }
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)
+#if defined(__clang__) && defined(__MINGW32__) && !defined(__MINGW64__)
+#define MINGW32_CLANG
+#endif
+
+// mingw32 clang does not support some of the builtin functions
+#if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
+    !defined(MINGW32_CLANG)
 ////////////////
 // mul overflow detection
 ////////////////
@@ -163,7 +169,6 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 }
 #else
 
-#warning "Use clang or gcc if possible."
 template <typename T, typename U>
 bool shift_and_add_overflow(T& value, T digit, U is_negative) {
     digit = (is_negative) ? -digit : digit;
@@ -193,7 +198,8 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
         }
     }
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__)
+#if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
+    !defined(MINGW32_CLANG)
     auto add_last_digit_owerflow =
         (is_negative) ? sub_overflow<T> : add_overflow<T>;
 #else

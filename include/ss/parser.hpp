@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.hpp"
 #include "converter.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
@@ -379,7 +380,7 @@ private:
         bool read_next() {
             memset(next_line_buffer_, '\0', next_line_size_);
             ssize_t ssize =
-                getline(&next_line_buffer_, &next_line_size_, file_);
+                get_line(&next_line_buffer_, &next_line_size_, file_);
 
             if (ssize == -1) {
                 return false;
@@ -500,7 +501,8 @@ private:
         bool append_next_line_to_buffer(char*& buffer, size_t& size) {
             undo_remove_eol(buffer, size);
 
-            ssize_t next_ssize = getline(&helper_buffer_, &helper_size_, file_);
+            ssize_t next_ssize =
+                get_line(&helper_buffer_, &helper_size_, file_);
             if (next_ssize == -1) {
                 return false;
             }
