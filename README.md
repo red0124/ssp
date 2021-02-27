@@ -62,16 +62,16 @@ Bill (Heath) Gates 65 3.3
  * Easy to use
  * Fast
  * No exceptions
- * Works with quotes, escapes and spacings
- * Works with values containing new lines
- * Columns and rows can be ignored
+ * [Works with quotes, escapes and spacings](#Setup)
+ * [Works with values containing new lines](#Multiline)
+ * [Columns and rows can be ignored](#Special-types)
  * Works with any type of delimiter
  * Can return whole objects composed of converted values
- * Descriptive error handling can be enabled
- * Restrictions can be added for each column
- * Works with `std::optional` and `std::variant`
+ * [Descriptive error handling can be enabled](#Error-handling)
+ * [Restrictions can be added for each column](#Restrictions)
+ * [Works with `std::optional` and `std::variant`]($Special-types)
  * Works with **CRLF** and **LF**
- * Conversions can be chained if invalid
+ * [Conversions can be chained if invalid](#Substitute-conversions)
 
 # Installation
 
