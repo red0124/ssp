@@ -136,7 +136,7 @@ auto s = p.get_next<student>();
 ```
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
-### Setup
+## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
 ss::parser<ss::quote<'"'>, ss::escape<'\\'>> p0{file_name};
@@ -155,7 +155,7 @@ ss::parser<my_setup> p2{file_name};
 Invalid setups will be met with **static_asserts**.
 *Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
 
-## Quoting
+### Quoting
 Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character:
 ```cpp
 ss::parser<ss::quote<'"'>> p{file_name};
@@ -168,7 +168,7 @@ Unterminated quotes result in an error (if multiline is not enabled).
 ```
 "James Bailey,65,2.5 -> error
 ```
-## Escaping
+### Escaping
 Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters.It simply removes any special meaning of the character behind the escaped character, anything can be escaped. For example to use ``\`` as an escaping character:
 ```cpp
 ss::parser<ss::escape<'\\'>> p{file_name};
@@ -185,7 +185,7 @@ Its usage has more impact when used with quoting or spacing:
 ```
 "James \"Bailey\"" -> 'James "Bailey"'
 ```
-## Spacing
+### Spacing
 Spacing can be enabled by defining **ss::trim** , **ss::trim_left**  or **ss::trim_right** within the setup parameters. Multiple character can be defined as spacing characters, for example to use ``' '`` as an spacing character **ss::trim<' '>** needs to be defined. It removes any space from both sides of the row. To trim only the right side **ss::trim_right** can be used, and intuitively **ss::trim_left** to trim only the left side. If **ss::trim** is enabled, those lines would have an equivalent output:
 ```
 James Bailey,65,2.5
@@ -201,7 +201,7 @@ Escaping and quoting can be used to leave the space if needed.
 "\ James Bailey\ " -> ' James Bailey '
 ```
 
-## Multiline
+### Multiline
 Multiline can be enabled by defining **ss::multilne** within the setup parameters. It enables the possibility to have the new line characters within rows. The new line character needs to be either escaped or within quotes so either **ss::escape** or **ss::quote** need to be enabled. There is a specific problem when using multiline, for example, if a row had an unterminated quote, the parser would assume it to be a new line within the row, so until another quote is found, it will treat it as one line which is fine usually, but it can cause the whole csv file to be treated as a single line by mistake. To prevent this **ss::multiline_restricted** can be used which accepts an unsigned number representing the maximum number of lines which can be allowed as a single multiline. Examples:
 
 ```cpp
@@ -220,7 +220,7 @@ ss::parser<ss::multiline_restricted<4>, ss::quote<'\"'>, ss::escape<'\\'>> p{fil
 James\\n\\n\\nBailey -> 'James\n\n\nBailey'
 "James\n\n\n\n\nBailey" -> error
 ```
-## Example
+### Example
 An example with a more complicated setup:
 ```cpp
 ss::parser<ss::escape<'\\'>, 
@@ -254,7 +254,7 @@ output:
 "Heath"
 Gates 65 3.3'
 ```
-### Special types 
+## Special types 
 
 Passing **void** makes the parser ignore a column. In the given example **void** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
 ```cpp
@@ -292,7 +292,7 @@ if(std::holds_alternative<double>(grade)) {
     // grade set as char
 }
 ```
-### Restrictions
+## Restrictions
 
 Custom **restrictions** can be used to narrow down the conversions of unwanted values. **ss::ir** (in range) and **ss::ne** (none empty) are one of those:
 ```cpp
