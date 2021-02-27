@@ -57,13 +57,9 @@ public:
         return error_;
     }
 
-    bool eof() const {
-        return eof_;
-    }
+    bool eof() const { return eof_; }
 
-    bool ignore_next() {
-        return reader_.read_next();
-    }
+    bool ignore_next() { return reader_.read_next(); }
 
     template <typename T, typename... Ts>
     T get_object() {
@@ -96,8 +92,7 @@ public:
     class composite {
     public:
         composite(std::tuple<Ts...>&& values, parser& parser)
-            : values_{std::move(values)}, parser_{parser} {
-        }
+            : values_{std::move(values)}, parser_{parser} {}
 
         // tries to convert the same line with a different output type
         // only if the previous conversion was not successful,
@@ -123,9 +118,7 @@ public:
             return composite_with(std::move(value));
         }
 
-        std::tuple<Ts...> values() {
-            return values_;
-        }
+        std::tuple<Ts...> values() { return values_; }
 
         template <typename Fun>
         auto on_error(Fun&& fun) {
@@ -300,7 +293,7 @@ private:
         if constexpr (string_error) {
             error_.append(file_name_)
                 .append(" ")
-                .append(std::to_string(line_number_))
+                .append(std::to_string(reader_.line_number_))
                 .append(": ")
                 .append(reader_.converter_.error_msg())
                 .append(": \"")
@@ -315,15 +308,11 @@ private:
     // line reading
     ////////////////
 
-    void read_line() {
-        eof_ = !reader_.read_next();
-        ++line_number_;
-    }
+    void read_line() { eof_ = !reader_.read_next(); }
 
     struct reader {
         reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
-        }
+            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {}
 
         reader(reader&& other)
             : buffer_{other.buffer_},
@@ -333,7 +322,8 @@ private:
               next_line_converter_{std::move(other.next_line_converter_)},
               size_{other.size_}, next_line_size_{other.size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
-              file_{other.file_}, crlf_{other.crlf_} {
+              file_{other.file_}, crlf_{other.crlf_}, line_number_{
+                                                          other.line_number_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -353,6 +343,7 @@ private:
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
                 crlf_ = other.crlf_;
+                line_number_ = other.line_number_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
@@ -378,6 +369,7 @@ private:
         reader& operator=(const reader& other) = delete;
 
         bool read_next() {
+            ++line_number_;
             memset(next_line_buffer_, '\0', next_line_size_);
             ssize_t ssize =
                 get_line(&next_line_buffer_, &next_line_size_, file_);
@@ -395,7 +387,9 @@ private:
                         return true;
                     }
                     if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        return false;
+                        remove_eol(next_line_buffer_, ssize);
+                        next_line_converter_.set_error_unterminated_escape();
+                        return true;
                     }
                 }
             }
@@ -408,7 +402,8 @@ private:
                         return true;
                     }
                     if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        return false;
+                        remove_eol(next_line_buffer_, ssize);
+                        return true;
                     }
 
                     if constexpr (escaped_multiline_enabled) {
@@ -418,7 +413,10 @@ private:
                             }
                             if (!append_next_line_to_buffer(next_line_buffer_,
                                                             size)) {
-                                return false;
+                                remove_eol(next_line_buffer_, ssize);
+                                next_line_converter_
+                                    .set_error_unterminated_escape();
+                                return true;
                             }
                         }
                     }
@@ -491,7 +489,7 @@ private:
 
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            next_line_size_ = first_size + second_size + 2;
+            next_line_size_ = first_size + second_size + 3;
             first = static_cast<char*>(
                 realloc(static_cast<void*>(first), next_line_size_));
             std::copy_n(second, second_size + 1, first + first_size);
@@ -507,6 +505,7 @@ private:
                 return false;
             }
 
+            ++line_number_;
             size_t next_size = remove_eol(helper_buffer_, next_ssize);
             realloc_concat(buffer, size, helper_buffer_, next_size);
             return true;
@@ -530,6 +529,7 @@ private:
         FILE* file_{nullptr};
 
         bool crlf_;
+        size_t line_number_{0};
     };
 
     ////////////////
@@ -539,7 +539,6 @@ private:
     std::string file_name_;
     error_type error_{};
     reader reader_;
-    size_t line_number_{0};
     bool eof_{false};
 };
 

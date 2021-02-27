@@ -1,4 +1,11 @@
-# Static split parser
+
+```
+   __________ ____ 
+  / ___/ ___// __ \
+  \__ \\__ \/ /_/ /
+ ___/ /__/ / ____/ 
+/____/____/_/      
+```
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)
@@ -7,13 +14,13 @@
 ![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)
 ![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)   
 
-A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. 
+A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#The-converter)
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
 Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .   
 
 # Example 
-Lets say we have a csv file containing students in a given format (NAME,AGE,GRADE) and we want to parse and print all the valid values:
+Lets say we have a csv file containing students in a given format '$name,$age,$grade' and we want to parse and print all the valid values:
 
 ```shell
 $ cat students.csv
@@ -27,7 +34,7 @@ Bill (Heath) Gates,65,3.3
 #include <ss/parser.hpp>
 
 int main() {
-    ss::parser p{"students.csv", ","};
+    ss::parser p{"students.csv"};
     if (!p.valid()) {
         exit(EXIT_FAILURE);
     }
@@ -51,18 +58,19 @@ Brian S. Wolfe 40 1.9
 Bill (Heath) Gates 65 3.3
 ```
 # Features
- * Works on any type
+ * [Works on any type](#Custom-conversions)
  * Easy to use
  * No exceptions
- * Works with quotes, escapes and spacings
- * Columns and rows can be ignored
+ * [Works with quotes, escapes and spacings](#Setup)
+ * [Works with values containing new lines](#Multiline)
+ * [Columns and rows can be ignored](#Special-types)
  * Works with any type of delimiter
  * Can return whole objects composed of converted values
- * Descriptive error handling can be enabled
- * Restrictions can be added for each column
- * Works with `std::optional` and `std::variant`
+ * [Descriptive error handling can be enabled](#Error-handling)
+ * [Restrictions can be added for each column](#Restrictions)
+ * [Works with `std::optional` and `std::variant`](#Special-types)
  * Works with **CRLF** and **LF**
- * Conversions can be chained if invalid
+ * [Conversions can be chained if invalid](#Substitute-conversions)
  * Fast
 
 # Installation
@@ -126,8 +134,126 @@ The method can be used to compare the object, serialize it, deserialize it, etc.
 // returns student
 auto s = p.get_next<student>();
 ```
-*Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*
+*Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
+### Setup
+By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
+```cpp
+ss::parser<ss::quote<'"'>, ss::escape<'\\'>> p0{file_name};
+```
+The order of the defined setup parameters is not important:
+```cpp
+// equivalent to p0
+ss::parser<ss::escape<'\\'>, ss::quote<'"'>> p1{file_name};
+```
+The setup can also be predefined:
+```cpp
+using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
+// equivalent to p0 and p1
+ss::parser<my_setup> p2{file_name};
+```
+Invalid setups will be met with **static_asserts**.
+*Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
+
+## Quoting
+Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character:
+```cpp
+ss::parser<ss::quote<'"'>> p{file_name};
+```
+Double quote can be used to escape a quote inside a quoted row.
+```
+"James ""Bailey""" -> 'James "Bailey"'
+```
+Unterminated quotes result in an error (if multiline is not enabled).
+```
+"James Bailey,65,2.5 -> error
+```
+## Escaping
+Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters.It simply removes any special meaning of the character behind the escaped character, anything can be escaped. For example to use ``\`` as an escaping character:
+```cpp
+ss::parser<ss::escape<'\\'>> p{file_name};
+```
+Double escape can be used to escape an escape.
+```
+James \\Bailey -> 'James \Bailey'
+```
+Unterminated escapes result in an error.
+```
+James Bailey,65,2.5\\0 -> error
+```
+Its usage has more impact when used with quoting or spacing:
+```
+"James \"Bailey\"" -> 'James "Bailey"'
+```
+## Spacing
+Spacing can be enabled by defining **ss::trim** , **ss::trim_left**  or **ss::trim_right** within the setup parameters. Multiple character can be defined as spacing characters, for example to use ``' '`` as an spacing character **ss::trim<' '>** needs to be defined. It removes any space from both sides of the row. To trim only the right side **ss::trim_right** can be used, and intuitively **ss::trim_left** to trim only the left side. If **ss::trim** is enabled, those lines would have an equivalent output:
+```
+James Bailey,65,2.5
+  James Bailey  ,65,2.5
+James Bailey,  65,    2.5   
+```
+Escaping and quoting can be used to leave the space if needed.
+```
+" James Bailey " -> ' James Bailey '
+  " James Bailey "   -> ' James Bailey '
+\ James Bailey\  -> ' James Bailey '
+  \ James Bailey\    -> ' James Bailey '
+"\ James Bailey\ " -> ' James Bailey '
+```
+
+## Multiline
+Multiline can be enabled by defining **ss::multilne** within the setup parameters. It enables the possibility to have the new line characters within rows. The new line character needs to be either escaped or within quotes so either **ss::escape** or **ss::quote** need to be enabled. There is a specific problem when using multiline, for example, if a row had an unterminated quote, the parser would assume it to be a new line within the row, so until another quote is found, it will treat it as one line which is fine usually, but it can cause the whole csv file to be treated as a single line by mistake. To prevent this **ss::multiline_restricted** can be used which accepts an unsigned number representing the maximum number of lines which can be allowed as a single multiline. Examples:
+
+```cpp
+ss::parser<ss::multiline, ss::quote<'\"'>, ss::escape<'\\'>> p{file_name};
+```
+```
+"James\n\n\nBailey" -> 'James\n\n\nBailey'
+James\\n\\n\\nBailey -> 'James\n\n\nBailey'
+"James\n\n\n\n\nBailey" -> 'James\n\n\n\n\nBailey'
+```
+```cpp
+ss::parser<ss::multiline_restricted<4>, ss::quote<'\"'>, ss::escape<'\\'>> p{file_name};
+```
+```
+"James\n\n\nBailey" -> 'James\n\n\nBailey'
+James\\n\\n\\nBailey -> 'James\n\n\nBailey'
+"James\n\n\n\n\nBailey" -> error
+```
+## Example
+An example with a more complicated setup:
+```cpp
+ss::parser<ss::escape<'\\'>, 
+           ss::quote<'"'>,
+           ss::trim<' ', '\t'>,
+           ss::multiline_restricted<5>> p{file_name};
+
+while(!p.eof()) {
+    auto [name, age, grade] = p.get_next<std::string, int, double>();
+    if(!p.valid()) {
+        continue;
+    }
+    std::cout << "'" << name << ' ' << age << ' ' << grade << "'" << std::endl;
+}
+
+```
+input:
+```
+      "James Bailey"   ,  65  ,     2.5\t\t\t
+\t \t Brian S. Wolfe, "40" ,  "\1.9"
+   "\"Nathan Fielder"""   ,  37  ,   Really good grades
+"Bill
+\"Heath""
+Gates",65,   3.3
+```
+output:
+```
+'James Bailey 65 2.5'
+'Brian S. Wolfe 40 1.9'
+'Bill
+"Heath"
+Gates 65 3.3'
+```
 ### Special types 
 
 Passing **void** makes the parser ignore a column. In the given example **void** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
@@ -227,18 +353,10 @@ inline bool ss::extract(const char* begin, const char* end, shape& dst) {
 ```
 The shape enum will be used in an example below. The **inline** is there just to prevent multiple definition errors. The function returns **true** if the conversion was a success, and **false** otherwise. The function uses **const char*** begin and end for performance reasons. 
 
-## Quoting
-Not yet documented.
-
-## Escaping
-Not yet documented.
-
-## Spacing
-Not yet documented.
-
 ## Error handling
 
-Detailed error messages can be accessed via the **error_msg** method, and to enable them ss::string_error needs to be included in the setup.
+Detailed error messages can be accessed via the **error_msg** method, and to enable them **ss::string_error** needs to be included in the setup. If **ss::string_error** is not defined, the **error_msg** method will not be defined either.
+
 ```cpp
 const std::string& parser::error_msg();
 bool parser::valid();
@@ -312,7 +430,7 @@ while (!p.eof()) {
 ```
 It is quite hard to make an error this way since most things will be checked at compile time.
 
-The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like tl::expected) which is able to try additional conversions if the previous failed. **or_else** also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** of the new conversion. (sounds more complicated than it is.
+The **try_next** method works in a similar way as **get_next** but returns a **composit** which holds a **tuple** with an **optional** to the **tuple** returned by **get_next**. This **composite** has an **or_else** method (looks a bit like **tl::expected**) which is able to try additional conversions if the previous failed. **or_else** also returns a **composite**, but in its tuple is the **optional** to the **tuple** of the previous conversions and an **optional** to the **tuple** of the new conversion. (sounds more complicated than it is.
 
 To fetch the **tuple** from the **composite** the **values** method is used. The value of the above used conversion would look something like this:
 ```cpp
@@ -382,7 +500,7 @@ if (c.valid()) {
 All setup parameters, special types and restrictions work on the converter too.  
 Error handling is also identical to error handling of the parser.
 
-The converter has also the ability to just split the line, tho it does not change it (kinda statically), hence the name of the library. It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
+The converter has also the ability to just split the line, ~~tho it does not change it (kinda statically), hence the name of the library~~ and depending if either quoting or escaping are enabled it may change the line, rather than creating a copy, for performance reasons (the name of the library does not apply anymore, I may change it). It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
 ```cpp
 ss::converter c;
 auto split_line = c.split("circle 10", " ");
@@ -395,6 +513,8 @@ std::string s;
 std::cin >> s;
 int num = c.convert<int>(s.c_str());
 ```
+The same setup parameters also apply for the converter, tho multiline has not impact on it. Since escaping and quoting potentially modify the content of the given line, a converter which has those setup parameters defined does not have the same convert method, **the input line cannot be const**.
+
 # Using as a project dependency
 
 ## CMake
