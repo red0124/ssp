@@ -2,6 +2,9 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)
+![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)
+![ubuntu-latest-icc](https://github.com/red0124/ssp/workflows/ubuntu-latest-icc-ci/badge.svg)   
+
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. 
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
