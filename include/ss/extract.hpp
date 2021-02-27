@@ -18,11 +18,11 @@ namespace ss {
 
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* begin, const char* const end) {
+    const char* const begin, const char* const end) {
     T ret;
-    auto answer = fast_float::from_chars(begin, end, ret);
+    auto [ptr, ec] = fast_float::from_chars(begin, end, ret);
 
-    if (answer.ec != std::errc() || answer.ptr != end) {
+    if (ec != std::errc() || ptr != end) {
         return std::nullopt;
     }
     return ret;
@@ -169,13 +169,6 @@ bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
 }
 #else
 
-#ifndef SS_NO_WARNINGS
-#ifdef _WIN32
-#pragma warning("Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning.")
-#else
-#warning "Use clang or gcc if possible for performance reasons. Define SS_NO_WARNINGS to supress warning."
-#endif
-#endif
 template <typename T, typename U>
 bool shift_and_add_overflow(T& value, T digit, U is_negative) {
     digit = (is_negative) ? -digit : digit;

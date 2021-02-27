@@ -1,6 +1,7 @@
 # Static split parser
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. 
 
