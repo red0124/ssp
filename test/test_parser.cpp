@@ -106,7 +106,7 @@ TEST_CASE("parser test various cases") {
             i.emplace_back(ss::to_object<X>(a));
         }
 
-        CHECK_NE(i, data);
+        CHECK_EQ(i, data);
     }
 
     {
