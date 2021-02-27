@@ -155,7 +155,7 @@ ss::parser<my_setup> p1{file_name};
 ```
 
 ## Quoting
-Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
+Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'\"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
 ```
 James Bailey,65,2.5
 "James Bailey",65,2.5
@@ -164,35 +164,63 @@ James Bailey,65,"2.5"
 ```
 Double quote can be used to escape a quote inside a quoted line.
 ```
-"James ""Bailey""" -> James "Bailey"
+"James ""Bailey""" -> 'James "Bailey"'
 ```
 Unterminated quotes result in an error.
 ```
 "James Bailey,65,2.5 -> error
 ```
-
 ## Escaping
-Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters, for example to use **\** as an escaping character **ss::escape<'\\'>** needs to be defined. It simply removes any special meaning of the character behind the escaped character, anything can be escaped. Using the example above, if quoting is enabled, those lines would have an equivalent output:
+Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters, for example to use ``\`` as an escaping character **ss::escape<'\\\\'>** needs to be defined. It simply removes any special meaning of the character behind the escaped character, anything can be escaped. Using the example above, if quoting is enabled, those lines would have an equivalent output:
 ```
 James\ Bailey,\6\5,2\.5
 James Bailey,65,2.5
 ```
 Double escape can be used to escape an escape.
 ```
-James \\Bailey -> James \Bailey
+James \\Bailey -> 'James \Bailey'
 ```
 Unterminated escapes result in an error.
 ```
 James Bailey,65,2.5\ -> error
 ```
-Its usage has more impact when used with quoting:
+Its usage has more impact when used with quoting or spacing:
 ```
-"James \"Bailey\"" -> James "Bailey"
+"James \"Bailey\"" -> 'James "Bailey"'
 ```
-
 ## Spacing
-Not yet documented.
+Spacing can be enabled by defining **ss::trim** , **ss::trim_left**  or **ss::trim_right** within the setup parameters. Multiple character can be defined as spacing characters, for example to use ``' '`` as an spacing character **ss::trim<' '>** needs to be defined. It removes any space from both sides of the row. To trim only the right side **ss::trim_right** can be used, and intuitively **ss::trim_left** to trim only the left side. Using the example above, if **ss::trim** is enabled, those lines would have an equivalent output:
+```
+James Bailey,65,2.5
+  James Bailey  ,65,2.5
+James Bailey,  65,    2.5   
+```
+Escaping and quoting can be used to leave the spacing if needed.
+```
+" James Bailey " -> ' James Bailey '
+\ James Bailey\  -> ' James Bailey '
+"\ James Bailey\ " -> ' James Bailey '
+```
 
+## Multiline
+Multiline can be enabled by defining **ss::multilne** within the setup parameters. It enables the possibility to have the new line characters within rows. The new line character needs to be either escaped or within quotes so either **ss::escape** or **ss::quote** need to be enabled. There is a specific problem when using multiline, for example, if a row had an unterminated quote, the parser would assume it to be a new line within the row, so until another quote is found, it will treat it as one line which is fine usually, but it can cause the whole csv file to be treated as a single line by mistake. To prevent this **ss::multiline_restricted** can be used which accepts an unsigned number representing the maximum number of lines which can be allowed as a single multiline. Examples:
+
+```cpp
+ss::parser<ss::multiline, ss::quote<'\"'>, ss::escape<'\\'>> p{file_name};
+```
+```
+"James\n\n\nBailey" -> 'James\n\n\nBailey'
+James\\n\\n\\nBailey -> 'James\n\n\nBailey'
+"James\n\n\n\n\nBailey" -> 'James\n\n\n\n\nBailey'
+```
+```cpp
+ss::parser<ss::multiline_restricted<4>, ss::quote<'\"'>, ss::escape<'\\'>> p{file_name};
+```
+```
+"James\n\n\nBailey" -> 'James\n\n\nBailey'
+James\\n\\n\\nBailey -> 'James\n\n\nBailey'
+"James\n\n\n\n\nBailey" -> error
+```
 ### Special types 
 
 Passing **void** makes the parser ignore a column. In the given example **void** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
