@@ -14,7 +14,7 @@
 ![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)
 ![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)   
 
-A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. 
+A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. Can also be used to convert strings to values.
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
 Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .   
@@ -34,7 +34,7 @@ Bill (Heath) Gates,65,3.3
 #include <ss/parser.hpp>
 
 int main() {
-    ss::parser p{"students.csv", ","};
+    ss::parser p{"students.csv"};
     if (!p.valid()) {
         exit(EXIT_FAILURE);
     }
@@ -60,8 +60,10 @@ Bill (Heath) Gates 65 3.3
 # Features
  * Works on any type
  * Easy to use
+ * Fast
  * No exceptions
  * Works with quotes, escapes and spacings
+ * Works with values containing new lines
  * Columns and rows can be ignored
  * Works with any type of delimiter
  * Can return whole objects composed of converted values
@@ -70,7 +72,6 @@ Bill (Heath) Gates 65 3.3
  * Works with `std::optional` and `std::variant`
  * Works with **CRLF** and **LF**
  * Conversions can be chained if invalid
- * Fast
 
 # Installation
 
@@ -134,6 +135,33 @@ The method can be used to compare the object, serialize it, deserialize it, etc.
 auto s = p.get_next<student>();
 ```
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*
+
+### Setup
+By default, many of the features supported by the parser a disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting
+and escaping the parser would look like:
+```cpp
+ss::parser<ss::quote<'"'>, ss::escape<'\\'>> p0{file_name};
+```
+The order of the defined setup parameters is not important:
+```cpp
+// equivalent to p0
+ss::parser<ss::escape<'\\'>, ss::quote<'"'>> p1{file_name};
+```
+The setup can also be predefined:
+```cpp
+using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
+// equivalent to p0 and p1
+ss::parser<my_setup> p1{file_name};
+```
+
+## Quoting
+Not yet documented.
+
+## Escaping
+Not yet documented.
+
+## Spacing
+Not yet documented.
 
 ### Special types 
 
@@ -233,15 +261,6 @@ inline bool ss::extract(const char* begin, const char* end, shape& dst) {
 }
 ```
 The shape enum will be used in an example below. The **inline** is there just to prevent multiple definition errors. The function returns **true** if the conversion was a success, and **false** otherwise. The function uses **const char*** begin and end for performance reasons. 
-
-## Quoting
-Not yet documented.
-
-## Escaping
-Not yet documented.
-
-## Spacing
-Not yet documented.
 
 ## Error handling
 
