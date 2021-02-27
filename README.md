@@ -14,13 +14,13 @@
 ![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)
 ![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)   
 
-A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. Can also be used to convert strings to values.
+A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. Can also be used to convert strings to specific types.
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
 Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .   
 
 # Example 
-Lets say we have a csv file containing students in a given format (NAME,AGE,GRADE) and we want to parse and print all the valid values:
+Lets say we have a csv file containing students in a given format '$name,$age,$grade' and we want to parse and print all the valid values:
 
 ```shell
 $ cat students.csv

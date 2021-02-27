@@ -234,6 +234,17 @@ private:
         }
     }
 
+    void set_error_unterminated_escape() {
+        if constexpr (string_error) {
+            error_.clear();
+            splitter_.set_error_unterminated_escape();
+            error_.append(splitter_.error_msg());
+        } else {
+            error_ = true;
+        }
+    }
+
+
     void set_error_multiline_limit_reached() {
         if constexpr (string_error) {
             error_.clear();
