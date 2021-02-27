@@ -500,7 +500,7 @@ if (c.valid()) {
 All setup parameters, special types and restrictions work on the converter too.  
 Error handling is also identical to error handling of the parser.
 
-The converter has also the ability to just split the line, tho it does not change it (kinda statically), hence the name of the library. It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
+The converter has also the ability to just split the line, ~~tho it does not change it (kinda statically), hence the name of the library~~ and depending if either quoting or escaping are enabled it may change the line, rather than creating a copy, for performance reasons (the name of the library does not apply anymore, I may change it). It returns an **std::vector** of pairs of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **convert** method. This allows the reuse of the same line without splitting it on every conversion. 
 ```cpp
 ss::converter c;
 auto split_line = c.split("circle 10", " ");
