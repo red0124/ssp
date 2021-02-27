@@ -254,7 +254,7 @@ output:
 "Heath"
 Gates 65 3.3'
 ```
-## Special types 
+## Special types
 
 Passing **void** makes the parser ignore a column. In the given example **void** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
 ```cpp
