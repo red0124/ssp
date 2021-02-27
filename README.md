@@ -137,8 +137,7 @@ auto s = p.get_next<student>();
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
 ### Setup
-By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting
-and escaping the parser would look like:
+By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
 ss::parser<ss::quote<'"'>, ss::escape<'\\'>> p0{file_name};
 ```
@@ -153,6 +152,7 @@ using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
 // equivalent to p0 and p1
 ss::parser<my_setup> p2{file_name};
 ```
+Invalid setups will be met with **static_asserts**.
 *Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
 
 ## Quoting
