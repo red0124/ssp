@@ -134,7 +134,7 @@ The method can be used to compare the object, serialize it, deserialize it, etc.
 // returns student
 auto s = p.get_next<student>();
 ```
-*Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*
+*Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
 ### Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting
@@ -151,18 +151,19 @@ The setup can also be predefined:
 ```cpp
 using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
 // equivalent to p0 and p1
-ss::parser<my_setup> p1{file_name};
+ss::parser<my_setup> p2{file_name};
 ```
+*Note, Each setup parameter defined comes with a slight performance loss, so use them only if needed.*
 
 ## Quoting
-Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'\"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
+Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'\\"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
 ```
 James Bailey,65,2.5
 "James Bailey",65,2.5
 James Bailey,65,"2.5"
 "James Bailey","65","2.5"
 ```
-Double quote can be used to escape a quote inside a quoted line.
+Double quote can be used to escape a quote inside a quoted row.
 ```
 "James ""Bailey""" -> 'James "Bailey"'
 ```
@@ -182,7 +183,7 @@ James \\Bailey -> 'James \Bailey'
 ```
 Unterminated escapes result in an error.
 ```
-James Bailey,65,2.5\ -> error
+James Bailey,65,2.5\\0 -> error
 ```
 Its usage has more impact when used with quoting or spacing:
 ```
@@ -195,10 +196,12 @@ James Bailey,65,2.5
   James Bailey  ,65,2.5
 James Bailey,  65,    2.5   
 ```
-Escaping and quoting can be used to leave the spacing if needed.
+Escaping and quoting can be used to leave the space if needed.
 ```
 " James Bailey " -> ' James Bailey '
+  " James Bailey "   -> ' James Bailey '
 \ James Bailey\  -> ' James Bailey '
+  \ James Bailey\    -> ' James Bailey '
 "\ James Bailey\ " -> ' James Bailey '
 ```
 
@@ -220,6 +223,40 @@ ss::parser<ss::multiline_restricted<4>, ss::quote<'\"'>, ss::escape<'\\'>> p{fil
 "James\n\n\nBailey" -> 'James\n\n\nBailey'
 James\\n\\n\\nBailey -> 'James\n\n\nBailey'
 "James\n\n\n\n\nBailey" -> error
+```
+## Example
+An example with a more complicated setup:
+```cpp
+ss::parser<ss::escape<'\\'>, 
+           ss::quote<'"'>,
+           ss::trim<' ', '\t'>,
+           ss::multiline_restricted<5>> p{file_name};
+
+while(!p.eof()) {
+    auto [name, age, grade] = p.get_next<std::string, int, double>();
+    if(!p.valid()) {
+        continue;
+    }
+    std::cout << "'" << name << ' ' << age << ' ' << grade << "'" << std::endl;
+}
+
+```
+input:
+```
+      "James Bailey"   ,  65  ,     2.5\t\t\t
+\t \t Brian S. Wolfe, "40" ,  "\1.9"
+   "\"Nathan Fielder"""   ,  37  ,   Really good grades
+"Bill
+\"Heath""
+Gates",65,   3.3
+```
+output:
+```
+'James Bailey 65 2.5'
+'Brian S. Wolfe 40 1.9'
+'Bill
+"Heath"
+Gates 65 3.3'
 ```
 ### Special types 
 
