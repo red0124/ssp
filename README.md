@@ -153,29 +153,25 @@ using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
 // equivalent to p0 and p1
 ss::parser<my_setup> p2{file_name};
 ```
-*Note, Each setup parameter defined comes with a slight performance loss, so use them only if needed.*
+*Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
 
 ## Quoting
-Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character **ss::quote<'\\"'>** needs to be defined. Using the example above, if quoting is enabled, those lines would have an equivalent output:
-```
-James Bailey,65,2.5
-"James Bailey",65,2.5
-James Bailey,65,"2.5"
-"James Bailey","65","2.5"
+Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character:
+```cpp
+ss::parser<ss::quote<'"'>> p{file_name};
 ```
 Double quote can be used to escape a quote inside a quoted row.
 ```
 "James ""Bailey""" -> 'James "Bailey"'
 ```
-Unterminated quotes result in an error.
+Unterminated quotes result in an error (if multiline is not enabled).
 ```
 "James Bailey,65,2.5 -> error
 ```
 ## Escaping
-Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters, for example to use ``\`` as an escaping character **ss::escape<'\\\\'>** needs to be defined. It simply removes any special meaning of the character behind the escaped character, anything can be escaped. Using the example above, if quoting is enabled, those lines would have an equivalent output:
-```
-James\ Bailey,\6\5,2\.5
-James Bailey,65,2.5
+Escaping can be enabled by defining **ss::escape** within the setup parameters. Multiple character can be defined as escaping characters.It simply removes any special meaning of the character behind the escaped character, anything can be escaped. For example to use ``\`` as an escaping character:
+```cpp
+ss::parser<ss::escape<'\\'>> p{file_name};
 ```
 Double escape can be used to escape an escape.
 ```
@@ -190,7 +186,7 @@ Its usage has more impact when used with quoting or spacing:
 "James \"Bailey\"" -> 'James "Bailey"'
 ```
 ## Spacing
-Spacing can be enabled by defining **ss::trim** , **ss::trim_left**  or **ss::trim_right** within the setup parameters. Multiple character can be defined as spacing characters, for example to use ``' '`` as an spacing character **ss::trim<' '>** needs to be defined. It removes any space from both sides of the row. To trim only the right side **ss::trim_right** can be used, and intuitively **ss::trim_left** to trim only the left side. Using the example above, if **ss::trim** is enabled, those lines would have an equivalent output:
+Spacing can be enabled by defining **ss::trim** , **ss::trim_left**  or **ss::trim_right** within the setup parameters. Multiple character can be defined as spacing characters, for example to use ``' '`` as an spacing character **ss::trim<' '>** needs to be defined. It removes any space from both sides of the row. To trim only the right side **ss::trim_right** can be used, and intuitively **ss::trim_left** to trim only the left side. If **ss::trim** is enabled, those lines would have an equivalent output:
 ```
 James Bailey,65,2.5
   James Bailey  ,65,2.5
@@ -359,7 +355,8 @@ The shape enum will be used in an example below. The **inline** is there just to
 
 ## Error handling
 
-Detailed error messages can be accessed via the **error_msg** method, and to enable them ss::string_error needs to be included in the setup.
+Detailed error messages can be accessed via the **error_msg** method, and to enable them ss::string_error needs to be included in the setup. If **ss::string_error** is not defined, the **error_msg** method will not be defined.
+
 ```cpp
 const std::string& parser::error_msg();
 bool parser::valid();
@@ -516,6 +513,8 @@ std::string s;
 std::cin >> s;
 int num = c.convert<int>(s.c_str());
 ```
+The same setup parameters also apply for the converter, tho multiline has not impact on it. Since escaping and quoting potentially modify the content of the given line, a converter which has those setup parameters defined does not have the same convert method, **the input line cannot be const**.
+
 # Using as a project dependency
 
 ## CMake
