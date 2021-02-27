@@ -58,7 +58,7 @@ Brian S. Wolfe 40 1.9
 Bill (Heath) Gates 65 3.3
 ```
 # Features
- * [Works on any type]($Custom conversions)
+ * [Works on any type](#Custom conversions)
  * Easy to use
  * Fast
  * No exceptions
