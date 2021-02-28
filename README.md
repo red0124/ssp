@@ -34,7 +34,7 @@ Bill (Heath) Gates,65,3.3
 #include <ss/parser.hpp>
 
 int main() {
-    ss::parser p{"students.csv"};
+    ss::parser p{"students.csv", ","};
 
     for(auto& [name, age, grade] : p.iterate<std::string, int, double>()) {
         if (p.valid()) {
