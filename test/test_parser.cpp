@@ -21,12 +21,9 @@ struct unique_file_name {
 
     unique_file_name()
         : name{"random_" + std::to_string(i++) + time_now_rand() +
-               "_file.csv"} {
-    }
+               "_file.csv"} {}
 
-    ~unique_file_name() {
-        std::filesystem::remove(name);
-    }
+    ~unique_file_name() { std::filesystem::remove(name); }
 };
 
 void replace_all(std::string& s, const std::string& from,
@@ -60,9 +57,7 @@ struct X {
             .append(delim)
             .append(s);
     }
-    auto tied() const {
-        return std::tie(i, d, s);
-    }
+    auto tied() const { return std::tie(i, d, s); }
 };
 
 template <typename T>
@@ -98,40 +93,85 @@ TEST_CASE("parser test various cases") {
         ss::parser<ss::string_error> p{f.name, ","};
         ss::parser p0{std::move(p)};
         p = std::move(p0);
-
         std::vector<X> i;
+
+        ss::parser<ss::string_error> p2{f.name, ","};
+        std::vector<X> i2;
 
         while (!p.eof()) {
             auto a = p.get_next<int, double, std::string>();
             i.emplace_back(ss::to_object<X>(a));
         }
 
+        for (const auto& a : p2.iterate<int, double, std::string>()) {
+            i2.emplace_back(ss::to_object<X>(a));
+        }
+
         CHECK_EQ(i, data);
+        CHECK_EQ(i2, data);
     }
 
     {
         ss::parser p{f.name, ","};
         std::vector<X> i;
+
+        ss::parser p2{f.name, ","};
+        std::vector<X> i2;
+
+        ss::parser p3{f.name, ","};
+        std::vector<X> i3;
+
         std::vector<X> expected = {std::begin(data) + 1, std::end(data)};
+        using tup = std::tuple<int, double, std::string>;
 
         p.ignore_next();
         while (!p.eof()) {
-            using tup = std::tuple<int, double, std::string>;
             auto a = p.get_next<tup>();
             i.emplace_back(ss::to_object<X>(a));
         }
 
+        p2.ignore_next();
+        for (const auto& a : p2.iterate<tup>()) {
+            i2.emplace_back(ss::to_object<X>(a));
+        }
+
+        p3.ignore_next();
+        for (auto it = p3.iterate<tup>().begin(); it != p3.iterate<tup>().end();
+             ++it) {
+            i3.emplace_back(ss::to_object<X>(*it));
+        }
+
         CHECK_EQ(i, expected);
+        CHECK_EQ(i2, expected);
+        CHECK_EQ(i3, expected);
     }
 
     {
         ss::parser p{f.name, ","};
         std::vector<X> i;
+        ss::parser p2{f.name, ","};
+        std::vector<X> i2;
 
         while (!p.eof()) {
             i.push_back(p.get_object<X, int, double, std::string>());
         }
 
+        for (auto&& a : p2.iterate_object<X, int, double, std::string>()) {
+            i2.push_back(std::move(a));
+        }
+
+        CHECK_EQ(i, data);
+        CHECK_EQ(i2, data);
+    }
+
+    {
+        ss::parser p{f.name, ","};
+        std::vector<X> i;
+
+        for (auto&& a : p.iterate_object<X, int, double, std::string>()) {
+            i.push_back(std::move(a));
+        }
+
         CHECK_EQ(i, data);
     }
 
@@ -139,9 +179,30 @@ TEST_CASE("parser test various cases") {
         ss::parser p{f.name, ","};
         std::vector<X> i;
 
+        ss::parser p2{f.name, ","};
+        std::vector<X> i2;
+
+        using tup = std::tuple<int, double, std::string>;
         while (!p.eof()) {
-            using tup = std::tuple<int, double, std::string>;
             i.push_back(p.get_object<X, tup>());
+        }
+
+        for (auto it = p2.iterate_object<X, tup>().begin();
+             it != p2.iterate_object<X, tup>().end(); it++) {
+            i2.push_back({it->i, it->d, it->s});
+        }
+
+        CHECK_EQ(i, data);
+        CHECK_EQ(i2, data);
+    }
+
+    {
+        ss::parser p{f.name, ","};
+        std::vector<X> i;
+
+        using tup = std::tuple<int, double, std::string>;
+        for (auto&& a : p.iterate_object<X, tup>()) {
+            i.push_back(std::move(a));
         }
 
         CHECK_EQ(i, data);
@@ -159,15 +220,36 @@ TEST_CASE("parser test various cases") {
     }
 
     {
+        ss::parser p{f.name, ","};
+        std::vector<X> i;
+
+        for (auto&& a : p.iterate<X>()) {
+            i.push_back(std::move(a));
+        }
+
+        CHECK_EQ(i, data);
+    }
+
+    {
         constexpr int excluded = 3;
         ss::parser p{f.name, ","};
         std::vector<X> i;
+
+        ss::parser p2{f.name, ","};
+        std::vector<X> i2;
 
         while (!p.eof()) {
             auto a =
                 p.get_object<X, ss::ax<int, excluded>, double, std::string>();
             if (p.valid()) {
                 i.push_back(a);
+            }
+        }
+
+        for (auto&& a : p2.iterate_object<X, ss::ax<int, excluded>, double,
+                                          std::string>()) {
+            if (p2.valid()) {
+                i2.push_back(std::move(a));
             }
         }
 
@@ -181,11 +263,15 @@ TEST_CASE("parser test various cases") {
         std::copy_if(data.begin(), data.end(), expected.begin(),
                      [](const X& x) { return x.i != excluded; });
         CHECK_EQ(i, expected);
+        CHECK_EQ(i2, expected);
     }
 
     {
         ss::parser p{f.name, ","};
         std::vector<X> i;
+
+        ss::parser p2{f.name, ","};
+        std::vector<X> i2;
 
         while (!p.eof()) {
             auto a = p.get_object<X, ss::nx<int, 3>, double, std::string>();
@@ -193,22 +279,41 @@ TEST_CASE("parser test various cases") {
                 i.push_back(a);
             }
         }
+
+        for (auto&& a :
+             p2.iterate_object<X, ss::nx<int, 3>, double, std::string>()) {
+            if (p2.valid()) {
+                i2.push_back(std::move(a));
+            }
+        }
+
         std::vector<X> expected = {{3, 4, "y"}};
         CHECK_EQ(i, expected);
+        CHECK_EQ(i2, expected);
     }
 
     {
         unique_file_name empty_f;
         std::vector<X> empty_data = {};
+
         make_and_write(empty_f.name, empty_data);
 
         ss::parser p{empty_f.name, ","};
         std::vector<X> i;
 
+        ss::parser p2{empty_f.name, ","};
+        std::vector<X> i2;
+
         while (!p.eof()) {
             i.push_back(p.get_next<X>());
         }
+
+        for (auto&& a : p2.iterate<X>()) {
+            i2.push_back(std::move(a));
+        }
+
         CHECK(i.empty());
+        CHECK(i2.empty());
     }
 }
 
@@ -217,13 +322,10 @@ struct test_struct {
     int i;
     double d;
     char c;
-    auto tied() {
-        return std::tie(i, d, c);
-    }
+    auto tied() { return std::tie(i, d, c); }
 };
 
-void expect_test_struct(const test_struct&) {
-}
+void expect_test_struct(const test_struct&) {}
 
 // various scenarios
 TEST_CASE("parser test composite conversion") {
@@ -444,9 +546,7 @@ struct my_string {
 
     my_string() = default;
 
-    ~my_string() {
-        delete[] data;
-    }
+    ~my_string() { delete[] data; }
 
     // make sure no object is copied
     my_string(const my_string&) = delete;
@@ -477,9 +577,7 @@ struct xyz {
     my_string x;
     my_string y;
     my_string z;
-    auto tied() {
-        return std::tie(x, y, z);
-    }
+    auto tied() { return std::tie(x, y, z); }
 };
 
 TEST_CASE("parser test the moving of parsed values") {

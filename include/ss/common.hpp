@@ -1,4 +1,7 @@
 #pragma once
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 namespace ss {
@@ -21,7 +24,6 @@ inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
-#include <cstdint>
 using ssize_t = int64_t;
 inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
     size_t pos;

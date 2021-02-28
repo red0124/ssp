@@ -388,7 +388,7 @@ T to_object_impl(std::index_sequence<Is...>, U&& data) {
 
 template <class T, class U>
 T to_object(U&& data) {
-    using NoRefU = std::remove_reference_t<U>;
+    using NoRefU = std::decay_t<U>;
     if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
         return to_object_impl<
             T>(std::make_index_sequence<std::tuple_size<NoRefU>{}>{},

@@ -86,6 +86,73 @@ public:
     }
 
     ////////////////
+    // iterator
+    ////////////////
+
+    template <bool get_object, typename T, typename... Ts>
+    struct iterable {
+        struct iterator {
+            using value =
+                ss::ternary_t<get_object, T, no_void_validator_tup_t<T, Ts...>>;
+
+            iterator() : parser_{nullptr} {}
+            iterator(parser<Matchers...>* parser) : parser_{parser} {}
+
+            value& operator*() { return value_; }
+            value* operator->() { return &value_; }
+
+            iterator& operator++() {
+                if (parser_->eof()) {
+                    parser_ = nullptr;
+                } else {
+                    if constexpr (get_object) {
+                        value_ =
+                            std::move(parser_->template get_object<T, Ts...>());
+                    } else {
+                        value_ =
+                            std::move(parser_->template get_next<T, Ts...>());
+                    }
+                }
+                return *this;
+            }
+
+            iterator& operator++(int) { return ++*this; }
+
+            friend bool operator==(const iterator& lhs, const iterator& rhs) {
+                return (lhs.parser_ == nullptr && rhs.parser_ == nullptr) ||
+                       (lhs.parser_ == rhs.parser_ &&
+                        &lhs.value_ == &rhs.value_);
+            }
+
+            friend bool operator!=(const iterator& lhs, const iterator& rhs) {
+                return !(lhs == rhs);
+            }
+
+        private:
+            value value_;
+            parser<Matchers...>* parser_;
+        };
+
+        iterable(parser<Matchers...>* parser) : parser_{parser} {}
+
+        iterator begin() { return ++iterator{parser_}; }
+        iterator end() { return iterator{}; }
+
+    private:
+        parser<Matchers...>* parser_;
+    };
+
+    template <typename... Ts>
+    auto iterate() {
+        return iterable<false, Ts...>{this};
+    }
+
+    template <typename... Ts>
+    auto iterate_object() {
+        return iterable<true, Ts...>{this};
+    }
+
+    ////////////////
     // composite conversion
     ////////////////
     template <typename... Ts>

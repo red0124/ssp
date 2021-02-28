@@ -35,13 +35,8 @@ Bill (Heath) Gates,65,3.3
 
 int main() {
     ss::parser p{"students.csv"};
-    if (!p.valid()) {
-        exit(EXIT_FAILURE);
-    }
 
-    while (!p.eof()) {
-        auto [name, age, grade] = p.get_next<std::string, int, double>();
-
+    for(auto& [name, age, grade] : p.iterate<std::string, int, double>()) {
         if (p.valid()) {
             std::cout << name << ' ' << age << ' ' << grade << std::endl;
         }
@@ -88,7 +83,17 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 # Usage
 
 ## Conversions
-The above example will be used to show some of the features of the library. As seen above, the **get_next** method returns a tuple of objects specified inside the template type list.
+An alternate loop to the example above would look like: 
+```cpp
+while(!p.eof()) {
+    auto [name, age, grade] = p.get_next<std::string, int, double>();
+    if (p.valid()) {
+        std::cout << name << ' ' << age << ' ' << grade << std::endl;
+    }
+}
+```
+
+The alternate example will be used to show some of the features of the library. The **get_next** method returns a tuple of objects specified inside the template type list.
 
 If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a double the conversion would fail. 
 
@@ -119,6 +124,12 @@ This works with any object if the constructor could be invoked using the templat
 auto vec = p.get_object<std::vector<std::string>, std::string, std::string, 
                         std::string>();
 ```
+An iteration loop as in the first example which returns objects would look like:
+```cpp
+for(auto& student : p.iterate_object<student, std::string, int, double>()) {
+// ...
+}
+```
 And finally, using something I personally like to do, a struct (class) with a **tied** method which returns a tuple of references to to the members of the struct.
 ```cpp
 struct student {
@@ -134,6 +145,7 @@ The method can be used to compare the object, serialize it, deserialize it, etc.
 // returns student
 auto s = p.get_next<student>();
 ```
+This works with the iteration loop too.
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
 ## Setup
