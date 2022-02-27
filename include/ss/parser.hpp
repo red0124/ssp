@@ -31,6 +31,9 @@ public:
         : file_name_{file_name}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
+            // TODO if header reading enabled
+            header_ = reader_.get_next_row();
+            // TODO if ignore_header defined ignore first line
         } else {
             set_error_file_not_open();
             eof_ = true;
@@ -57,13 +60,21 @@ public:
         return error_;
     }
 
-    bool eof() const { return eof_; }
+    bool eof() const {
+        return eof_;
+    }
 
-    bool ignore_next() { return reader_.read_next(); }
+    bool ignore_next() {
+        return reader_.read_next();
+    }
 
     template <typename T, typename... Ts>
     T get_object() {
         return to_object<T>(get_next<Ts...>());
+    }
+
+    size_t line() const {
+        return valid() ? reader_.line_number_ - 1 : 0;
     }
 
     template <typename T, typename... Ts>
@@ -85,6 +96,43 @@ public:
         return value;
     }
 
+    bool field_exists(const std::string& field) {
+        return header_index(field);
+    }
+
+    template <typename... Ts>
+    void use_fields(const Ts&... fields_args) {
+        if (!valid()) {
+            return;
+        }
+
+        auto fields = std::vector<std::string>{fields_args...};
+        std::vector<size_t> column_mappings;
+
+        for (const auto& field : fields) {
+            if (std::count(fields.begin(), fields.end(), field) != 1) {
+                set_error_field_used_multiple_times(field);
+                return;
+            }
+
+            auto index = header_index(field);
+
+            if (!index) {
+                set_error_invalid_field(field);
+                return;
+            }
+
+            column_mappings.push_back(*index);
+        }
+
+        reader_.converter_.set_column_mapping(column_mappings, header_.size());
+        reader_.next_line_converter_.set_column_mapping(column_mappings,
+                                                        header_.size());
+        if (line() == 0) {
+            ignore_next();
+        }
+    }
+
     ////////////////
     // iterator
     ////////////////
@@ -95,11 +143,17 @@ public:
             using value =
                 ss::ternary_t<get_object, T, no_void_validator_tup_t<T, Ts...>>;
 
-            iterator() : parser_{nullptr} {}
-            iterator(parser<Matchers...>* parser) : parser_{parser} {}
+            iterator() : parser_{nullptr} {
+            }
+            iterator(parser<Matchers...>* parser) : parser_{parser} {
+            }
 
-            value& operator*() { return value_; }
-            value* operator->() { return &value_; }
+            value& operator*() {
+                return value_;
+            }
+            value* operator->() {
+                return &value_;
+            }
 
             iterator& operator++() {
                 if (parser_->eof()) {
@@ -116,7 +170,9 @@ public:
                 return *this;
             }
 
-            iterator& operator++(int) { return ++*this; }
+            iterator& operator++(int) {
+                return ++*this;
+            }
 
             friend bool operator==(const iterator& lhs, const iterator& rhs) {
                 return (lhs.parser_ == nullptr && rhs.parser_ == nullptr) ||
@@ -133,10 +189,15 @@ public:
             parser<Matchers...>* parser_;
         };
 
-        iterable(parser<Matchers...>* parser) : parser_{parser} {}
+        iterable(parser<Matchers...>* parser) : parser_{parser} {
+        }
 
-        iterator begin() { return ++iterator{parser_}; }
-        iterator end() { return iterator{}; }
+        iterator begin() {
+            return ++iterator{parser_};
+        }
+        iterator end() {
+            return iterator{};
+        }
 
     private:
         parser<Matchers...>* parser_;
@@ -159,7 +220,8 @@ public:
     class composite {
     public:
         composite(std::tuple<Ts...>&& values, parser& parser)
-            : values_{std::move(values)}, parser_{parser} {}
+            : values_{std::move(values)}, parser_{parser} {
+        }
 
         // tries to convert the same line with a different output type
         // only if the previous conversion was not successful,
@@ -185,7 +247,9 @@ public:
             return composite_with(std::move(value));
         }
 
-        std::tuple<Ts...> values() { return values_; }
+        std::tuple<Ts...> values() {
+            return values_;
+        }
 
         template <typename Fun>
         auto on_error(Fun&& fun) {
@@ -321,6 +385,20 @@ private:
     }
 
     ////////////////
+    // header
+    ////////////////
+
+    std::optional<size_t> header_index(const std::string& field) {
+        auto it = std::find(header_.begin(), header_.end(), field);
+
+        if (it == header_.end()) {
+            return std::nullopt;
+        }
+
+        return std::distance(header_.begin(), it);
+    }
+
+    ////////////////
     // error
     ////////////////
 
@@ -371,15 +449,38 @@ private:
         }
     }
 
+    void set_error_invalid_field(const std::string& field) {
+        if constexpr (string_error) {
+            error_.append(file_name_)
+                .append(": header does not contain given field: ")
+                .append(field);
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_field_used_multiple_times(const std::string& field) {
+        if constexpr (string_error) {
+            error_.append(file_name_)
+                .append(": given field used multiple times: ")
+                .append(field);
+        } else {
+            error_ = true;
+        }
+    }
+
     ////////////////
     // line reading
     ////////////////
 
-    void read_line() { eof_ = !reader_.read_next(); }
+    void read_line() {
+        eof_ = !reader_.read_next();
+    }
 
     struct reader {
         reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {}
+            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
+        }
 
         reader(reader&& other)
             : buffer_{other.buffer_},
@@ -578,6 +679,15 @@ private:
             return true;
         }
 
+        std::vector<std::string> get_next_row() const {
+            std::vector<std::string> next_row;
+            auto& next_row_raw = next_line_converter_.splitter_.split_data_;
+            for (const auto& [begin, end] : next_row_raw) {
+                next_row.emplace_back(begin, end);
+            }
+            return next_row;
+        }
+
         ////////////////
         // members
         ////////////////
@@ -606,6 +716,7 @@ private:
     std::string file_name_;
     error_type error_{};
     reader reader_;
+    std::vector<std::string> header_;
     bool eof_{false};
 };
 
