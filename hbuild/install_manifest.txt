@@ -3,10 +3,10 @@
 /usr/local/include/ss/splitter.hpp
 /usr/local/include/ss/common.hpp
 /usr/local/include/ss/type_traits.hpp
+/usr/local/include/ss/converter.hpp
 /usr/local/include/ss/extract.hpp
 /usr/local/include/ss/setup.hpp
 /usr/local/include/ss/parser.hpp
-/usr/local/include/ss/converter.hpp
 /usr/local/include/fast_float/ascii_number.h
 /usr/local/include/fast_float/decimal_to_binary.h
 /usr/local/include/fast_float/fast_float.h

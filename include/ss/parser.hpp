@@ -509,7 +509,7 @@ private:
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              size_{other.size_}, next_line_size_{other.size_},
+              size_{other.size_}, next_line_size_{other.next_line_size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
               file_{other.file_}, crlf_{other.crlf_}, line_number_{
                                                           other.line_number_} {

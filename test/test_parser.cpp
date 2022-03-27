@@ -108,6 +108,8 @@ TEST_CASE("parser test various cases") {
     make_and_write(f.name, data);
     {
         ss::parser<ss::string_error> p{f.name, ","};
+        ss::parser p0{std::move(p)};
+        p = std::move(p0);
         std::vector<X> i;
 
         ss::parser<ss::string_error> p2{f.name, ","};
