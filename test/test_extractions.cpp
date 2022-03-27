@@ -146,7 +146,7 @@ TEST_CASE("extract test functions for boolean values") {
         CHECK_EQ(v, b);
     }
 
-    for (const std::string& s : {"2", "tru", "truee", "xxx", ""}) {
+    for (const std::string s : {"2", "tru", "truee", "xxx", ""}) {
         bool v;
         CHECK_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
     }
@@ -160,7 +160,7 @@ TEST_CASE("extract test functions for char values") {
         CHECK_EQ(v, c);
     }
 
-    for (const std::string& s : {"aa", "xxx", ""}) {
+    for (const std::string s : {"aa", "xxx", ""}) {
         char v;
         CHECK_FALSE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
     }
@@ -187,13 +187,13 @@ TEST_CASE("extract test functions for std::optional") {
         CHECK_EQ(*v, c);
     }
 
-    for (const std::string& s : {"aa", "xxx", ""}) {
+    for (const std::string s : {"aa", "xxx", ""}) {
         std::optional<int> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
         CHECK_FALSE(v.has_value());
     }
 
-    for (const std::string& s : {"aa", "xxx", ""}) {
+    for (const std::string s : {"aa", "xxx", ""}) {
         std::optional<char> v;
         REQUIRE(ss::extract(s.c_str(), s.c_str() + s.size(), v));
         CHECK_FALSE(v.has_value());

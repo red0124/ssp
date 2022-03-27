@@ -25,15 +25,19 @@ class parser {
     constexpr static bool quoted_multiline_enabled =
         multiline::enabled && setup<Matchers...>::quote::enabled;
 
+    constexpr static bool ignore_header = setup<Matchers...>::ignore_header;
+
 public:
     parser(const std::string& file_name,
            const std::string& delim = ss::default_delimiter)
         : file_name_{file_name}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
-            // TODO if header reading enabled
-            header_ = reader_.get_next_row();
-            // TODO if ignore_header defined ignore first line
+            if constexpr (ignore_header) {
+                ignore_next();
+            } else {
+                header_ = reader_.get_next_row();
+            }
         } else {
             set_error_file_not_open();
             eof_ = true;
@@ -102,6 +106,11 @@ public:
 
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
+        if constexpr (ignore_header) {
+            set_error_header_ignored();
+            return;
+        }
+
         if (!valid()) {
             return;
         }
@@ -443,6 +452,18 @@ private:
                 .append(reader_.converter_.error_msg())
                 .append(": \"")
                 .append(reader_.buffer_)
+                .append("\"");
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_header_ignored() {
+        if constexpr (string_error) {
+            error_.append(file_name_)
+                .append(": \"")
+                .append("the header row is ignored within the setup, it cannot "
+                        "be used")
                 .append("\"");
         } else {
             error_ = true;

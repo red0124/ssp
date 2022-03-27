@@ -273,7 +273,7 @@ private:
         }
     }
 
-    void set_error_number_of_colums(size_t expected_pos, size_t pos) {
+    void set_error_number_of_columns(size_t expected_pos, size_t pos) {
         if constexpr (string_error) {
             error_.clear();
             error_.append("invalid number of columns, expected: ")
@@ -339,7 +339,7 @@ private:
 
         if (!columns_mapped()) {
             if (sizeof...(Ts) != elems.size()) {
-                set_error_number_of_colums(sizeof...(Ts), elems.size());
+                set_error_number_of_columns(sizeof...(Ts), elems.size());
                 return return_type{};
             }
         } else {
@@ -349,9 +349,8 @@ private:
                 return return_type{};
             }
 
-            if (elems.size() != number_of_columnts_) {
-                set_error_number_of_colums(sizeof...(Ts),
-                                           column_mappings_.size());
+            if (elems.size() != number_of_columns_) {
+                set_error_number_of_columns(number_of_columns_, elems.size());
                 return return_type{};
             }
         }
@@ -382,25 +381,25 @@ private:
     }
 
     void set_column_mapping(std::vector<size_t> positions,
-                              size_t number_of_columnts) {
+                            size_t number_of_columns) {
         if (positions.empty()) {
             set_error_invalid_mapping();
             return;
         }
 
         auto max_index = *std::max_element(positions.begin(), positions.end());
-        if (max_index >= number_of_columnts) {
-            set_error_mapping_out_of_range(max_index, number_of_columnts);
+        if (max_index >= number_of_columns) {
+            set_error_mapping_out_of_range(max_index, number_of_columns);
             return;
         }
 
         column_mappings_ = positions;
-        number_of_columnts_ = number_of_columnts;
+        number_of_columns_ = number_of_columns;
     }
 
     void clear_column_positions() {
         column_mappings_.clear();
-        number_of_columnts_ = 0;
+        number_of_columns_ = 0;
     }
 
     ////////////////
@@ -479,7 +478,7 @@ private:
     friend class parser;
 
     std::vector<size_t> column_mappings_;
-    size_t number_of_columnts_;
+    size_t number_of_columns_;
 };
 
 } /* ss */

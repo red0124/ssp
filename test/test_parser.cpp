@@ -21,9 +21,12 @@ struct unique_file_name {
 
     unique_file_name()
         : name{"random_" + std::to_string(i++) + time_now_rand() +
-               "_file.csv"} {}
+               "_file.csv"} {
+    }
 
-    ~unique_file_name() { std::filesystem::remove(name); }
+    ~unique_file_name() {
+        std::filesystem::remove(name);
+    }
 };
 
 void replace_all(std::string& s, const std::string& from,
@@ -57,7 +60,9 @@ struct X {
             .append(delim)
             .append(s);
     }
-    auto tied() const { return std::tie(i, d, s); }
+    auto tied() const {
+        return std::tie(i, d, s);
+    }
 };
 
 template <typename T>
@@ -68,7 +73,8 @@ std::enable_if_t<ss::has_m_tied_t<T>, bool> operator==(const T& lhs,
 
 template <typename T>
 static void make_and_write(const std::string& file_name,
-                           const std::vector<T>& data) {
+                           const std::vector<T>& data,
+                           const std::vector<std::string>& header = {}) {
     std::ofstream out{file_name};
 
 #ifdef _WIN32
@@ -76,6 +82,17 @@ static void make_and_write(const std::string& file_name,
 #else
     std::vector<const char*> new_lines = {"\n", "\r\n"};
 #endif
+
+    for (const auto& i : header) {
+        if (&i != &header.front()) {
+            out << T::delim;
+        }
+        out << i;
+    }
+
+    if (!header.empty()) {
+        out << new_lines.front();
+    }
 
     for (size_t i = 0; i < data.size(); ++i) {
         out << data[i].to_string() << new_lines[i % new_lines.size()];
@@ -91,8 +108,6 @@ TEST_CASE("parser test various cases") {
     make_and_write(f.name, data);
     {
         ss::parser<ss::string_error> p{f.name, ","};
-        ss::parser p0{std::move(p)};
-        p = std::move(p0);
         std::vector<X> i;
 
         ss::parser<ss::string_error> p2{f.name, ","};
@@ -322,10 +337,13 @@ struct test_struct {
     int i;
     double d;
     char c;
-    auto tied() { return std::tie(i, d, c); }
+    auto tied() {
+        return std::tie(i, d, c);
+    }
 };
 
-void expect_test_struct(const test_struct&) {}
+void expect_test_struct(const test_struct&) {
+}
 
 // various scenarios
 TEST_CASE("parser test composite conversion") {
@@ -546,7 +564,9 @@ struct my_string {
 
     my_string() = default;
 
-    ~my_string() { delete[] data; }
+    ~my_string() {
+        delete[] data;
+    }
 
     // make sure no object is copied
     my_string(const my_string&) = delete;
@@ -577,7 +597,9 @@ struct xyz {
     my_string x;
     my_string y;
     my_string z;
-    auto tied() { return std::tie(x, y, z); }
+    auto tied() {
+        return std::tie(x, y, z);
+    }
 };
 
 TEST_CASE("parser test the moving of parsed values") {
@@ -831,4 +853,150 @@ TEST_CASE("parser test multiline restricted") {
         update_if_crlf(s);
     }
     CHECK_EQ(i, data);
+}
+
+template <typename T, typename Tuple>
+struct has_type;
+
+template <typename T, typename... Us>
+struct has_type<T, std::tuple<Us...>>
+    : std::disjunction<std::is_same<T, Us>...> {};
+
+void checkSize(size_t size1, size_t size2) {
+    CHECK_EQ(size1, size2);
+}
+
+template <typename... Ts>
+void testFields(const std::string file_name, const std::vector<X>& data,
+                const std::vector<std::string>& fields) {
+    using CaseType = std::tuple<Ts...>;
+
+    ss::parser p{file_name, ","};
+    p.use_fields(fields);
+    std::vector<CaseType> i;
+
+    for (const auto& a : p.iterate<CaseType>()) {
+        i.push_back(a);
+    }
+
+    checkSize(i.size(), data.size());
+    for (size_t j = 0; j < i.size(); ++j) {
+        if constexpr (has_type<int, CaseType>::value) {
+            CHECK_EQ(std::get<int>(i[j]), data[j].i);
+        }
+        if constexpr (has_type<double, CaseType>::value) {
+            CHECK_EQ(std::get<double>(i[j]), data[j].d);
+        }
+        if constexpr (has_type<std::string, CaseType>::value) {
+            CHECK_EQ(std::get<std::string>(i[j]), data[j].s);
+        }
+    }
+}
+
+TEST_CASE("parser test various cases with header") {
+    unique_file_name f;
+    constexpr static auto Int = "Int";
+    constexpr static auto Dbl = "Double";
+    constexpr static auto Str = "String";
+    using str = std::string;
+
+    std::vector<std::string> header{Int, Dbl, Str};
+
+    std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
+                           {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
+
+    make_and_write(f.name, data, header);
+    const auto& o = f.name;
+    const auto& d = data;
+
+    {
+        ss::parser<ss::string_error> p{f.name, ","};
+        std::vector<X> i;
+
+        for (const auto& a : p.iterate<int, double, std::string>()) {
+            i.emplace_back(ss::to_object<X>(a));
+        }
+
+        CHECK_NE(i, data);
+    }
+
+    {
+        ss::parser<ss::string_error> p{f.name, ","};
+        std::vector<X> i;
+
+        p.ignore_next();
+        for (const auto& a : p.iterate<int, double, std::string>()) {
+            i.emplace_back(ss::to_object<X>(a));
+        }
+
+        CHECK_EQ(i, data);
+    }
+
+    {
+        ss::parser<ss::ignore_header> p{f.name, ","};
+        std::vector<X> i;
+
+        for (const auto& a : p.iterate<int, double, std::string>()) {
+            i.emplace_back(ss::to_object<X>(a));
+        }
+
+        CHECK_EQ(i, data);
+    }
+
+    {
+        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
+        p.use_fields(Int, Dbl, Str);
+        CHECK_FALSE(p.valid());
+    }
+
+    {
+        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
+        p.use_fields(Int, "Unknown");
+        CHECK_FALSE(p.valid());
+    }
+
+    {
+        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
+        p.use_fields(Int, Int);
+        CHECK_FALSE(p.valid());
+    }
+
+    /*  python used to generate permutations
+        import itertools
+
+        header = {'str': 'Str',
+                 'double': 'Dbl',
+                 'int': 'Int'}
+
+        keys = ['str', 'int', 'double']
+
+        for r in range (1, 3):
+            combinations = list(itertools.permutations(keys, r = r))
+
+            for combination in combinations:
+                template_params = []
+                arg_params = []
+                for type in combination:
+                    template_params.append(type)
+                    arg_params.append(header[type])
+                call = 'testFields<' + ', '.join(template_params) + \
+                    '>(o, d, {' + ', '.join(arg_params) + '});'
+                print(call)
+        */
+
+    testFields<str>(o, d, {Str});
+    testFields<int>(o, d, {Int});
+    testFields<double>(o, d, {Dbl});
+    testFields<str, int>(o, d, {Str, Int});
+    testFields<str, double>(o, d, {Str, Dbl});
+    testFields<int, str>(o, d, {Int, Str});
+    testFields<int, double>(o, d, {Int, Dbl});
+    testFields<double, str>(o, d, {Dbl, Str});
+    testFields<double, int>(o, d, {Dbl, Int});
+    testFields<str, int, double>(o, d, {Str, Int, Dbl});
+    testFields<str, double, int>(o, d, {Str, Dbl, Int});
+    testFields<int, str, double>(o, d, {Int, Str, Dbl});
+    testFields<int, double, str>(o, d, {Int, Dbl, Str});
+    testFields<double, str, int>(o, d, {Dbl, Str, Int});
+    testFields<double, int, str>(o, d, {Dbl, Int, Str});
 }
