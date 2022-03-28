@@ -85,7 +85,7 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 
 ## Headers
 
-The parser can be told to use only certain columns by parsing the header. This can be done by using the **`use_fields`** method. It accepts any number of string-like arguments or even an **`std::vector<std::string>``** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
+The parser can be told to use only certain columns by parsing the header. This can be done by using the **`use_fields`** method. It accepts any number of string-like arguments or even an **`std::vector<std::string>`** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
 ```shell
 $ cat students_with_header.csv
 Name,Age,Grade
