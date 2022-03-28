@@ -342,6 +342,10 @@ using student = std::tuple<std::string, void, float>;
 auto [name, grade] = p.get_next<student>();
 ```
 Values can also be converted to **std::string_view**. It is more efficient then converting values to **std::string** but one must be careful with the lifetime of it.
+```cpp
+// string_view name stays valid until the next line is read
+auto [name, age, grade] = p.get_next<std::string_view, int, float>();
+```
 
 To ignore a whole row, **ignore_next** could be used, returns **false** if **eof**: 
 ```cpp
