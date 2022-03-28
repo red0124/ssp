@@ -151,7 +151,7 @@ This works with the iteration loop too.
 
 ## Headers
 
-The parser can be told to use only certain columns by parsing the header. This is done using the **use_fields** method. It accepts any number of string-like arguments or even an std::vector<std::string> with the field names. If any of the fields is not found within the header or if it is defined multiple times it will result in an error.
+The parser can be told to use only certain columns by parsing the header. This is done using the **use_fields** method. It accepts any number of string-like arguments or even an **std::vector<std::string>** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
 ```shell
 $ cat students_with_header.csv
 Name,Age,Grade
@@ -199,8 +199,8 @@ The fields with which the parser works with can be modified at any given time. T
 ```shell
 $ ./a.out
 James Bailey 2.5
-40 Brian S. Wolfe 1.9
-65 Bill (Heath) Gates 3.3
+1.9 Brian S. Wolfe 40
+3.3 Bill (Heath) Gates 65
 ```
 ## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
