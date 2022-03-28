@@ -8,6 +8,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <variant>
 
 namespace ss {
@@ -318,7 +319,14 @@ inline bool extract(const char* begin, const char* end, char& value) {
 
 template <>
 inline bool extract(const char* begin, const char* end, std::string& value) {
-    value = std::string(begin, end);
+    value = std::string{begin, end};
+    return true;
+}
+
+template <>
+inline bool extract(const char* begin, const char* end,
+                    std::string_view& value) {
+    value = std::string_view{begin, static_cast<size_t>(end - begin)};
     return true;
 }
 

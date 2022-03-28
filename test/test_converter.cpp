@@ -107,6 +107,13 @@ TEST_CASE("converter test valid conversions") {
         REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
         CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5.5}, 6.6));
     }
+    {
+        auto tup = c.convert<void, std::string_view, double,
+                             std::string_view>("junk;s1;6.6;s2", ";");
+        REQUIRE(c.valid());
+        CHECK_EQ(tup, std::make_tuple(std::string_view{"s1"}, 6.6,
+                                      std::string_view{"s2"}));
+    }
 }
 
 TEST_CASE("converter test invalid conversions") {

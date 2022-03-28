@@ -244,7 +244,6 @@ private:
         }
     }
 
-
     void set_error_multiline_limit_reached() {
         if constexpr (string_error) {
             error_.clear();
@@ -274,13 +273,50 @@ private:
         }
     }
 
-    void set_error_number_of_colums(size_t expected_pos, size_t pos) {
+    void set_error_number_of_columns(size_t expected_pos, size_t pos) {
         if constexpr (string_error) {
             error_.clear();
             error_.append("invalid number of columns, expected: ")
                 .append(std::to_string(expected_pos))
                 .append(", got: ")
                 .append(std::to_string(pos));
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_incompatible_mapping(size_t argument_size,
+                                        size_t mapping_size) {
+        if constexpr (string_error) {
+            error_.clear();
+            error_
+                .append(
+                    "number of arguments does not match mapping, expected: ")
+                .append(std::to_string(mapping_size))
+                .append(", got: ")
+                .append(std::to_string(argument_size));
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_invalid_mapping() {
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("received empty mapping");
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_mapping_out_of_range(size_t maximum_index,
+                                        size_t number_of_columnts) {
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append("maximum index: ")
+                .append(std::to_string(maximum_index))
+                .append(", greater then number of columns: ")
+                .append(std::to_string(number_of_columnts));
         } else {
             error_ = true;
         }
@@ -293,6 +329,7 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
         clear_error();
+        using return_type = no_void_validator_tup_t<Ts...>;
 
         if (!splitter_.valid()) {
             set_error_unterminated_quote();
@@ -300,10 +337,22 @@ private:
             return ret;
         }
 
-        if (sizeof...(Ts) != elems.size()) {
-            set_error_number_of_colums(sizeof...(Ts), elems.size());
-            no_void_validator_tup_t<Ts...> ret{};
-            return ret;
+        if (!columns_mapped()) {
+            if (sizeof...(Ts) != elems.size()) {
+                set_error_number_of_columns(sizeof...(Ts), elems.size());
+                return return_type{};
+            }
+        } else {
+            if (sizeof...(Ts) != column_mappings_.size()) {
+                set_error_incompatible_mapping(sizeof...(Ts),
+                                               column_mappings_.size());
+                return return_type{};
+            }
+
+            if (elems.size() != number_of_columns_) {
+                set_error_number_of_columns(number_of_columns_, elems.size());
+                return return_type{};
+            }
         }
 
         return extract_tuple<Ts...>(elems);
@@ -314,6 +363,43 @@ private:
     no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
         const split_data& elems, const std::tuple<Ts...>*) {
         return convert_impl<Ts...>(elems);
+    }
+
+    ////////////////
+    // column mapping
+    ////////////////
+
+    bool columns_mapped() const {
+        return column_mappings_.size() != 0;
+    }
+
+    size_t column_position(size_t tuple_position) const {
+        if (!columns_mapped()) {
+            return tuple_position;
+        }
+        return column_mappings_[tuple_position];
+    }
+
+    void set_column_mapping(std::vector<size_t> positions,
+                            size_t number_of_columns) {
+        if (positions.empty()) {
+            set_error_invalid_mapping();
+            return;
+        }
+
+        auto max_index = *std::max_element(positions.begin(), positions.end());
+        if (max_index >= number_of_columns) {
+            set_error_mapping_out_of_range(max_index, number_of_columns);
+            return;
+        }
+
+        column_mappings_ = positions;
+        number_of_columns_ = number_of_columns;
+    }
+
+    void clear_column_positions() {
+        column_mappings_.clear();
+        number_of_columns_ = 0;
     }
 
     ////////////////
@@ -359,10 +445,10 @@ private:
 
         if constexpr (not_void) {
             if constexpr (one_element) {
-                extract_one<elem_t>(tup, elems[ArgN], ArgN);
+                extract_one<elem_t>(tup, elems[column_position(ArgN)], ArgN);
             } else {
                 auto& el = std::get<TupN>(tup);
-                extract_one<elem_t>(el, elems[ArgN], ArgN);
+                extract_one<elem_t>(el, elems[column_position(ArgN)], ArgN);
             }
         }
 
@@ -390,6 +476,9 @@ private:
 
     template <typename...>
     friend class parser;
+
+    std::vector<size_t> column_mappings_;
+    size_t number_of_columns_;
 };
 
 } /* ss */
