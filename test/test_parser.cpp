@@ -879,6 +879,7 @@ void testFields(const std::string file_name, const std::vector<X>& data,
     using CaseType = std::tuple<Ts...>;
 
     ss::parser p{file_name, ","};
+    CHECK_FALSE(p.field_exists("Unknown"));
     p.use_fields(fields);
     std::vector<CaseType> i;
 
@@ -958,6 +959,8 @@ TEST_CASE("parser test various cases with header") {
 
     {
         ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
+        CHECK_FALSE(p.field_exists("Unknown"));
+
         p.use_fields(Int, "Unknown");
         CHECK_FALSE(p.valid());
     }
@@ -966,6 +969,42 @@ TEST_CASE("parser test various cases with header") {
         ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
         p.use_fields(Int, Int);
         CHECK_FALSE(p.valid());
+    }
+
+    {
+        ss::parser<ss::string_error> p{f.name, ","};
+        p.use_fields(Int, Dbl);
+
+        {
+            auto [int_, double_] = p.get_next<int, double>();
+            CHECK_EQ(int_, data[0].i);
+            CHECK_EQ(double_, data[0].d);
+        }
+
+        p.use_fields(Dbl, Int);
+
+        {
+            auto [double_, int_] = p.get_next<double, int>();
+            CHECK_EQ(int_, data[1].i);
+            CHECK_EQ(double_, data[1].d);
+        }
+
+        p.use_fields(Str);
+
+        {
+            auto string_ = p.get_next<std::string>();
+            CHECK_EQ(string_, data[2].s);
+        }
+
+        p.use_fields(Str, Int, Dbl);
+
+        {
+            auto [string_, int_, double_] =
+                p.get_next<std::string, int, double>();
+            CHECK_EQ(double_, data[3].d);
+            CHECK_EQ(int_, data[3].i);
+            CHECK_EQ(string_, data[3].s);
+        }
     }
 
     /*  python used to generate permutations

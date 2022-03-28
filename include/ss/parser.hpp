@@ -103,7 +103,7 @@ public:
     }
 
     bool field_exists(const std::string& field) {
-        return header_index(field);
+        return header_index(field).has_value();
     }
 
     template <typename... Ts>

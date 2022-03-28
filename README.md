@@ -226,7 +226,7 @@ Empty lines can be ignored by defining **ss::ignore_empty** within the setup par
 ```cpp
 ss::parser<ss::ignore_empty> p{file_name};
 ```
-If this setup option is not set then reading an empty line will result in an error (unless only one column is present within the parser).
+If this setup option is not set then reading an empty line will result in an error (unless only one column is present within the csv).
 
 ### Quoting
 Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character:
