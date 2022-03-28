@@ -83,6 +83,60 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 
 # Usage
 
+## Headers
+
+The parser can be told to use only certain columns by parsing the header. This is done using the **use_fields** method. It accepts any number of string-like arguments or even an **std::vector<std::string>** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
+```shell
+$ cat students_with_header.csv
+Name,Age,Grade
+James Bailey,65,2.5
+Brian S. Wolfe,40,1.9
+Bill (Heath) Gates,65,3.3
+```
+```cpp
+    // ...
+    ss::parser p{"students.csv", ","};
+    p.use_fields("Name", "Grade");
+
+    for(const auto& [name, grade] : p.iterate<std::string, float>()) {
+        std::cout << name << ' ' << grade << std::endl;
+    }
+    // ...
+```
+```shell
+$ ./a.out
+James Bailey 2.5
+Brian S. Wolfe 1.9
+Bill (Heath) Gates 3.3
+```
+The header can be ignored using the **ss::ignore_header** [setup](#Setup) option or by calling the **ignore_next** metod after the parser has been constructed.
+```cpp
+ss::parser<ss::ignore_header> p{file_name};
+```
+The fields with which the parser works with can be modified at any given time. The paser can also check if a field is present within the header by using the **has_field** method.
+```cpp
+    // ...
+    ss::parser p{"students.csv", ","};
+    p.use_fields("Name", "Grade");
+
+    const auto& [name, grade] = p.get_next<std::string, float>();
+    std::cout << name << ' ' << grade << std::endl;
+
+    if (p.field_exists("Age")) {
+        p.use_fields("Grade", "Name", "Age");
+        for (const auto& [grade, name, age] :
+             p.iterate<float, std::string, int>()) {
+            std::cout << grade << ' ' << name << ' ' << age << std::endl;
+        }
+    }
+    // ...
+```
+```shell
+$ ./a.out
+James Bailey 2.5
+1.9 Brian S. Wolfe 40
+3.3 Bill (Heath) Gates 65
+```
 ## Conversions
 An alternate loop to the example above would look like: 
 ```cpp
@@ -149,60 +203,6 @@ auto s = p.get_next<student>();
 This works with the iteration loop too.
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
-## Headers
-
-The parser can be told to use only certain columns by parsing the header. This is done using the **use_fields** method. It accepts any number of string-like arguments or even an **std::vector<std::string>** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
-```shell
-$ cat students_with_header.csv
-Name,Age,Grade
-James Bailey,65,2.5
-Brian S. Wolfe,40,1.9
-Bill (Heath) Gates,65,3.3
-```
-```cpp
-    // ...
-    ss::parser p{"students.csv", ","};
-    p.use_fields("Name", "Grade");
-
-    for(const auto& [name, grade] : p.iterate<std::string, float>()) {
-        std::cout << name << ' ' << grade << std::endl;
-    }
-    // ...
-```
-```shell
-$ ./a.out
-James Bailey 2.5
-Brian S. Wolfe 1.9
-Bill (Heath) Gates 3.3
-```
-The header can be ignored using the **ss::ignore_header** [setup](#Setup) option or by calling the **ignore_next** metod after the parser has been constructed.
-```cpp
-ss::parser<ss::ignore_header> p{file_name};
-```
-The fields with which the parser works with can be modified at any given time. The paser can also check if a field is present within the header by using the **has_field** method.
-```cpp
-    // ...
-    ss::parser p{"students.csv", ","};
-    p.use_fields("Name", "Grade");
-
-    const auto& [name, grade] = p.get_next<std::string, float>();
-    std::cout << name << ' ' << grade << std::endl;
-
-    if (p.field_exists("Age")) {
-        p.use_fields("Grade", "Name", "Age");
-        for (const auto& [grade, name, age] :
-             p.iterate<float, std::string, int>()) {
-            std::cout << grade << ' ' << name << ' ' << age << std::endl;
-        }
-    }
-    // ...
-```
-```shell
-$ ./a.out
-James Bailey 2.5
-1.9 Brian S. Wolfe 40
-3.3 Bill (Heath) Gates 65
-```
 ## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
