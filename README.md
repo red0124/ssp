@@ -185,12 +185,13 @@ The fields with which the parser works with can be modified at any given time. T
     ss::parser p{"students.csv", ","};
     p.use_fields("Name", "Grade");
 
-    const auto& [name, grade] : p.get_next<std::string, float>();
+    const auto& [name, grade] = p.get_next<std::string, float>();
     std::cout << name << ' ' << grade << std::endl;
 
-    if(p.field_exists("Age")) {
-        p.use_fields("Grade", "Name", "Age")
-        for(const auto& [grade, name, age] : p.iterate<std::string, float>()) {
+    if (p.field_exists("Age")) {
+        p.use_fields("Grade", "Name", "Age");
+        for (const auto& [grade, name, age] :
+             p.iterate<float, std::string, int>()) {
             std::cout << grade << ' ' << name << ' ' << age << std::endl;
         }
     }
