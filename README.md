@@ -56,7 +56,7 @@ Bill (Heath) Gates 65 3.3
  * [Works on any type](#Custom-conversions)
  * Easy to use
  * No exceptions
- * [Works headers](Headers)
+ * [Works with headers](#Headers)
  * [Works with quotes, escapes and spacings](#Setup)
  * [Works with values containing new lines](#Multiline)
  * [Columns and rows can be ignored](#Special-types)
