@@ -174,6 +174,12 @@ class string_error;
 class ignore_header;
 
 ////////////////
+// ignore_empty
+////////////////
+
+class ignore_empty;
+
+////////////////
 // setup implementation
 ////////////////
 
@@ -194,16 +200,24 @@ private:
     template <typename T>
     struct is_ignore_header : std::is_same<T, ignore_header> {};
 
+    template <typename T>
+    struct is_ignore_empty : std::is_same<T, ignore_empty> {};
+
     constexpr static auto count_matcher = count_v<is_matcher, Ts...>;
+
     constexpr static auto count_multiline =
         count_v<is_instance_of_multiline, Ts...>;
+
     constexpr static auto count_string_error = count_v<is_string_error, Ts...>;
+
     constexpr static auto count_ignore_header =
         count_v<is_ignore_header, Ts...>;
 
+    constexpr static auto count_ignore_empty = count_v<is_ignore_empty, Ts...>;
+
     constexpr static auto number_of_valid_setup_types =
         count_matcher + count_multiline + count_string_error +
-        count_ignore_header;
+        count_ignore_header + count_ignore_empty;
 
     using trim_left_only = get_matcher_t<trim_left, Ts...>;
     using trim_right_only = get_matcher_t<trim_right, Ts...>;
@@ -219,6 +233,7 @@ public:
     using multiline = get_multiline_t<Ts...>;
     constexpr static bool string_error = (count_string_error == 1);
     constexpr static bool ignore_header = (count_ignore_header == 1);
+    constexpr static bool ignore_empty = (count_ignore_empty == 1);
 
 private:
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"

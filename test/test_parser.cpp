@@ -49,11 +49,16 @@ void update_if_crlf(std::string& s) {
 
 struct X {
     constexpr static auto delim = ",";
+    constexpr static auto make_empty = "_EMPTY_";
     int i;
     double d;
     std::string s;
 
     std::string to_string() const {
+        if (s == make_empty) {
+            return "";
+        }
+
         return std::to_string(i)
             .append(delim)
             .append(std::to_string(d))
@@ -1001,4 +1006,96 @@ TEST_CASE("parser test various cases with header") {
     testFields<int, double, str>(o, d, {Int, Dbl, Str});
     testFields<double, str, int>(o, d, {Dbl, Str, Int});
     testFields<double, int, str>(o, d, {Dbl, Int, Str});
+}
+
+void testIgnoreEmpty(const std::vector<X>& data) {
+    unique_file_name f;
+    make_and_write(f.name, data);
+
+    std::vector<X> expected;
+    for (const auto& d : data) {
+        if (d.s != X::make_empty) {
+            expected.push_back(d);
+        }
+    }
+
+    {
+        ss::parser<ss::string_error, ss::ignore_empty> p{f.name, ","};
+
+        std::vector<X> i;
+        for (const auto& a : p.iterate<X>()) {
+            i.push_back(a);
+        }
+
+        CHECK_EQ(i, expected);
+    }
+
+    {
+        ss::parser<ss::string_error> p{f.name, ","};
+        std::vector<X> i;
+        size_t n = 0;
+        for (const auto& a : p.iterate<X>()) {
+            if (data.at(n).s == X::make_empty) {
+                CHECK_FALSE(p.valid());
+            }
+            i.push_back(a);
+            ++n;
+        }
+
+        if (data != expected) {
+            CHECK_NE(i, expected);
+        }
+    }
+}
+
+TEST_CASE("parser test various cases with empty lines") {
+    testIgnoreEmpty({{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
+
+    testIgnoreEmpty(
+        {{1, 2, X::make_empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
+
+    testIgnoreEmpty(
+        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::make_empty}});
+
+    testIgnoreEmpty(
+        {{1, 2, "x"}, {5, 6, X::make_empty}, {9, 10, "v"}, {11, 12, "w"}});
+
+    testIgnoreEmpty({{1, 2, X::make_empty},
+                     {5, 6, X::make_empty},
+                     {9, 10, "v"},
+                     {11, 12, "w"}});
+
+    testIgnoreEmpty({{1, 2, X::make_empty},
+                     {3, 4, "y"},
+                     {9, 10, "v"},
+                     {11, 12, X::make_empty}});
+
+    testIgnoreEmpty({{1, 2, "x"},
+                     {3, 4, "y"},
+                     {9, 10, X::make_empty},
+                     {11, 12, X::make_empty}});
+
+    testIgnoreEmpty({{1, 2, X::make_empty},
+                     {3, 4, "y"},
+                     {9, 10, X::make_empty},
+                     {11, 12, X::make_empty}});
+
+    testIgnoreEmpty({{1, 2, X::make_empty},
+                     {3, 4, X::make_empty},
+                     {9, 10, X::make_empty},
+                     {11, 12, X::make_empty}});
+
+    testIgnoreEmpty({{1, 2, "x"},
+                     {3, 4, X::make_empty},
+                     {9, 10, X::make_empty},
+                     {11, 12, X::make_empty}});
+
+    testIgnoreEmpty({{1, 2, X::make_empty},
+                     {3, 4, X::make_empty},
+                     {9, 10, X::make_empty},
+                     {11, 12, "w"}});
+
+    testIgnoreEmpty({{11, 12, X::make_empty}});
+
+    testIgnoreEmpty({});
 }

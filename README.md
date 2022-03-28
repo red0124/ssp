@@ -36,7 +36,7 @@ Bill (Heath) Gates,65,3.3
 int main() {
     ss::parser p{"students.csv", ","};
 
-    for(auto& [name, age, grade] : p.iterate<std::string, int, double>()) {
+    for(const auto& [name, age, grade] : p.iterate<std::string, int, float>()) {
         if (p.valid()) {
             std::cout << name << ' ' << age << ' ' << grade << std::endl;
         }
@@ -56,6 +56,7 @@ Bill (Heath) Gates 65 3.3
  * [Works on any type](#Custom-conversions)
  * Easy to use
  * No exceptions
+ * [Works headers](Headers)
  * [Works with quotes, escapes and spacings](#Setup)
  * [Works with values containing new lines](#Multiline)
  * [Columns and rows can be ignored](#Special-types)
@@ -86,7 +87,7 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 An alternate loop to the example above would look like: 
 ```cpp
 while(!p.eof()) {
-    auto [name, age, grade] = p.get_next<std::string, int, double>();
+    auto [name, age, grade] = p.get_next<std::string, int, float>();
     if (p.valid()) {
         std::cout << name << ' ' << age << ' ' << grade << std::endl;
     }
@@ -95,13 +96,13 @@ while(!p.eof()) {
 
 The alternate example will be used to show some of the features of the library. The **get_next** method returns a tuple of objects specified inside the template type list.
 
-If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a double the conversion would fail. 
+If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail. 
 
 If **get_next** is called with a **tuple** as template parameter it would behave identically to passing the same tuple parameters to **get_next**:
 ```cpp
-using student = std::tuple<std::string, int, double>;
+using student = std::tuple<std::string, int, float>;
 
-// returns std::tuple<std::string, int, double>
+// returns std::tuple<std::string, int, float>
 auto [name, age, grade] = p.get_next<student>();
 ```
 *Note, it does not always return a student tuple since the returned tuples parameters may be altered as explained below (no void, no restrictions, ...)*
@@ -111,12 +112,12 @@ Whole objects can be returned using the **get_object** function which takes the 
 struct student {
     std::string name;
     int age;
-    double grade;
+    float grade;
 };
 ```
 ```cpp
 // returns student
-auto student = p.get_object<student, std::string, int, double>();
+auto student = p.get_object<student, std::string, int, float>();
 ```
 This works with any object if the constructor could be invoked using the template arguments given to **get_object**:
 ```cpp
@@ -126,7 +127,7 @@ auto vec = p.get_object<std::vector<std::string>, std::string, std::string,
 ```
 An iteration loop as in the first example which returns objects would look like:
 ```cpp
-for(auto& student : p.iterate_object<student, std::string, int, double>()) {
+for(const auto& student : p.iterate_object<student, std::string, int, float>()) {
 // ...
 }
 ```
@@ -135,7 +136,7 @@ And finally, using something I personally like to do, a struct (class) with a **
 struct student {
     std::string name;
     int age;
-    double grade;
+    float grade;
 
     auto tied() { return std::tie(name, age, grade); }
 };
@@ -148,6 +149,59 @@ auto s = p.get_next<student>();
 This works with the iteration loop too.
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
+## Headers
+
+The parser can be told to use only certain columns by parsing the header. This is done using the **use_fields** method. It accepts any number of string-like arguments or even an std::vector<std::string> with the field names. If any of the fields is not found within the header or if it is defined multiple times it will result in an error.
+```shell
+$ cat students_with_header.csv
+Name,Age,Grade
+James Bailey,65,2.5
+Brian S. Wolfe,40,1.9
+Bill (Heath) Gates,65,3.3
+```
+```cpp
+    // ...
+    ss::parser p{"students.csv", ","};
+    p.use_fields("Name", "Grade");
+
+    for(const auto& [name, grade] : p.iterate<std::string, float>()) {
+        std::cout << name << ' ' << grade << std::endl;
+    }
+    // ...
+```
+```shell
+$ ./a.out
+James Bailey 2.5
+Brian S. Wolfe 1.9
+Bill (Heath) Gates 3.3
+```
+The header can be ignored using the **ss::ignore_header** [setup](#Setup) option or by calling the **ignore_next** metod after the parser has been constructed.
+```cpp
+ss::parser<ss::ignore_header> p{file_name};
+```
+The fields with which the parser works with can be modified at any given time. The paser can also check if a field is present within the header by using the **has_field** method.
+```cpp
+    // ...
+    ss::parser p{"students.csv", ","};
+    p.use_fields("Name", "Grade");
+
+    const auto& [name, grade] : p.get_next<std::string, float>();
+    std::cout << name << ' ' << grade << std::endl;
+
+    if(p.field_exists("Age")) {
+        p.use_fields("Grade", "Name", "Age")
+        for(const auto& [grade, name, age] : p.iterate<std::string, float>()) {
+            std::cout << grade << ' ' << name << ' ' << age << std::endl;
+        }
+    }
+    // ...
+```
+```shell
+$ ./a.out
+James Bailey 2.5
+40 Brian S. Wolfe 1.9
+65 Bill (Heath) Gates 3.3
+```
 ## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
@@ -166,6 +220,13 @@ ss::parser<my_setup> p2{file_name};
 ```
 Invalid setups will be met with **static_asserts**.
 *Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
+
+### Empty lines
+Empty lines can be ignored by defining **ss::ignore_empty** within the setup parameters:
+```cpp
+ss::parser<ss::ignore_empty> p{file_name};
+```
+If this setup option is not set then reading an empty line will result in an error (unless only one column is present within the parser).
 
 ### Quoting
 Quoting can be enabled by defining **ss::quote** within the setup parameters. A single character can be defined as the quoting character, for example to use **"** as a quoting character:
@@ -241,7 +302,7 @@ ss::parser<ss::escape<'\\'>,
            ss::multiline_restricted<5>> p{file_name};
 
 while(!p.eof()) {
-    auto [name, age, grade] = p.get_next<std::string, int, double>();
+    auto [name, age, grade] = p.get_next<std::string, int, float>();
     if(!p.valid()) {
         continue;
     }
@@ -270,14 +331,14 @@ Gates 65 3.3'
 
 Passing **void** makes the parser ignore a column. In the given example **void** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
 ```cpp
-// returns std::tuple<std::string, double>
-auto [name, grade] = p.get_next<std::string, void, double>();
+// returns std::tuple<std::string, float>
+auto [name, grade] = p.get_next<std::string, void, float>();
 ```
 Works with different types of conversions too:
 ```cpp
-using student = std::tuple<std::string, void, double>;
+using student = std::tuple<std::string, void, float>;
 
-// returns std::tuple<std::string, double>
+// returns std::tuple<std::string, float>
 auto [name, grade] = p.get_next<student>();
 ```
 To ignore a whole row, **ignore_next** could be used, returns **false** if **eof**: 
@@ -287,19 +348,19 @@ bool parser::ignore_next();
 **std::optional** could be passed if we wanted the conversion to proceed in the case of a failure returning **std::nullopt** for the specified column: 
 
 ```cpp
-// returns std::tuple<std::string, int, std::optional<double>>
-auto [name, age, grade] = p.get_next<std::string, int, std::optional<double>();
+// returns std::tuple<std::string, int, std::optional<float>>
+auto [name, age, grade] = p.get_next<std::string, int, std::optional<float>();
 if(grade) {
     // do something with grade
 }
 ```
 Similar to **std::optional**, **std::variant** could be used to try other conversions if the previous failed _(Note, conversion to std::string will always pass)_:
 ```cpp
-// returns std::tuple<std::string, int, std::variant<double, char>>
+// returns std::tuple<std::string, int, std::variant<float, char>>
 auto [name, age, grade] = 
-    p.get_next<std::string, int, std::variant<double, char>();
-if(std::holds_alternative<double>(grade)) {
-    // grade set as double
+    p.get_next<std::string, int, std::variant<float, char>();
+if(std::holds_alternative<float>(grade)) {
+    // grade set as float
 } else if(std::holds_alternative<char>(grade)) {
     // grade set as char
 }
@@ -310,9 +371,9 @@ Custom **restrictions** can be used to narrow down the conversions of unwanted v
 ```cpp
 // ss::ne makes sure that the name is not empty
 // ss::ir makes sure that the grade will be in range [0, 10]
-// returns std::tuple<std::string, int, double>
+// returns std::tuple<std::string, int, float>
 auto [name, age, grade] = 
-    p.get_next<ss::ne<std::string>, int, ss::ir<double, 0, 10>>();
+    p.get_next<ss::ne<std::string>, int, ss::ir<float, 0, 10>>();
 ```
 If the restrictions are not met, the conversion will fail. Other predefined restrictions are **ss::ax** (all except), **ss::nx** (none except) and **ss::oor** (out of range), **ss::lt** (less than), ...(see *restrictions.hpp*):
 ```cpp

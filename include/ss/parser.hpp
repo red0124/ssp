@@ -27,6 +27,8 @@ class parser {
 
     constexpr static bool ignore_header = setup<Matchers...>::ignore_header;
 
+    constexpr static bool ignore_empty = setup<Matchers...>::ignore_empty;
+
 public:
     parser(const std::string& file_name,
            const std::string& delim = ss::default_delimiter)
@@ -558,16 +560,27 @@ private:
         reader& operator=(const reader& other) = delete;
 
         bool read_next() {
-            ++line_number_;
-            memset(next_line_buffer_, '\0', next_line_size_);
-            ssize_t ssize =
-                get_line(&next_line_buffer_, &next_line_size_, file_);
 
-            if (ssize == -1) {
-                return false;
+            ssize_t ssize;
+            size_t size = 0;
+            while (size == 0) {
+                ++line_number_;
+                if (next_line_size_ > 0) {
+                    next_line_buffer_[0] = '\0';
+                }
+                ssize = get_line(&next_line_buffer_, &next_line_size_, file_);
+
+                if (ssize == -1) {
+                    return false;
+                }
+
+                size = remove_eol(next_line_buffer_, ssize);
+
+                if constexpr (!ignore_empty) {
+                    break;
+                }
             }
 
-            size_t size = remove_eol(next_line_buffer_, ssize);
             size_t limit = 0;
 
             if constexpr (escaped_multiline_enabled) {
