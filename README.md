@@ -96,7 +96,7 @@ while(!p.eof()) {
 
 The alternate example will be used to show some of the features of the library. The **get_next** method returns a tuple of objects specified inside the template type list.
 
-If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail. 
+If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **valid** method would return **false**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail.
 
 If **get_next** is called with a **tuple** as template parameter it would behave identically to passing the same tuple parameters to **get_next**:
 ```cpp
@@ -341,6 +341,8 @@ using student = std::tuple<std::string, void, float>;
 // returns std::tuple<std::string, float>
 auto [name, grade] = p.get_next<student>();
 ```
+Values can also be converted to **std::string_view**. It is more efficient then converting values to **std::string** but one must be careful with the lifetime of it.
+
 To ignore a whole row, **ignore_next** could be used, returns **false** if **eof**: 
 ```cpp
 bool parser::ignore_next();
