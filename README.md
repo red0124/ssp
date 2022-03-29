@@ -113,7 +113,7 @@ The header can be ignored using the **`ss::ignore_header`** [setup](#Setup) opti
 ```cpp
 ss::parser<ss::ignore_header> p{file_name};
 ```
-The fields with which the parser works with can be modified at any given time. The paser can also check if a field is present within the header by using the **`has_field`** method.
+The fields with which the parser works with can be modified at any given time. The praser can also check if a field is present within the header by using the **`field_exists`** method.
 ```cpp
     // ...
     ss::parser p{"students.csv", ","};
@@ -510,7 +510,7 @@ while (!p.eof()) {
 ```
 It is quite hard to make an error this way since most things will be checked at compile time.
 
-The **`try_next`** method works in a similar way as **`get_next`** but returns a **`composit`** which holds a **`tuple`** with an **`optional`** to the **`tuple`** returned by **`get_next`**. This **`composite`** has an **`or_else`** method (looks a bit like **`tl::expected`**) which is able to try additional conversions if the previous failed. **`or_else`** also returns a **`composite`**, but in its tuple is the **`optional`** to the **`tuple`** of the previous conversions and an **`optional`** to the **`tuple`** of the new conversion. (sounds more complicated than it is.
+The **`try_next`** method works in a similar way as **`get_next`** but returns a **`composite`** which holds a **`tuple`** with an **`optional`** to the **`tuple`** returned by **`get_next`**. This **`composite`** has an **`or_else`** method (looks a bit like **`tl::expected`**) which is able to try additional conversions if the previous failed. **`or_else`** also returns a **`composite`**, but in its tuple is the **`optional`** to the **`tuple`** of the previous conversions and an **`optional`** to the **`tuple`** of the new conversion. (sounds more complicated than it is.
 
 To fetch the **`tuple`** from the **`composite`** the **`values`** method is used. The value of the above used conversion would look something like this:
 ```cpp
