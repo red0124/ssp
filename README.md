@@ -71,7 +71,7 @@ Bill (Heath) Gates 65 3.3
 
 # Single header
 
-The library can also be used as a single header with **`ssp.hpp`**, but it sufferes a slight performance loss when converting floating point values since the fast_float library is not present within the file.
+The library can be used as a single header file as **`ssp.hpp`**, but it sufferes a slight performance loss when converting floating point values since the **`fast_float`** library is not present within the file.
 
 # Installation
 
