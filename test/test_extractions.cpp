@@ -2,23 +2,6 @@
 #include <algorithm>
 #include <ss/extract.hpp>
 
-#define CHECK_FLOATING_CONVERSION(input, type)                                 \
-    {                                                                          \
-        auto eps = std::numeric_limits<type>::min();                           \
-        std::string s = #input;                                                \
-        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
-        REQUIRE(t.has_value());                                                \
-        CHECK_LT(std::abs(t.value() - type(input)), eps);                      \
-    }                                                                          \
-    {                                                                          \
-        /* check negative too */                                               \
-        auto eps = std::numeric_limits<type>::min();                           \
-        auto s = std::string("-") + #input;                                    \
-        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
-        REQUIRE(t.has_value());                                                \
-        CHECK_LT(std::abs(t.value() - type(-input)), eps);                     \
-    }
-
 TEST_CASE("testing extract functions for floating point values") {
     CHECK_FLOATING_CONVERSION(123.456, float);
     CHECK_FLOATING_CONVERSION(123.456, double);
@@ -69,13 +52,6 @@ TEST_CASE("extract test functions for decimal values") {
     CHECK_DECIMAL_CONVERSION(1234, ll);
     CHECK_DECIMAL_CONVERSION(1234567891011, ull);
 }
-
-#define CHECK_INVALID_CONVERSION(input, type)                                  \
-    {                                                                          \
-        std::string s = input;                                                 \
-        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
-        CHECK_FALSE(t.has_value());                                            \
-    }
 
 TEST_CASE("extract test functions for numbers with invalid inputs") {
     // negative unsigned value
@@ -199,15 +175,6 @@ TEST_CASE("extract test functions for std::optional") {
         CHECK_FALSE(v.has_value());
     }
 }
-
-#define REQUIRE_VARIANT(var, el, type)                                         \
-    {                                                                          \
-        auto ptr = std::get_if<type>(&var);                                    \
-        REQUIRE(ptr);                                                          \
-        REQUIRE_EQ(el, *ptr);                                                  \
-    }
-
-#define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
 
 TEST_CASE("extract test functions for std::variant") {
     {

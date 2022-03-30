@@ -4,6 +4,7 @@ test_sources = files([
       'test_converter.cpp',
       'test_parser.cpp',
       'test_extractions.cpp',
+      'test_extractions_without_fast_float.cpp',
       ])
 
 doctest_proj = subproject('doctest')

@@ -2,20 +2,26 @@
 
 #include "type_traits.hpp"
 #include <cstring>
-#include <fast_float/fast_float.h>
 #include <functional>
 #include <limits>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <variant>
+
+#ifndef SSP_DISABLE_FAST_FLOAT
+#include <fast_float/fast_float.h>
+#else
+#include <charconv>
+#endif
 
 namespace ss {
 
 ////////////////
 // number converters
 ////////////////
+
+#ifndef SSP_DISABLE_FAST_FLOAT
 
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
@@ -28,6 +34,22 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     }
     return ret;
 }
+
+#else
+
+template <typename T>
+std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
+    const char* const begin, const char* const end) {
+    T ret;
+    auto [ptr, ec] = std::from_chars(begin, end, ret);
+
+    if (ec != std::errc() || ptr != end) {
+        return std::nullopt;
+    }
+    return ret;
+}
+
+#endif
 
 inline std::optional<short> from_char(char c) {
     if (c >= '0' && c <= '9') {
