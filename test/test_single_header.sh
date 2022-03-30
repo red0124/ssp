@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x 
+set -x
 set -e
 
 python3 script/single_header_generator.py > ssp.cpp
