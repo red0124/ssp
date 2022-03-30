@@ -17,6 +17,9 @@ namespace ss {
 // number converters
 ////////////////
 
+#define SSP_DISABLE_FAST_FLOAT
+#ifndef SSP_DISABLE_FAST_FLOAT
+
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
@@ -28,6 +31,31 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     }
     return ret;
 }
+
+#else
+
+template <typename T>
+std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
+    const char* const begin, const char* const end) {
+    T ret;
+    try {
+        if constexpr (std::is_same_v<T, float>) {
+            ret = std::stof(std::string{begin, end});
+        }
+        if constexpr (std::is_same_v<T, double>) {
+            ret = std::stod(std::string{begin, end});
+        }
+        if constexpr (std::is_same_v<T, long double>) {
+            ret = std::stold(std::string{begin, end});
+        }
+    } catch (...) {
+        return std::nullopt;
+    }
+
+    return ret;
+}
+
+#endif
 
 inline std::optional<short> from_char(char c) {
     if (c >= '0' && c <= '9') {
