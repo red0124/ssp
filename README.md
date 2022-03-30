@@ -81,6 +81,8 @@ $ sudo make install
 *Note, this will also install the fast_float library*   
 The library supports [CMake](#Cmake) and [meson](#Meson) build systems    
 
+The library can also be used as a single header with **`ssp.hpp`**, but it sufferes a slight performance loss when converting floating point values since the fast_float library is not present within the header.
+
 # Usage
 
 ## Headers
