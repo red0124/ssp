@@ -6,3 +6,5 @@ build/
 hbuild/
 subprojects/*
 !subprojects/*.wrap
+ssp.cpp
+ssp.bin
