@@ -632,6 +632,5 @@ revision = origin/master
 ```
 Then simply fetch the dependency and it is ready to be used:
 ```meson
-ssp_sub = subproject('ssp')
-ssp_dep = ssp_sub.get_variable('ssp_dep')
+ssp_dep = dependency('ssp')
 ```

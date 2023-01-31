@@ -1,12 +1,7 @@
 #pragma once
 #include <cstdlib>
 #include <cstring>
-
-#ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
-#else
-#include <doctest.h>
-#endif
 
 struct buffer {
     char* data_{nullptr};
