@@ -4,7 +4,8 @@ project(
   default_options : 
     ['warning_level=3', 
       'cpp_std=c++17', 
-      'buildtype=debugoptimized'],
+      'buildtype=debugoptimized',
+      'wrap_mode=forcefallback'],
   version: '1.3.0',
   meson_version:'>=0.54.0')
 
