@@ -610,8 +610,6 @@ struct xyz {
 };
 
 TEST_CASE("parser test the moving of parsed values") {
-    size_t move_called_one_col;
-
     {
         unique_file_name f;
         {
@@ -621,8 +619,7 @@ TEST_CASE("parser test the moving of parsed values") {
 
         ss::parser p{f.name, ","};
         auto x = p.get_next<my_string>();
-        CHECK_LT(move_called, 3);
-        move_called_one_col = move_called;
+        CHECK_LE(move_called, 1);
         move_called = 0;
     }
 
@@ -636,21 +633,21 @@ TEST_CASE("parser test the moving of parsed values") {
 
         ss::parser p{f.name, ","};
         auto x = p.get_next<my_string, my_string, my_string>();
-        CHECK_LE(move_called, 3 * move_called_one_col);
+        CHECK_LE(move_called, 3);
         move_called = 0;
     }
 
     {
         ss::parser p{f.name, ","};
         auto x = p.get_object<xyz, my_string, my_string, my_string>();
-        CHECK_LE(move_called, 6 * move_called_one_col);
+        CHECK_LE(move_called, 6);
         move_called = 0;
     }
 
     {
         ss::parser p{f.name, ","};
         auto x = p.get_next<xyz>();
-        CHECK_LE(move_called, 6 * move_called_one_col);
+        CHECK_LE(move_called, 6);
         move_called = 0;
     }
 }
