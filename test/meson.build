@@ -7,8 +7,7 @@ test_sources = files([
       'test_extractions_without_fast_float.cpp',
       ])
 
-doctest_proj = subproject('doctest')
-doctest_dep = doctest_proj.get_variable('doctest_dep')
+doctest_dep = dependency('doctest')
 
 test_exe = executable(
   'test_ssp',
