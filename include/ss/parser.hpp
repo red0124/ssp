@@ -17,7 +17,7 @@ class parser {
     constexpr static auto string_error = setup<Matchers...>::string_error;
 
     using multiline = typename setup<Matchers...>::multiline;
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
     constexpr static bool escaped_multiline_enabled =
         multiline::enabled && setup<Matchers...>::escape::enabled;
@@ -151,8 +151,8 @@ public:
     template <bool get_object, typename T, typename... Ts>
     struct iterable {
         struct iterator {
-            using value =
-                ss::ternary_t<get_object, T, no_void_validator_tup_t<T, Ts...>>;
+            using value = std::conditional_t<get_object, T,
+                                            no_void_validator_tup_t<T, Ts...>>;
 
             iterator() : parser_{nullptr} {
             }

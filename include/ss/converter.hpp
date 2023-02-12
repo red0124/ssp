@@ -102,7 +102,7 @@ class converter {
     constexpr static auto string_error = setup<Matchers...>::string_error;
     constexpr static auto default_delimiter = ",";
 
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
     // parses line with given delimiter, returns a 'T' object created with

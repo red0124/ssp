@@ -23,10 +23,10 @@ private:
     constexpr static auto string_error = setup<Ts...>::string_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
-    using line_ptr_type = ternary_t<is_const_line, const char*, char*>;
+    using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
     bool valid() const {
         if constexpr (string_error) {

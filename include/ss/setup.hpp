@@ -111,8 +111,8 @@ struct get_matcher<Matcher, T, Ts...> {
     static_assert(count_v<is_matcher, T, Ts...> <= 1,
                   "the same matcher is cannot"
                   "be defined multiple times");
-    using type = ternary_t<is_matcher<T>::value, T,
-                           typename get_matcher<Matcher, Ts...>::type>;
+    using type = std::conditional_t<is_matcher<T>::value, T,
+                               typename get_matcher<Matcher, Ts...>::type>;
 };
 
 template <template <char...> class Matcher>
@@ -149,8 +149,8 @@ struct get_multiline;
 
 template <typename T, typename... Ts>
 struct get_multiline<T, Ts...> {
-    using type = ternary_t<is_instance_of_multiline<T>::value, T,
-                           typename get_multiline<Ts...>::type>;
+    using type = std::conditional_t<is_instance_of_multiline<T>::value, T,
+                               typename get_multiline<Ts...>::type>;
 };
 
 template <>
@@ -227,8 +227,10 @@ public:
     using quote = get_matcher_t<quote, Ts...>;
     using escape = get_matcher_t<escape, Ts...>;
 
-    using trim_left = ternary_t<trim_all::enabled, trim_all, trim_left_only>;
-    using trim_right = ternary_t<trim_all::enabled, trim_all, trim_right_only>;
+    using trim_left =
+        std::conditional_t<trim_all::enabled, trim_all, trim_left_only>;
+    using trim_right =
+        std::conditional_t<trim_all::enabled, trim_all, trim_right_only>;
 
     using multiline = get_multiline_t<Ts...>;
     constexpr static bool string_error = (count_string_error == 1);
