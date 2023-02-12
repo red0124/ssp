@@ -17,7 +17,6 @@
 #include <vector>
 #define SSP_DISABLE_FAST_FLOAT
 
-
 namespace ss {
 
 ////////////////
@@ -373,26 +372,6 @@ template <template <typename...> class Template, typename... Ts>
 constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 
 ////////////////
-// ternary
-////////////////
-
-template <bool B, typename T, typename U>
-struct ternary;
-
-template <typename T, typename U>
-struct ternary<true, T, U> {
-    using type = T;
-};
-
-template <typename T, typename U>
-struct ternary<false, T, U> {
-    using type = U;
-};
-
-template <bool B, typename T, typename U>
-using ternary_t = typename ternary<B, T, U>::type;
-
-////////////////
 // tuple to struct
 ////////////////
 
@@ -414,7 +393,6 @@ T to_object(U&& data) {
 }
 
 } /* trait */
-
 
 namespace ss {
 
@@ -799,8 +777,8 @@ struct get_matcher<Matcher, T, Ts...> {
     static_assert(count_v<is_matcher, T, Ts...> <= 1,
                   "the same matcher is cannot"
                   "be defined multiple times");
-    using type = ternary_t<is_matcher<T>::value, T,
-                           typename get_matcher<Matcher, Ts...>::type>;
+    using type = std::conditional_t<is_matcher<T>::value, T,
+                                    typename get_matcher<Matcher, Ts...>::type>;
 };
 
 template <template <char...> class Matcher>
@@ -837,8 +815,8 @@ struct get_multiline;
 
 template <typename T, typename... Ts>
 struct get_multiline<T, Ts...> {
-    using type = ternary_t<is_instance_of_multiline<T>::value, T,
-                           typename get_multiline<Ts...>::type>;
+    using type = std::conditional_t<is_instance_of_multiline<T>::value, T,
+                                    typename get_multiline<Ts...>::type>;
 };
 
 template <>
@@ -915,8 +893,10 @@ public:
     using quote = get_matcher_t<quote, Ts...>;
     using escape = get_matcher_t<escape, Ts...>;
 
-    using trim_left = ternary_t<trim_all::enabled, trim_all, trim_left_only>;
-    using trim_right = ternary_t<trim_all::enabled, trim_all, trim_right_only>;
+    using trim_left =
+        std::conditional_t<trim_all::enabled, trim_all, trim_left_only>;
+    using trim_right =
+        std::conditional_t<trim_all::enabled, trim_all, trim_right_only>;
 
     using multiline = get_multiline_t<Ts...>;
     constexpr static bool string_error = (count_string_error == 1);
@@ -973,10 +953,10 @@ private:
     constexpr static auto string_error = setup<Ts...>::string_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
-    using line_ptr_type = ternary_t<is_const_line, const char*, char*>;
+    using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
     bool valid() const {
         if constexpr (string_error) {
@@ -1399,7 +1379,6 @@ public:
 };
 
 } /* ss */
-
 
 #ifndef SSP_DISABLE_FAST_FLOAT
 #else
@@ -1838,7 +1817,7 @@ class converter {
     constexpr static auto string_error = setup<Matchers...>::string_error;
     constexpr static auto default_delimiter = ",";
 
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
     // parses line with given delimiter, returns a 'T' object created with
@@ -2219,7 +2198,6 @@ private:
 
 } /* ss */
 
-
 namespace ss {
 
 template <typename... Matchers>
@@ -2227,7 +2205,7 @@ class parser {
     constexpr static auto string_error = setup<Matchers...>::string_error;
 
     using multiline = typename setup<Matchers...>::multiline;
-    using error_type = ss::ternary_t<string_error, std::string, bool>;
+    using error_type = std::conditional_t<string_error, std::string, bool>;
 
     constexpr static bool escaped_multiline_enabled =
         multiline::enabled && setup<Matchers...>::escape::enabled;
@@ -2362,7 +2340,8 @@ public:
     struct iterable {
         struct iterator {
             using value =
-                ss::ternary_t<get_object, T, no_void_validator_tup_t<T, Ts...>>;
+                std::conditional_t<get_object, T,
+                                       no_void_validator_tup_t<T, Ts...>>;
 
             iterator() : parser_{nullptr} {
             }

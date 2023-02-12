@@ -358,26 +358,6 @@ template <template <typename...> class Template, typename... Ts>
 constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 
 ////////////////
-// ternary
-////////////////
-
-template <bool B, typename T, typename U>
-struct ternary;
-
-template <typename T, typename U>
-struct ternary<true, T, U> {
-    using type = T;
-};
-
-template <typename T, typename U>
-struct ternary<false, T, U> {
-    using type = U;
-};
-
-template <bool B, typename T, typename U>
-using ternary_t = typename ternary<B, T, U>::type;
-
-////////////////
 // tuple to struct
 ////////////////
 
