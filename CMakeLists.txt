@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ssp
-    VERSION 1.3.0
+    VERSION 1.4.0
     DESCRIPTION "csv parser"
     HOMEPAGE_URL "https://github.com/red0124/ssp"
     LANGUAGES CXX
