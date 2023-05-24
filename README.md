@@ -378,7 +378,7 @@ if(std::holds_alternative<float>(grade)) {
 ```
 ## Restrictions
 
-Custom **`restrictions`** can be used to narrow down the conversions of unwanted values. **`ss::ir`** (in range) and **`ss::ne`** (none empty) are one of those:
+Custom **`restrictions`** can be used to narrow down the conversions of unwanted values. **`ss::ir`** (in range) and **`ss::ne`** (none empty) are some of those:
 ```cpp
 // ss::ne makes sure that the name is not empty
 // ss::ir makes sure that the grade will be in range [0, 10]
@@ -472,7 +472,6 @@ The delimiter is " ", and the number of columns varies depending on which shape 
 ```cpp
 ss::parser p{"shapes.txt", " "};
 if (!p.valid()) {
-    std::cout << p.error_msg() << std::endl;
     exit(EXIT_FAILURE);
 }
 
