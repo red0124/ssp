@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "converter.hpp"
+#include "exception.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
 #include <cstdlib>
@@ -12,22 +13,23 @@
 
 namespace ss {
 
-template <typename... Matchers>
+template <typename... Options>
 class parser {
-    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
 
-    using multiline = typename setup<Matchers...>::multiline;
+    using multiline = typename setup<Options...>::multiline;
     using error_type = std::conditional_t<string_error, std::string, bool>;
 
     constexpr static bool escaped_multiline_enabled =
-        multiline::enabled && setup<Matchers...>::escape::enabled;
+        multiline::enabled && setup<Options...>::escape::enabled;
 
     constexpr static bool quoted_multiline_enabled =
-        multiline::enabled && setup<Matchers...>::quote::enabled;
+        multiline::enabled && setup<Options...>::quote::enabled;
 
-    constexpr static bool ignore_header = setup<Matchers...>::ignore_header;
+    constexpr static bool ignore_header = setup<Options...>::ignore_header;
 
-    constexpr static bool ignore_empty = setup<Matchers...>::ignore_empty;
+    constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
     parser(const std::string& file_name,
@@ -152,11 +154,11 @@ public:
     struct iterable {
         struct iterator {
             using value = std::conditional_t<get_object, T,
-                                            no_void_validator_tup_t<T, Ts...>>;
+                                             no_void_validator_tup_t<T, Ts...>>;
 
             iterator() : parser_{nullptr} {
             }
-            iterator(parser<Matchers...>* parser) : parser_{parser} {
+            iterator(parser<Options...>* parser) : parser_{parser} {
             }
 
             value& operator*() {
@@ -197,10 +199,10 @@ public:
 
         private:
             value value_;
-            parser<Matchers...>* parser_;
+            parser<Options...>* parser_;
         };
 
-        iterable(parser<Matchers...>* parser) : parser_{parser} {
+        iterable(parser<Options...>* parser) : parser_{parser} {
         }
 
         iterator begin() {
@@ -211,7 +213,7 @@ public:
         }
 
     private:
-        parser<Matchers...>* parser_;
+        parser<Options...>* parser_;
     };
 
     template <typename... Ts>
@@ -423,7 +425,8 @@ private:
 
     void set_error_failed_check() {
         if constexpr (string_error) {
-            error_.append(file_name_).append(" failed check.");
+            error_.append(file_name_).append(" failed check");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -431,7 +434,8 @@ private:
 
     void set_error_file_not_open() {
         if constexpr (string_error) {
-            error_.append(file_name_).append(" could not be opened.");
+            error_.append(file_name_).append(" could not be opened");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -439,7 +443,8 @@ private:
 
     void set_error_eof_reached() {
         if constexpr (string_error) {
-            error_.append(file_name_).append(" reached end of file.");
+            error_.append(file_name_).append(" reached end of file");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -455,6 +460,7 @@ private:
                 .append(": \"")
                 .append(reader_.buffer_)
                 .append("\"");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -467,6 +473,7 @@ private:
                 .append("the header row is ignored within the setup, it cannot "
                         "be used")
                 .append("\"");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -477,6 +484,7 @@ private:
             error_.append(file_name_)
                 .append(": header does not contain given field: ")
                 .append(field);
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -487,6 +495,7 @@ private:
             error_.append(file_name_)
                 .append(": given field used multiple times: ")
                 .append(field);
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -650,7 +659,7 @@ private:
             const char* curr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
-                 setup<Matchers...>::escape::match(*curr);
+                 setup<Options...>::escape::match(*curr);
                  --curr) {
             }
             return (next_line_buffer_ - curr + size) % 2 == 0;
@@ -729,8 +738,8 @@ private:
         char* next_line_buffer_{nullptr};
         char* helper_buffer_{nullptr};
 
-        converter<Matchers...> converter_;
-        converter<Matchers...> next_line_converter_;
+        converter<Options...> converter_;
+        converter<Options...> next_line_converter_;
 
         size_t size_{0};
         size_t next_line_size_{0};

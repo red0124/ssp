@@ -180,19 +180,25 @@ class ignore_header;
 class ignore_empty;
 
 ////////////////
+// throw_on_error
+////////////////
+
+class throw_on_error;
+
+////////////////
 // setup implementation
 ////////////////
 
-template <typename... Ts>
+template <typename... Options>
 struct setup {
 private:
-    template <typename T>
+    template <typename Option>
     struct is_matcher
-        : std::disjunction<is_instance_of_matcher_t<T, quote>,
-                           is_instance_of_matcher_t<T, escape>,
-                           is_instance_of_matcher_t<T, trim>,
-                           is_instance_of_matcher_t<T, trim_left>,
-                           is_instance_of_matcher_t<T, trim_right>> {};
+        : std::disjunction<is_instance_of_matcher_t<Option, quote>,
+                           is_instance_of_matcher_t<Option, escape>,
+                           is_instance_of_matcher_t<Option, trim>,
+                           is_instance_of_matcher_t<Option, trim_left>,
+                           is_instance_of_matcher_t<Option, trim_right>> {};
 
     template <typename T>
     struct is_string_error : std::is_same<T, string_error> {};
@@ -203,39 +209,47 @@ private:
     template <typename T>
     struct is_ignore_empty : std::is_same<T, ignore_empty> {};
 
-    constexpr static auto count_matcher = count_v<is_matcher, Ts...>;
+    template <typename T>
+    struct is_throw_on_error : std::is_same<T, throw_on_error> {};
+
+    constexpr static auto count_matcher = count_v<is_matcher, Options...>;
 
     constexpr static auto count_multiline =
-        count_v<is_instance_of_multiline, Ts...>;
+        count_v<is_instance_of_multiline, Options...>;
 
-    constexpr static auto count_string_error = count_v<is_string_error, Ts...>;
+    constexpr static auto count_string_error = count_v<is_string_error, Options...>;
 
     constexpr static auto count_ignore_header =
-        count_v<is_ignore_header, Ts...>;
+        count_v<is_ignore_header, Options...>;
 
-    constexpr static auto count_ignore_empty = count_v<is_ignore_empty, Ts...>;
+    constexpr static auto count_throw_on_error =
+        count_v<is_throw_on_error, Options...>;
+
+    constexpr static auto count_ignore_empty = count_v<is_ignore_empty, Options...>;
 
     constexpr static auto number_of_valid_setup_types =
         count_matcher + count_multiline + count_string_error +
-        count_ignore_header + count_ignore_empty;
+        count_ignore_header + count_ignore_empty + count_throw_on_error;
 
-    using trim_left_only = get_matcher_t<trim_left, Ts...>;
-    using trim_right_only = get_matcher_t<trim_right, Ts...>;
-    using trim_all = get_matcher_t<trim, Ts...>;
+    using trim_left_only = get_matcher_t<trim_left, Options...>;
+    using trim_right_only = get_matcher_t<trim_right, Options...>;
+    using trim_all = get_matcher_t<trim, Options...>;
 
 public:
-    using quote = get_matcher_t<quote, Ts...>;
-    using escape = get_matcher_t<escape, Ts...>;
+    using quote = get_matcher_t<quote, Options...>;
+    using escape = get_matcher_t<escape, Options...>;
 
     using trim_left =
         std::conditional_t<trim_all::enabled, trim_all, trim_left_only>;
     using trim_right =
         std::conditional_t<trim_all::enabled, trim_all, trim_right_only>;
 
-    using multiline = get_multiline_t<Ts...>;
+    using multiline = get_multiline_t<Options...>;
     constexpr static bool string_error = (count_string_error == 1);
     constexpr static bool ignore_header = (count_ignore_header == 1);
     constexpr static bool ignore_empty = (count_ignore_empty == 1);
+    constexpr static bool throw_on_error = (count_throw_on_error == 1);
+    // TODO set string_error if throw_on_error is defined
 
 private:
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"
@@ -264,11 +278,11 @@ private:
     static_assert(count_string_error <= 1,
                   "string_error defined multiple times");
 
-    static_assert(number_of_valid_setup_types == sizeof...(Ts),
+    static_assert(number_of_valid_setup_types == sizeof...(Options),
                   "one or multiple invalid setup parameters defined");
 };
 
-template <typename... Ts>
-struct setup<setup<Ts...>> : setup<Ts...> {};
+template <typename... Options>
+struct setup<setup<Options...>> : setup<Options...> {};
 
 } /* ss */

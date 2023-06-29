@@ -1,4 +1,5 @@
 #pragma once
+#include "exception.hpp"
 #include "extract.hpp"
 #include "function_traits.hpp"
 #include "restrictions.hpp"
@@ -95,11 +96,12 @@ constexpr bool tied_class_v = tied_class<Ts...>::value;
 // converter
 ////////////////
 
-template <typename... Matchers>
+template <typename... Options>
 class converter {
-    using line_ptr_type = typename splitter<Matchers...>::line_ptr_type;
+    using line_ptr_type = typename splitter<Options...>::line_ptr_type;
 
-    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto default_delimiter = ",";
 
     using error_type = std::conditional_t<string_error, std::string, bool>;
@@ -229,6 +231,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -239,6 +242,7 @@ private:
             error_.clear();
             splitter_.set_error_unterminated_escape();
             error_.append(splitter_.error_msg());
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -247,7 +251,8 @@ private:
     void set_error_multiline_limit_reached() {
         if constexpr (string_error) {
             error_.clear();
-            error_.append("multiline limit reached.");
+            error_.append("multiline limit reached");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -258,6 +263,7 @@ private:
             error_.clear();
             error_.append("invalid conversion for parameter ")
                 .append(error_sufix(msg, pos));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -268,6 +274,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append(error).append(" ").append(error_sufix(msg, pos));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -280,6 +287,7 @@ private:
                 .append(std::to_string(expected_pos))
                 .append(", got: ")
                 .append(std::to_string(pos));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -295,6 +303,7 @@ private:
                 .append(std::to_string(mapping_size))
                 .append(", got: ")
                 .append(std::to_string(argument_size));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -304,6 +313,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append("received empty mapping");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -317,6 +327,7 @@ private:
                 .append(std::to_string(maximum_index))
                 .append(", greater then number of columns: ")
                 .append(std::to_string(number_of_columnts));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -472,7 +483,7 @@ private:
     ////////////////
 
     error_type error_{};
-    splitter<Matchers...> splitter_;
+    splitter<Options...> splitter_;
 
     template <typename...>
     friend class parser;

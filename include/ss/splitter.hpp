@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "exception.hpp"
 #include "setup.hpp"
 #include "type_traits.hpp"
 #include <algorithm>
@@ -11,16 +12,17 @@
 
 namespace ss {
 
-template <typename... Ts>
+template <typename... Options>
 class splitter {
 private:
-    using quote = typename setup<Ts...>::quote;
-    using trim_left = typename setup<Ts...>::trim_left;
-    using trim_right = typename setup<Ts...>::trim_right;
-    using escape = typename setup<Ts...>::escape;
-    using multiline = typename setup<Ts...>::multiline;
+    using quote = typename setup<Options...>::quote;
+    using trim_left = typename setup<Options...>::trim_left;
+    using trim_right = typename setup<Options...>::trim_right;
+    using escape = typename setup<Options...>::escape;
+    using multiline = typename setup<Options...>::multiline;
 
-    constexpr static auto string_error = setup<Ts...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
     using error_type = std::conditional_t<string_error, std::string, bool>;
@@ -121,7 +123,8 @@ private:
     void set_error_empty_delimiter() {
         if constexpr (string_error) {
             error_.clear();
-            error_.append("empt  delimiter");
+            error_.append("empty delimiter");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -131,6 +134,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append("mismatched quote at position: " + std::to_string(n));
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -140,6 +144,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append("unterminated escape at the end of the line");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -150,6 +155,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append("unterminated quote");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
@@ -161,6 +167,7 @@ private:
             error_.clear();
             error_.append("invalid resplit, new line must be longer"
                           "than the end of the last slice");
+            throw_if_throw_on_error<throw_on_error>(error_);
         } else {
             error_ = true;
         }
