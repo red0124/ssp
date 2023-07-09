@@ -150,6 +150,7 @@ private:
         }
     }
 
+    // TODO handle this efficiently
     void set_error_unterminated_quote() {
         unterminated_quote_ = true;
         if constexpr (string_error) {

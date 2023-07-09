@@ -5,15 +5,15 @@
 #include <ss/splitter.hpp>
 
 namespace {
-constexpr static auto combinations_size_default = 4;
-size_t combinations_size = combinations_size_default;
+constexpr static auto num_combinations_default = 4;
+size_t num_combinations = num_combinations_default;
 
-struct set_combinations_size {
-    set_combinations_size(size_t size) {
-        combinations_size = size;
+struct set_num_combinations {
+    set_num_combinations(size_t size) {
+        num_combinations = size;
     }
-    ~set_combinations_size() {
-        combinations_size = combinations_size_default;
+    ~set_num_combinations() {
+        num_combinations = num_combinations_default;
     }
 };
 
@@ -153,7 +153,7 @@ make_combinations(const std::vector<std::string>& input,
                   const std::string& delim) {
     std::vector<std::string> lines;
     std::vector<std::vector<std::string>> expectations;
-    for (size_t i = 0; i < combinations_size; ++i) {
+    for (size_t i = 0; i < num_combinations; ++i) {
         auto l = combinations(input, delim, i);
         lines.reserve(lines.size() + l.size());
         lines.insert(lines.end(), l.begin(), l.end());
@@ -176,6 +176,8 @@ template <typename... Matchers>
 void test_combinations(matches_type& matches, std::vector<std::string> delims) {
 
     ss::splitter<Matchers...> s;
+    ss::splitter<Matchers..., ss::throw_on_error> st;
+
     std::vector<std::string> inputs;
     std::vector<std::string> outputs;
     for (const auto& [cases, e] : matches) {
@@ -194,6 +196,13 @@ void test_combinations(matches_type& matches, std::vector<std::string> delims) {
             auto vec = s.split(buff(lines[i].c_str()), delim);
             CHECK(s.valid());
             CHECK_EQ(words(vec), expectations[i]);
+
+            try {
+                auto vec = st.split(buff(lines[i].c_str()), delim);
+                CHECK_EQ(words(vec), expectations[i]);
+            } catch (ss::exception& e) {
+                FAIL(e.what());
+            }
         }
     }
 }
@@ -253,7 +262,7 @@ TEST_CASE("splitter test with quote") {
 }
 
 TEST_CASE("splitter test with trim") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced({R"(x)"}, " ");
     case_type case2 = spaced({R"(yy)"}, " ");
     case_type case3 = spaced({R"(y y)"}, " ");
@@ -320,7 +329,7 @@ TEST_CASE("splitter test with escape") {
 }
 
 TEST_CASE("splitter test with quote and trim") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced({R"("""")"}, " ");
     case_type case2 = spaced({R"("x""x")", R"(x"x)"}, " ");
     case_type case3 = spaced({R"("")", R"()"}, " ");
@@ -438,7 +447,7 @@ TEST_CASE("splitter test with escape and trim") {
 }
 
 TEST_CASE("splitter test with quote and escape and trim") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced({R"("\"")", R"(\")", R"("""")"}, " ");
     case_type case2 =
         spaced({R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"}, " ");
@@ -509,6 +518,18 @@ TEST_CASE("splitter test error mode") {
         CHECK_FALSE(s.valid());
         CHECK_FALSE(s.unterminated_quote());
         CHECK_FALSE(s.error_msg().empty());
+
+        try {
+            // TODO remove ss::string_error
+            ss::splitter<ss::string_error, ss::throw_on_error> s;
+            s.split(buff("just,some,strings"), "");
+            FAIL("expected exception");
+        } catch (ss::exception& e) {
+            CHECK_EQ(std::string{e.what()}, s.error_msg());
+            CHECK_FALSE(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            CHECK_FALSE(s.error_msg().empty());
+        }
     }
 
     {
@@ -523,10 +544,16 @@ TEST_CASE("splitter test error mode") {
 
 template <typename Splitter>
 auto expect_unterminated_quote(Splitter& s, const std::string& line) {
-    auto vec = s.split(buff(line.c_str()));
-    CHECK_FALSE(s.valid());
-    CHECK(s.unterminated_quote());
-    return vec;
+    try {
+        auto vec = s.split(buff(line.c_str()));
+        CHECK_FALSE(s.valid());
+        CHECK(s.unterminated_quote());
+        return vec;
+    } catch (ss::exception& e) {
+        // TODO check if this is ok
+        FAIL(e.what());
+        return decltype(s.split(buff(line.c_str()))){};
+    }
 }
 
 namespace ss {
@@ -550,7 +577,9 @@ TEST_CASE("splitter test resplit unterminated quote") {
     {
         ss::converter<ss::quote<'"'>, ss::multiline, ss::escape<'\\'>> c;
         auto& s = c.splitter;
+
         auto vec = expect_unterminated_quote(s, R"("x)");
+
         CHECK_EQ(vec.size(), 1);
         REQUIRE(s.unterminated_quote());
 
@@ -770,6 +799,270 @@ TEST_CASE("splitter test resplit unterminated quote") {
     }
 }
 
+TEST_CASE("splitter test resplit unterminated quote with exceptions") {
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::multiline, ss::escape<'\\'>,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+
+        auto vec = expect_unterminated_quote(s, R"("x)");
+
+        CHECK_EQ(vec.size(), 1);
+
+        REQUIRE(s.unterminated_quote());
+
+        {
+            auto new_linet =
+                buff.append_overwrite_last(R"(a\x)", c.size_shifted());
+
+            vec = c.resplit(new_linet, strlen(new_linet));
+
+            CHECK(s.unterminated_quote());
+            CHECK_EQ(vec.size(), 1);
+        }
+
+        {
+            auto new_linet =
+                buff.append_overwrite_last(R"(")", c.size_shifted());
+
+            vec = c.resplit(new_linet, strlen(new_linet));
+            REQUIRE(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            REQUIRE_EQ(vec.size(), 1);
+            CHECK_EQ(words(vec)[0], "xax");
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::multiline, ss::throw_on_error> c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, "\"just");
+        CHECK_EQ(vec.size(), 1);
+
+        auto new_line = buff.append(R"(",strings)");
+        vec = c.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK_FALSE(s.unterminated_quote());
+        std::vector<std::string> expected{"just", "strings"};
+        CHECK_EQ(words(vec), expected);
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::multiline, ss::throw_on_error> c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, "just,some,\"random");
+        std::vector<std::string> expected{"just", "some", "just,some,\""};
+        CHECK_EQ(words(vec), expected);
+
+        auto new_line = buff.append(R"(",strings)");
+        vec = c.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK_FALSE(s.unterminated_quote());
+        expected = {"just", "some", "random", "strings"};
+        CHECK_EQ(words(vec), expected);
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::multiline, ss::throw_on_error> c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just","some","ran"")");
+        std::vector<std::string> expected{"just", "some", R"("just","some",")"};
+        CHECK_EQ(words(vec), expected);
+
+        auto new_line =
+            buff.append_overwrite_last(R"(,dom","strings")", c.size_shifted());
+        vec = c.resplit(new_line, strlen(new_line));
+        CHECK(s.valid());
+        CHECK_FALSE(s.unterminated_quote());
+        expected = {"just", "some", "ran\",dom", "strings"};
+        CHECK_EQ(words(vec), expected);
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::multiline, ss::throw_on_error> c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just","some","ran)");
+        std::vector<std::string> expected{"just", "some", R"("just","some",")"};
+        CHECK_EQ(words(vec), expected);
+        REQUIRE(s.unterminated_quote());
+
+        {
+            auto new_line = buff.append(R"(,dom)");
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK_FALSE(s.valid());
+            CHECK(s.unterminated_quote());
+            CHECK_EQ(words(vec), expected);
+        }
+
+        {
+            auto new_line = buff.append(R"(",strings)");
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"just", "some", "ran,dom", "strings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>, ss::multiline,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra)");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line = buff.append(R"(n,dom",str\"ings)");
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"just\"some", "ran,dom", "str\"ings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>, ss::multiline,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+        auto vec =
+            expect_unterminated_quote(s, "3,4,"
+                                         "\"just0\\\n1\\\n22\\\n33333x\\\n4");
+
+        std::vector<std::string> expected{"3", "4"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line =
+                buff.append_overwrite_last("\nx5strings\"", c.size_shifted());
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"3", "4", "just0\n1\n22\n33333x\n4\nx5strings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>, ss::multiline,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra"")");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line = buff.append_overwrite_last(R"(n,dom",str\"ings)",
+                                                       c.size_shifted());
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"just\"some", "ra\"n,dom", "str\"ings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>, ss::multiline,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","r\a\a\\\a\")");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line = buff.append_overwrite_last(R"(n,dom",str\"ings)",
+                                                       c.size_shifted());
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"just\"some", "raa\\a\"n,dom", "str\"ings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::trim<' '>, ss::multiline,
+                      ss::throw_on_error>
+            c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"(  "just" ,some,  "ra )");
+        std::vector<std::string> expected{"just", "some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line = buff.append(R"( n,dom"  , strings   )");
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"just", "some", "ra  n,dom", "strings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+
+    try {
+        ss::converter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>,
+                      ss::multiline>
+            c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"(  "ju\"st" ,some,  "ra \")");
+        std::vector<std::string> expected{"ju\"st", "some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line =
+                buff.append_overwrite_last(R"( n,dom"  , strings   )",
+                                           c.size_shifted());
+            vec = c.resplit(new_line, strlen(new_line));
+            CHECK(s.valid());
+            CHECK_FALSE(s.unterminated_quote());
+            expected = {"ju\"st", "some", "ra \" n,dom", "strings"};
+            CHECK_EQ(words(vec), expected);
+        }
+    } catch (ss::exception& e) {
+        FAIL(e.what());
+    }
+}
+
 TEST_CASE("splitter test invalid splits") {
     ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
                   ss::escape<'\\'>>
@@ -808,14 +1101,55 @@ TEST_CASE("splitter test invalid splits") {
 
     // invalid resplit
     char new_line[] = "some";
-    auto a = c.resplit(new_line, strlen(new_line));
+    c.resplit(new_line, strlen(new_line));
     CHECK_FALSE(s.valid());
     CHECK_FALSE(s.unterminated_quote());
     CHECK_FALSE(s.error_msg().empty());
 }
 
+#define CHECK_EXCEPTION(CLASS, OPERATION)                                      \
+    try {                                                                      \
+        OPERATION;                                                             \
+    } catch (ss::exception & e) {                                              \
+        CHECK_FALSE(CLASS.valid());                                            \
+        CHECK_FALSE(CLASS.error_msg().empty());                                \
+        CHECK_EQ(CLASS.error_msg(), std::string{e.what()});                    \
+    }
+
+TEST_CASE("splitter test invalid splits with exceptions") {
+    ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
+                  ss::escape<'\\'>, ss::throw_on_error>
+        c;
+    auto& s = c.splitter;
+
+    // empty delimiter
+    CHECK_EXCEPTION(s, s.split(buff("some,random,strings"), ""));
+    CHECK_FALSE(s.unterminated_quote());
+
+    // mismatched delimiter
+    CHECK_EXCEPTION(s, s.split(buff(R"(some,"random,"strings")")));
+    CHECK_FALSE(s.unterminated_quote());
+
+    // unterminated escape
+    CHECK_EXCEPTION(s, s.split(buff(R"(some,random,strings\)")));
+    CHECK_FALSE(s.unterminated_quote());
+
+    // unterminated escape
+    CHECK_EXCEPTION(s, s.split(buff(R"(some,random,"strings\)")));
+    CHECK_FALSE(s.unterminated_quote());
+
+    // unterminated quote
+    CHECK_EXCEPTION(s, s.split(buff("some,random,\"strings")));
+    CHECK(s.unterminated_quote());
+
+    // invalid resplit
+    char new_line[] = "some";
+    CHECK_EXCEPTION(s, c.resplit(new_line, strlen(new_line)));
+    CHECK_FALSE(s.unterminated_quote());
+}
+
 TEST_CASE("splitter test with trim_left") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced_left({R"(x )"}, " ");
     case_type case2 = spaced_left({R"(yy )"}, " ");
     case_type case3 = spaced_left({R"(y y )"}, " ");
@@ -845,7 +1179,7 @@ TEST_CASE("splitter test with trim_left") {
 }
 
 TEST_CASE("splitter test with trim_right") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced_right({R"( x)"}, " ");
     case_type case2 = spaced_right({R"( yy)"}, " ");
     case_type case3 = spaced_right({R"( y y)"}, " ");
@@ -876,7 +1210,7 @@ TEST_CASE("splitter test with trim_right") {
 }
 
 TEST_CASE("splitter test with trim_right and trim_left") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced_right({R"(-x)"}, "-");
     case_type case2 = spaced_left({R"(yy_)"}, "_");
     case_type case3 = spaced_right({R"(-y y)"}, "-");
@@ -894,7 +1228,7 @@ TEST_CASE("splitter test with trim_right and trim_left") {
 }
 
 TEST_CASE("splitter test with quote and escape, trim_left and trim_right") {
-    auto guard = set_combinations_size(3);
+    auto guard = set_num_combinations(3);
     case_type case1 = spaced_left({R"("\"")", R"(\")", R"("""")"}, "_");
     case_type case2 =
         spaced_left({R"("x\"x")", R"(x\"x)", R"(x"x)", R"("x""x")"}, "_");
@@ -914,3 +1248,4 @@ TEST_CASE("splitter test with quote and escape, trim_left and trim_right") {
                           ss::trim_right<'-'>>(p, delims);
     }
 }
+
