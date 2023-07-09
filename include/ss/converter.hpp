@@ -121,7 +121,12 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
-        return convert<Ts...>(splitter_.split_data_);
+        if (splitter_.valid()) {
+            return convert<Ts...>(splitter_.split_data_);
+        } else {
+            set_error_bad_split();
+            return {};
+        }
     }
 
     // parses already split line, returns 'T' object with extracted values
@@ -227,7 +232,7 @@ private:
         return error;
     }
 
-    void set_error_unterminated_quote() {
+    void set_error_bad_split() {
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
@@ -340,10 +345,11 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
         clear_error();
+        // TODO check if this is needed
         using return_type = no_void_validator_tup_t<Ts...>;
 
         if (!splitter_.valid()) {
-            set_error_unterminated_quote();
+            set_error_bad_split();
             no_void_validator_tup_t<Ts...> ret{};
             return ret;
         }

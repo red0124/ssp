@@ -163,6 +163,7 @@ private:
     }
 
     void set_error_invalid_resplit() {
+        // TODO check this
         unterminated_quote_ = false;
         if constexpr (string_error) {
             error_.clear();

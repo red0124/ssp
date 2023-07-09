@@ -250,6 +250,7 @@ public:
     constexpr static bool ignore_empty = (count_ignore_empty == 1);
     constexpr static bool throw_on_error = (count_throw_on_error == 1);
     // TODO set string_error if throw_on_error is defined
+    // TODO throw_on_error should be unique
 
 private:
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"

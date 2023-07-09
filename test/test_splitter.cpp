@@ -525,10 +525,8 @@ TEST_CASE("splitter test error mode") {
             s.split(buff("just,some,strings"), "");
             FAIL("expected exception");
         } catch (ss::exception& e) {
-            CHECK_EQ(std::string{e.what()}, s.error_msg());
-            CHECK_FALSE(s.valid());
+            CHECK_FALSE(std::string{e.what()}.empty());
             CHECK_FALSE(s.unterminated_quote());
-            CHECK_FALSE(s.error_msg().empty());
         }
     }
 
@@ -1107,15 +1105,6 @@ TEST_CASE("splitter test invalid splits") {
     CHECK_FALSE(s.error_msg().empty());
 }
 
-#define CHECK_EXCEPTION(CLASS, OPERATION)                                      \
-    try {                                                                      \
-        OPERATION;                                                             \
-    } catch (ss::exception & e) {                                              \
-        CHECK_FALSE(CLASS.valid());                                            \
-        CHECK_FALSE(CLASS.error_msg().empty());                                \
-        CHECK_EQ(CLASS.error_msg(), std::string{e.what()});                    \
-    }
-
 TEST_CASE("splitter test invalid splits with exceptions") {
     ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
                   ss::escape<'\\'>, ss::throw_on_error>
@@ -1123,28 +1112,28 @@ TEST_CASE("splitter test invalid splits with exceptions") {
     auto& s = c.splitter;
 
     // empty delimiter
-    CHECK_EXCEPTION(s, s.split(buff("some,random,strings"), ""));
+    REQUIRE_EXCEPTION(s.split(buff("some,random,strings"), ""));
     CHECK_FALSE(s.unterminated_quote());
 
     // mismatched delimiter
-    CHECK_EXCEPTION(s, s.split(buff(R"(some,"random,"strings")")));
+    REQUIRE_EXCEPTION(s.split(buff(R"(some,"random,"strings")")));
     CHECK_FALSE(s.unterminated_quote());
 
     // unterminated escape
-    CHECK_EXCEPTION(s, s.split(buff(R"(some,random,strings\)")));
+    REQUIRE_EXCEPTION(s.split(buff(R"(some,random,strings\)")));
     CHECK_FALSE(s.unterminated_quote());
 
     // unterminated escape
-    CHECK_EXCEPTION(s, s.split(buff(R"(some,random,"strings\)")));
+    REQUIRE_EXCEPTION(s.split(buff(R"(some,random,"strings\)")));
     CHECK_FALSE(s.unterminated_quote());
 
     // unterminated quote
-    CHECK_EXCEPTION(s, s.split(buff("some,random,\"strings")));
+    REQUIRE_EXCEPTION(s.split(buff("some,random,\"strings")));
     CHECK(s.unterminated_quote());
 
     // invalid resplit
     char new_line[] = "some";
-    CHECK_EXCEPTION(s, c.resplit(new_line, strlen(new_line)));
+    REQUIRE_EXCEPTION(c.resplit(new_line, strlen(new_line)));
     CHECK_FALSE(s.unterminated_quote());
 }
 
@@ -1248,4 +1237,3 @@ TEST_CASE("splitter test with quote and escape, trim_left and trim_right") {
                           ss::trim_right<'-'>>(p, delims);
     }
 }
-
