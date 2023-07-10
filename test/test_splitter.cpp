@@ -1099,7 +1099,6 @@ TEST_CASE("splitter test invalid splits") {
     char new_line[] = "some";
     c.resplit(new_line, strlen(new_line));
     CHECK_FALSE(s.valid());
-    CHECK_FALSE(s.unterminated_quote());
     CHECK_FALSE(s.error_msg().empty());
 }
 
@@ -1132,7 +1131,6 @@ TEST_CASE("splitter test invalid splits with exceptions") {
     // invalid resplit
     char new_line[] = "some";
     REQUIRE_EXCEPTION(c.resplit(new_line, strlen(new_line)));
-    CHECK_FALSE(s.unterminated_quote());
 }
 
 TEST_CASE("splitter test with trim_left") {

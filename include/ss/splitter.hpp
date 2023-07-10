@@ -78,11 +78,10 @@ private:
         const std::string& delimiter = default_delimiter) {
 
         // resplitting, continue from last slice
-        if constexpr (!quote::enabled || !multiline::enabled) {
-            if (split_data_.empty() || !unterminated_quote()) {
-                set_error_invalid_resplit();
-                return split_data_;
-            }
+        if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
+            !unterminated_quote()) {
+            set_error_invalid_resplit();
+            return split_data_;
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
@@ -90,7 +89,6 @@ private:
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
-            unterminated_quote_ = false;
             set_error_invalid_resplit();
             return split_data_;
         }

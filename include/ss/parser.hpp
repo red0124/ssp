@@ -37,6 +37,10 @@ public:
         : file_name_{file_name}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
+            if (eof_) {
+                set_error_eof_reached();
+                return;
+            }
             if constexpr (ignore_header) {
                 ignore_next();
             } else {
