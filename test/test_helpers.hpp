@@ -79,8 +79,6 @@ struct buffer {
     }
 
 #define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
-// TODO remove
-#include <iostream>
 
 #define REQUIRE_EXCEPTION(...)                                                 \
     try {                                                                      \

@@ -364,7 +364,6 @@ TEST_CASE("converter test ss:ax restriction (all except)") {
 }
 
 TEST_CASE("converter test ss:ax restriction (all except) with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ax<int, 0>>("0"));
@@ -425,7 +424,6 @@ TEST_CASE("converter test ss:nx restriction (none except)") {
 }
 
 TEST_CASE("converter test ss:nx restriction (none except) with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::nx<int, 1>>("3"));
@@ -493,7 +491,6 @@ TEST_CASE("converter test ss:ir restriction (in range)") {
 }
 
 TEST_CASE("converter test ss:ir restriction (in range) with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ir<int, 0, 2>>("3"));
@@ -561,7 +558,6 @@ TEST_CASE("converter test ss:oor restriction (out of range)") {
 }
 
 TEST_CASE("converter test ss:oor restriction (out of range) with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::oor<int, 1, 5>>("3"));
@@ -641,7 +637,6 @@ TEST_CASE("converter test ss:ne restriction (not empty)") {
 }
 
 TEST_CASE("converter test ss:ne restriction (not empty) with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ne<std::string>>(""));
@@ -733,7 +728,6 @@ TEST_CASE(
 
 TEST_CASE("converter test ss:lt ss::lte ss::gt ss::gte restriction (in range) "
           "with exception") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::lt<int, 3>>("3"));
@@ -792,7 +786,6 @@ TEST_CASE("converter test error mode") {
 }
 
 TEST_CASE("converter test throw on error mode") {
-    // TODO remove ss::string_error
     ss::converter<ss::throw_on_error> c;
     REQUIRE_EXCEPTION(c.convert<int>("junk"));
 }
@@ -846,7 +839,6 @@ TEST_CASE("converter test converter with quotes spacing and escaping") {
 
 TEST_CASE("converter test converter with quotes spacing and escaping with "
           "exceptions") {
-    // TODO remove ss::string_error on all below
     try {
         ss::converter<ss::throw_on_error> c;
 
@@ -957,7 +949,6 @@ TEST_CASE("converter test invalid split conversions") {
 }
 
 TEST_CASE("converter test invalid split conversions with exceptions") {
-    // TODO remove ss::string_error
     ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>,
                   ss::throw_on_error>
         c;

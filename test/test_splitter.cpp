@@ -547,7 +547,6 @@ auto expect_unterminated_quote(Splitter& s, const std::string& line) {
         CHECK(s.unterminated_quote());
         return vec;
     } catch (ss::exception& e) {
-        // TODO check if this is ok
         FAIL(std::string{e.what()});
         return decltype(s.split(buff(line.c_str()))){};
     }
