@@ -25,6 +25,7 @@ private:
     constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
+    // TODO make error_type none if throw_on_error
     using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
@@ -77,10 +78,11 @@ private:
         const std::string& delimiter = default_delimiter) {
 
         // resplitting, continue from last slice
-        if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
-            !unterminated_quote()) {
-            set_error_invalid_resplit();
-            return split_data_;
+        if constexpr (!quote::enabled || !multiline::enabled) {
+            if (split_data_.empty() || !unterminated_quote()) {
+                set_error_invalid_resplit();
+                return split_data_;
+            }
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
@@ -88,6 +90,7 @@ private:
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
+            unterminated_quote_ = false;
             set_error_invalid_resplit();
             return split_data_;
         }
@@ -114,62 +117,77 @@ private:
     void clear_error() {
         if constexpr (string_error) {
             error_.clear();
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = false;
         }
         unterminated_quote_ = false;
     }
 
     void set_error_empty_delimiter() {
+        constexpr static auto error_msg = "empty delimiter";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("empty delimiter");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_mismatched_quote(size_t n) {
+        constexpr static auto error_msg = "mismatched quote at position: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("mismatched quote at position: " + std::to_string(n));
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg + std::to_string(n));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + std::to_string(n)};
         } else {
             error_ = true;
         }
     }
 
+    // TODO rename with handle error
     void set_error_unterminated_escape() {
+        constexpr static auto error_msg =
+            "unterminated escape at the end of the line";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated escape at the end of the line");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    // TODO handle this efficiently
+    // TODO handle this efficiently (if multiline is enabled)
     void set_error_unterminated_quote() {
-        unterminated_quote_ = true;
+        constexpr static auto error_msg = "unterminated quote";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated quote");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_invalid_resplit() {
-        // TODO check this
-        unterminated_quote_ = false;
+        constexpr static auto error_msg =
+            "invalid resplit, new line must be longer"
+            "than the end of the last slice";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid resplit, new line must be longer"
-                          "than the end of the last slice");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
@@ -244,7 +262,9 @@ private:
         if constexpr (escape::enabled) {
             if (escape::match(*curr)) {
                 if (curr[1] == '\0') {
-                    set_error_unterminated_escape();
+                    if constexpr (!multiline::enabled) {
+                        set_error_unterminated_escape();
+                    }
                     done_ = true;
                     return;
                 }
@@ -371,7 +391,9 @@ private:
                             if (end_[1] == '\0') {
                                 // eol, unterminated escape
                                 // eg: ... "hel\\0
-                                set_error_unterminated_escape();
+                                if constexpr (!multiline::enabled) {
+                                    set_error_unterminated_escape();
+                                }
                                 done_ = true;
                                 break;
                             }
@@ -388,7 +410,10 @@ private:
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
                         shift_and_set_current();
-                        set_error_unterminated_quote();
+                        unterminated_quote_ = true;
+                        if constexpr (!multiline::enabled) {
+                            set_error_unterminated_quote();
+                        }
                         split_data_.emplace_back(line_, begin_);
                         done_ = true;
                         break;

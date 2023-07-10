@@ -20,11 +20,4 @@ public:
     }
 };
 
-template <bool throw_on_error>
-void throw_if_throw_on_error(const std::string& msg) {
-    if constexpr (throw_on_error) {
-        throw ss::exception(msg);
-    }
-}
-
 } /* ss */

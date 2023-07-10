@@ -112,7 +112,7 @@ struct get_matcher<Matcher, T, Ts...> {
                   "the same matcher is cannot"
                   "be defined multiple times");
     using type = std::conditional_t<is_matcher<T>::value, T,
-                               typename get_matcher<Matcher, Ts...>::type>;
+                                    typename get_matcher<Matcher, Ts...>::type>;
 };
 
 template <template <char...> class Matcher>
@@ -150,7 +150,7 @@ struct get_multiline;
 template <typename T, typename... Ts>
 struct get_multiline<T, Ts...> {
     using type = std::conditional_t<is_instance_of_multiline<T>::value, T,
-                               typename get_multiline<Ts...>::type>;
+                                    typename get_multiline<Ts...>::type>;
 };
 
 template <>
@@ -217,7 +217,8 @@ private:
     constexpr static auto count_multiline =
         count_v<is_instance_of_multiline, Options...>;
 
-    constexpr static auto count_string_error = count_v<is_string_error, Options...>;
+    constexpr static auto count_string_error =
+        count_v<is_string_error, Options...>;
 
     constexpr static auto count_ignore_header =
         count_v<is_ignore_header, Options...>;
@@ -225,7 +226,8 @@ private:
     constexpr static auto count_throw_on_error =
         count_v<is_throw_on_error, Options...>;
 
-    constexpr static auto count_ignore_empty = count_v<is_ignore_empty, Options...>;
+    constexpr static auto count_ignore_empty =
+        count_v<is_ignore_empty, Options...>;
 
     constexpr static auto number_of_valid_setup_types =
         count_matcher + count_multiline + count_string_error +
@@ -249,8 +251,6 @@ public:
     constexpr static bool ignore_header = (count_ignore_header == 1);
     constexpr static bool ignore_empty = (count_ignore_empty == 1);
     constexpr static bool throw_on_error = (count_throw_on_error == 1);
-    // TODO set string_error if throw_on_error is defined
-    // TODO throw_on_error should be unique
 
 private:
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"
@@ -276,8 +276,15 @@ private:
                   "ambiguous trim setup");
 
     static_assert(count_multiline <= 1, "mutliline defined multiple times");
+
     static_assert(count_string_error <= 1,
                   "string_error defined multiple times");
+
+    static_assert(count_throw_on_error <= 1,
+                  "throw_on_error defined multiple times");
+
+    static_assert(count_throw_on_error + count_string_error <= 1,
+                  "cannot define both throw_on_error and string_error");
 
     static_assert(number_of_valid_setup_types == sizeof...(Options),
                   "one or multiple invalid setup parameters defined");

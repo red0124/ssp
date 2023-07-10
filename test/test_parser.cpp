@@ -856,6 +856,7 @@ TEST_CASE("parser test multiline restricted") {
     for (auto& [_, __, s] : i) {
         update_if_crlf(s);
     }
+
     CHECK_EQ(i, data);
 }
 

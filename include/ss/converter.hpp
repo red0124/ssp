@@ -236,8 +236,7 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
-            throw_if_throw_on_error<throw_on_error>(error_);
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = true;
         }
     }
@@ -247,28 +246,46 @@ private:
             error_.clear();
             splitter_.set_error_unterminated_escape();
             error_.append(splitter_.error_msg());
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            splitter_.set_error_unterminated_escape();
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_unterminated_quote() {
+        if constexpr (string_error) {
+            error_.clear();
+            splitter_.set_error_unterminated_quote();
+            error_.append(splitter_.error_msg());
+        } else if constexpr (throw_on_error) {
+            splitter_.set_error_unterminated_quote();
         } else {
             error_ = true;
         }
     }
 
     void set_error_multiline_limit_reached() {
+        constexpr static auto error_msg = "multiline limit reached";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("multiline limit reached");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_invalid_conversion(const string_range msg, size_t pos) {
+        constexpr static auto error_msg = "invalid conversion for parameter ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid conversion for parameter ")
-                .append(error_sufix(msg, pos));
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg).append(error_sufix(msg, pos));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + error_sufix(msg, pos)};
         } else {
             error_ = true;
         }
@@ -279,20 +296,27 @@ private:
         if constexpr (string_error) {
             error_.clear();
             error_.append(error).append(" ").append(error_sufix(msg, pos));
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error + (" " + error_sufix(msg, pos))};
         } else {
             error_ = true;
         }
     }
 
     void set_error_number_of_columns(size_t expected_pos, size_t pos) {
+        constexpr static auto error_msg1 =
+            "invalid number of columns, expected: ";
+        constexpr static auto error_msg2 = ", got: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid number of columns, expected: ")
+            error_.append(error_msg1)
                 .append(std::to_string(expected_pos))
-                .append(", got: ")
+                .append(error_msg2)
                 .append(std::to_string(pos));
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg1 + std::to_string(expected_pos) +
+                                error_msg2 + std::to_string(pos)};
         } else {
             error_ = true;
         }
@@ -300,25 +324,32 @@ private:
 
     void set_error_incompatible_mapping(size_t argument_size,
                                         size_t mapping_size) {
+        constexpr static auto error_msg1 =
+            "number of arguments does not match mapping, expected: ";
+        constexpr static auto error_msg2 = ", got: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_
-                .append(
-                    "number of arguments does not match mapping, expected: ")
+            error_.append(error_msg1)
                 .append(std::to_string(mapping_size))
-                .append(", got: ")
+                .append(error_msg2)
                 .append(std::to_string(argument_size));
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg1 + std::to_string(mapping_size) +
+                                error_msg2 + std::to_string(argument_size)};
         } else {
             error_ = true;
         }
     }
 
     void set_error_invalid_mapping() {
+        constexpr static auto error_msg = "received empty mapping";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("received empty mapping");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
@@ -326,13 +357,19 @@ private:
 
     void set_error_mapping_out_of_range(size_t maximum_index,
                                         size_t number_of_columnts) {
+        constexpr static auto error_msg1 = "maximum index: ";
+        constexpr static auto error_msg2 = ", greater than number of columns: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("maximum index: ")
+            error_.append(error_msg1)
                 .append(std::to_string(maximum_index))
-                .append(", greater then number of columns: ")
+                .append(error_msg2)
                 .append(std::to_string(number_of_columnts));
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg1 + std::to_string(maximum_index) +
+                                error_msg2 +
+                                std::to_string(number_of_columnts)};
         } else {
             error_ = true;
         }

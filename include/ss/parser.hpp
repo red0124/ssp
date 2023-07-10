@@ -87,8 +87,19 @@ public:
 
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
+        if (!eof_) {
+            reader_.parse();
+        }
+
         reader_.update();
+        if (!reader_.converter_.valid()) {
+            set_error_invalid_conversion();
+            read_line();
+            return {};
+        }
+
         clear_error();
+
         if (eof_) {
             set_error_eof_reached();
             return {};
@@ -424,27 +435,36 @@ private:
     }
 
     void set_error_failed_check() {
+        constexpr static auto error_msg = " failed check";
+
         if constexpr (string_error) {
-            error_.append(file_name_).append(" failed check");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_file_not_open() {
+        constexpr static auto error_msg = " could not be opened";
+
         if constexpr (string_error) {
             error_.append(file_name_).append(" could not be opened");
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_eof_reached() {
+        constexpr static auto error_msg = " reached end of file";
+
         if constexpr (string_error) {
             error_.append(file_name_).append(" reached end of file");
-            throw_if_throw_on_error<throw_on_error>(error_);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
@@ -460,42 +480,45 @@ private:
                 .append(": \"")
                 .append(reader_.buffer_)
                 .append("\"");
-            throw_if_throw_on_error<throw_on_error>(error_);
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = true;
         }
     }
 
     void set_error_header_ignored() {
+        constexpr static auto error_msg =
+            ": \"the header row is ignored within the setup it cannot be "
+            "used\"";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": \"")
-                .append("the header row is ignored within the setup, it cannot "
-                        "be used")
-                .append("\"");
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
     void set_error_invalid_field(const std::string& field) {
+        constexpr static auto error_msg =
+            ": header does not contain given field: ";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": header does not contain given field: ")
-                .append(field);
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
         } else {
             error_ = true;
         }
     }
 
     void set_error_field_used_multiple_times(const std::string& field) {
+        constexpr static auto error_msg = ": given field used multiple times: ";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": given field used multiple times: ")
-                .append(field);
-            throw_if_throw_on_error<throw_on_error>(error_);
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
         } else {
             error_ = true;
         }
@@ -514,13 +537,15 @@ private:
             : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
         }
 
+        // TODO update for size_ and ssize_
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              size_{other.size_}, next_line_size_{other.next_line_size_},
+              buffer_size_{other.size_},
+              next_line_buffer_size_{other.next_line_buffer_size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
               file_{other.file_}, crlf_{other.crlf_}, line_number_{
                                                           other.line_number_} {
@@ -537,8 +562,8 @@ private:
                 helper_buffer_ = other.helper_buffer_;
                 converter_ = std::move(other.converter_);
                 next_line_converter_ = std::move(other.next_line_converter_);
-                size_ = other.size_;
-                next_line_size_ = other.next_line_size_;
+                buffer_size_ = other.size_;
+                next_line_buffer_size_ = other.next_line_buffer_size_;
                 helper_size_ = other.helper_size_;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
@@ -568,16 +593,18 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
+        // read next line each time in order to set eof_
         bool read_next() {
-
-            ssize_t ssize;
+            next_line_converter_.clear_error();
+            ssize_t ssize = 0;
             size_t size = 0;
             while (size == 0) {
                 ++line_number_;
-                if (next_line_size_ > 0) {
+                if (next_line_buffer_size_ > 0) {
                     next_line_buffer_[0] = '\0';
                 }
-                ssize = get_line(&next_line_buffer_, &next_line_size_, file_);
+                ssize = get_line(&next_line_buffer_, &next_line_buffer_size_,
+                                 file_);
 
                 if (ssize == -1) {
                     return false;
@@ -590,17 +617,24 @@ private:
                 }
             }
 
+            size_ = size;
+            ssize_ = ssize;
+            return true;
+        }
+
+        void parse() {
             size_t limit = 0;
 
             if constexpr (escaped_multiline_enabled) {
-                while (escaped_eol(size)) {
+                while (escaped_eol(size_)) {
                     if (multiline_limit_reached(limit)) {
-                        return true;
+                        return;
                     }
-                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        remove_eol(next_line_buffer_, ssize);
+
+                    if (!append_next_line_to_buffer(next_line_buffer_, size_)) {
+                        // remove_eol(next_line_buffer_, ssize_);
                         next_line_converter_.set_error_unterminated_escape();
-                        return true;
+                        return;
                     }
                 }
             }
@@ -610,38 +644,40 @@ private:
             if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
                     if (multiline_limit_reached(limit)) {
-                        return true;
+                        return;
                     }
-                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        remove_eol(next_line_buffer_, ssize);
-                        return true;
+
+                    if (!append_next_line_to_buffer(next_line_buffer_, size_)) {
+                        // remove_eol(next_line_buffer_, ssize_);
+                        next_line_converter_.set_error_unterminated_quote();
+                        return;
                     }
 
                     if constexpr (escaped_multiline_enabled) {
-                        while (escaped_eol(size)) {
+                        while (escaped_eol(size_)) {
                             if (multiline_limit_reached(limit)) {
-                                return true;
+                                return;
                             }
+
                             if (!append_next_line_to_buffer(next_line_buffer_,
-                                                            size)) {
-                                remove_eol(next_line_buffer_, ssize);
+                                                            size_)) {
+                                // TODO not needed
+                                // remove_eol(next_line_buffer_, ssize_);
                                 next_line_converter_
                                     .set_error_unterminated_escape();
-                                return true;
+                                return;
                             }
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_, size);
+                    next_line_converter_.resplit(next_line_buffer_, size_);
                 }
             }
-
-            return true;
         }
 
         void update() {
             std::swap(buffer_, next_line_buffer_);
-            std::swap(size_, next_line_size_);
+            std::swap(buffer_size_, next_line_buffer_size_);
             std::swap(converter_, next_line_converter_);
         }
 
@@ -666,10 +702,7 @@ private:
         }
 
         bool unterminated_quote() {
-            if (next_line_converter_.unterminated_quote()) {
-                return true;
-            }
-            return false;
+            return next_line_converter_.unterminated_quote();
         }
 
         void undo_remove_eol(char* buffer, size_t& string_end) {
@@ -685,24 +718,29 @@ private:
             }
         }
 
-        size_t remove_eol(char*& buffer, size_t size) {
-            size_t new_size = size - 1;
-            if (size >= 2 && buffer[size - 2] == '\r') {
+        size_t remove_eol(char*& buffer, size_t ssize) {
+            size_t size = ssize - 1;
+            if (ssize >= 2 && buffer[ssize - 2] == '\r') {
                 crlf_ = true;
-                new_size--;
+                size--;
             } else {
                 crlf_ = false;
             }
 
-            buffer[new_size] = '\0';
-            return new_size;
+            buffer[size] = '\0';
+            return size;
         }
 
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            next_line_size_ = first_size + second_size + 3;
+            // TODO make buffer_size an argument !!!!!!
+            next_line_buffer_size_ = first_size + second_size + 3;
             first = static_cast<char*>(
-                realloc(static_cast<void*>(first), next_line_size_));
+                realloc(static_cast<void*>(first), next_line_buffer_size_));
+            // TODO handle realloc
+            if (!first) {
+                exit(EXIT_FAILURE);
+            }
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }
@@ -722,8 +760,9 @@ private:
             return true;
         }
 
-        std::vector<std::string> get_next_row() const {
+        std::vector<std::string> get_next_row() {
             std::vector<std::string> next_row;
+            next_line_converter_.split(next_line_buffer_, delim_);
             auto& next_row_raw = next_line_converter_.splitter_.split_data_;
             for (const auto& [begin, end] : next_row_raw) {
                 next_row.emplace_back(begin, end);
@@ -741,8 +780,8 @@ private:
         converter<Options...> converter_;
         converter<Options...> next_line_converter_;
 
-        size_t size_{0};
-        size_t next_line_size_{0};
+        size_t buffer_size_{0};
+        size_t next_line_buffer_size_{0};
         size_t helper_size_{0};
 
         std::string delim_;
@@ -750,6 +789,10 @@ private:
 
         bool crlf_;
         size_t line_number_{0};
+
+        // TODO check if needed
+        size_t size_{0};
+        ssize_t ssize_{0};
     };
 
     ////////////////

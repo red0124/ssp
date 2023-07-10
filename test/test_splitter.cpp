@@ -201,7 +201,7 @@ void test_combinations(matches_type& matches, std::vector<std::string> delims) {
                 auto vec = st.split(buff(lines[i].c_str()), delim);
                 CHECK_EQ(words(vec), expectations[i]);
             } catch (ss::exception& e) {
-                FAIL(e.what());
+                FAIL(std::string{e.what()});
             }
         }
     }
@@ -520,8 +520,7 @@ TEST_CASE("splitter test error mode") {
         CHECK_FALSE(s.error_msg().empty());
 
         try {
-            // TODO remove ss::string_error
-            ss::splitter<ss::string_error, ss::throw_on_error> s;
+            ss::splitter<ss::throw_on_error> s;
             s.split(buff("just,some,strings"), "");
             FAIL("expected exception");
         } catch (ss::exception& e) {
@@ -544,12 +543,12 @@ template <typename Splitter>
 auto expect_unterminated_quote(Splitter& s, const std::string& line) {
     try {
         auto vec = s.split(buff(line.c_str()));
-        CHECK_FALSE(s.valid());
+        CHECK(s.valid());
         CHECK(s.unterminated_quote());
         return vec;
     } catch (ss::exception& e) {
         // TODO check if this is ok
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
         return decltype(s.split(buff(line.c_str()))){};
     }
 }
@@ -658,7 +657,7 @@ TEST_CASE("splitter test resplit unterminated quote") {
         {
             auto new_line = buff.append(R"(,dom)");
             vec = c.resplit(new_line, strlen(new_line));
-            CHECK_FALSE(s.valid());
+            CHECK(s.valid());
             CHECK(s.unterminated_quote());
             CHECK_EQ(words(vec), expected);
         }
@@ -808,7 +807,6 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
         auto vec = expect_unterminated_quote(s, R"("x)");
 
         CHECK_EQ(vec.size(), 1);
-
         REQUIRE(s.unterminated_quote());
 
         {
@@ -832,7 +830,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec)[0], "xax");
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -848,7 +846,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
         std::vector<std::string> expected{"just", "strings"};
         CHECK_EQ(words(vec), expected);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -865,7 +863,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
         expected = {"just", "some", "random", "strings"};
         CHECK_EQ(words(vec), expected);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -883,7 +881,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
         expected = {"just", "some", "ran\",dom", "strings"};
         CHECK_EQ(words(vec), expected);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -897,7 +895,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
         {
             auto new_line = buff.append(R"(,dom)");
             vec = c.resplit(new_line, strlen(new_line));
-            CHECK_FALSE(s.valid());
+            CHECK(s.valid());
             CHECK(s.unterminated_quote());
             CHECK_EQ(words(vec), expected);
         }
@@ -911,7 +909,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -934,7 +932,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -961,7 +959,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -985,7 +983,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -1009,7 +1007,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -1032,7 +1030,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -1057,7 +1055,7 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
             CHECK_EQ(words(vec), expected);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -1106,8 +1104,8 @@ TEST_CASE("splitter test invalid splits") {
 }
 
 TEST_CASE("splitter test invalid splits with exceptions") {
-    ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
-                  ss::escape<'\\'>, ss::throw_on_error>
+    ss::converter<ss::throw_on_error, ss::quote<'"'>, ss::trim<' '>,
+                  ss::escape<'\\'>>
         c;
     auto& s = c.splitter;
 

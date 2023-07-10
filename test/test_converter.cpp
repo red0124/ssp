@@ -42,7 +42,7 @@ TEST_CASE("converter test split with exceptions") {
             }
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -148,7 +148,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -156,7 +156,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -164,7 +164,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -172,7 +172,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -180,7 +180,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -188,7 +188,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -198,7 +198,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(tup.has_value());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -206,7 +206,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -214,7 +214,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -222,7 +222,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -232,7 +232,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(std::get<0>(tup).has_value());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -242,7 +242,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE_FALSE(std::get<0>(tup).has_value());
         CHECK_EQ(tup, std::make_tuple(std::optional<int>{}, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -253,7 +253,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(std::holds_alternative<int>(std::get<0>(tup)));
         CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5}, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -264,7 +264,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
         CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5.5}, 6.6));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -274,7 +274,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
         CHECK_EQ(tup, std::make_tuple(std::string_view{"s1"}, 6.6,
                                       std::string_view{"s2"}));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -316,8 +316,7 @@ TEST_CASE("converter test invalid conversions") {
 }
 
 TEST_CASE("converter test invalid conversions with exceptions") {
-    // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<int>(""));
     REQUIRE_EXCEPTION(c.convert<int>("1", ""));
@@ -366,7 +365,7 @@ TEST_CASE("converter test ss:ax restriction (all except)") {
 
 TEST_CASE("converter test ss:ax restriction (all except) with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ax<int, 0>>("0"));
     REQUIRE_EXCEPTION(c.convert<ss::ax<int, 0, 1, 2>>("1"));
@@ -387,7 +386,7 @@ TEST_CASE("converter test ss:ax restriction (all except) with exceptions") {
             CHECK_EQ(tup, std::make_tuple(3, 'c'));
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -427,7 +426,7 @@ TEST_CASE("converter test ss:nx restriction (none except)") {
 
 TEST_CASE("converter test ss:nx restriction (none except) with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::nx<int, 1>>("3"));
     REQUIRE_EXCEPTION(c.convert<char, ss::nx<int, 1, 2, 69>>("c,3"));
@@ -455,7 +454,7 @@ TEST_CASE("converter test ss:nx restriction (none except) with exceptions") {
             CHECK_EQ(tup, std::make_tuple(1, 'c'));
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -495,7 +494,7 @@ TEST_CASE("converter test ss:ir restriction (in range)") {
 
 TEST_CASE("converter test ss:ir restriction (in range) with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ir<int, 0, 2>>("3"));
     REQUIRE_EXCEPTION(c.convert<char, ss::ir<int, 4, 69>>("c,3"));
@@ -523,7 +522,7 @@ TEST_CASE("converter test ss:ir restriction (in range) with exceptions") {
             CHECK_EQ(tup, std::make_tuple(1, 'c'));
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -563,7 +562,7 @@ TEST_CASE("converter test ss:oor restriction (out of range)") {
 
 TEST_CASE("converter test ss:oor restriction (out of range) with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::oor<int, 1, 5>>("3"));
     REQUIRE_EXCEPTION(c.convert<ss::oor<int, 0, 2>>("2"));
@@ -589,7 +588,7 @@ TEST_CASE("converter test ss:oor restriction (out of range) with exceptions") {
             CHECK_EQ(tup, std::make_tuple(3, 'c'));
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -643,7 +642,7 @@ TEST_CASE("converter test ss:ne restriction (not empty)") {
 
 TEST_CASE("converter test ss:ne restriction (not empty) with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::ne<std::string>>(""));
     REQUIRE_EXCEPTION(c.convert<int, ss::ne<std::string>>("3,"));
@@ -669,7 +668,7 @@ TEST_CASE("converter test ss:ne restriction (not empty) with exceptions") {
             CHECK_EQ(tup, extracted_vector);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -735,7 +734,7 @@ TEST_CASE(
 TEST_CASE("converter test ss:lt ss::lte ss::gt ss::gte restriction (in range) "
           "with exception") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
 
     REQUIRE_EXCEPTION(c.convert<ss::lt<int, 3>>("3"));
     REQUIRE_EXCEPTION(c.convert<ss::lt<int, 2>>("3"));
@@ -781,7 +780,7 @@ TEST_CASE("converter test ss:lt ss::lte ss::gt ss::gte restriction (in range) "
             CHECK_EQ(tup, 3);
         }
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -794,7 +793,7 @@ TEST_CASE("converter test error mode") {
 
 TEST_CASE("converter test throw on error mode") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::throw_on_error> c;
+    ss::converter<ss::throw_on_error> c;
     REQUIRE_EXCEPTION(c.convert<int>("junk"));
 }
 
@@ -849,14 +848,14 @@ TEST_CASE("converter test converter with quotes spacing and escaping with "
           "exceptions") {
     // TODO remove ss::string_error on all below
     try {
-        ss::converter<ss::string_error, ss::throw_on_error> c;
+        ss::converter<ss::throw_on_error> c;
 
         auto tup = c.convert<std::string, std::string, std::string>(
             R"("just","some","strings")");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple("\"just\"", "\"some\"", "\"strings\""));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
@@ -867,34 +866,34 @@ TEST_CASE("converter test converter with quotes spacing and escaping with "
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple("just", "some", 12.3, 'a'));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
-        ss::converter<ss::string_error, ss::throw_on_error, ss::trim<' '>> c;
+        ss::converter<ss::throw_on_error, ss::trim<' '>> c;
 
         auto tup = c.convert<std::string, std::string, double, char>(
             buff(R"(    just  ,  some   ,  12.3 ,a     )"));
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple("just", "some", 12.3, 'a'));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
-        ss::converter<ss::string_error, ss::throw_on_error, ss::escape<'\\'>> c;
+        ss::converter<ss::throw_on_error, ss::escape<'\\'>> c;
 
         auto tup =
             c.convert<std::string, std::string>(buff(R"(ju\,st,strings)"));
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple("ju,st", "strings"));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 
     try {
-        ss::converter<ss::string_error, ss::throw_on_error, ss::escape<'\\'>,
-                      ss::trim<' '>, ss::quote<'"'>>
+        ss::converter<ss::throw_on_error, ss::escape<'\\'>, ss::trim<' '>,
+                      ss::quote<'"'>>
             c;
 
         auto tup = c.convert<std::string, std::string, double, std::string>(
@@ -902,7 +901,7 @@ TEST_CASE("converter test converter with quotes spacing and escaping with "
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple("ju,st", "so,me", 12.34, "str\"ings"));
     } catch (ss::exception& e) {
-        FAIL(e.what());
+        FAIL(std::string{e.what()});
     }
 }
 
@@ -959,8 +958,8 @@ TEST_CASE("converter test invalid split conversions") {
 
 TEST_CASE("converter test invalid split conversions with exceptions") {
     // TODO remove ss::string_error
-    ss::converter<ss::string_error, ss::escape<'\\'>, ss::trim<' '>,
-                  ss::quote<'"'>, ss::throw_on_error>
+    ss::converter<ss::escape<'\\'>, ss::trim<' '>, ss::quote<'"'>,
+                  ss::throw_on_error>
         c;
 
     // mismatched quote
