@@ -541,18 +541,19 @@ private:
             : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
         }
 
-        // TODO update for size_ and ssize_
+        // TODO test for next_line_size_
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              buffer_size_{other.size_},
+              buffer_size_{other.buffer_size_},
               next_line_buffer_size_{other.next_line_buffer_size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
-              file_{other.file_}, crlf_{other.crlf_}, line_number_{
-                                                          other.line_number_} {
+              file_{other.file_}, crlf_{other.crlf_},
+              line_number_{other.line_number_}, next_line_size_{
+                                                    other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -566,13 +567,14 @@ private:
                 helper_buffer_ = other.helper_buffer_;
                 converter_ = std::move(other.converter_);
                 next_line_converter_ = std::move(other.next_line_converter_);
-                buffer_size_ = other.size_;
+                buffer_size_ = other.buffer_size_;
                 next_line_buffer_size_ = other.next_line_buffer_size_;
                 helper_size_ = other.helper_size_;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
+                next_line_size_ = other.next_line_size_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
@@ -621,8 +623,7 @@ private:
                 }
             }
 
-            size_ = size;
-            ssize_ = ssize;
+            next_line_size_ = size;
             return true;
         }
 
@@ -630,13 +631,13 @@ private:
             size_t limit = 0;
 
             if constexpr (escaped_multiline_enabled) {
-                while (escaped_eol(size_)) {
+                while (escaped_eol(next_line_size_)) {
                     if (multiline_limit_reached(limit)) {
                         return;
                     }
 
-                    if (!append_next_line_to_buffer(next_line_buffer_, size_)) {
-                        // remove_eol(next_line_buffer_, ssize_);
+                    if (!append_next_line_to_buffer(next_line_buffer_,
+                                                    next_line_size_)) {
                         next_line_converter_.set_error_unterminated_escape();
                         return;
                     }
@@ -651,22 +652,20 @@ private:
                         return;
                     }
 
-                    if (!append_next_line_to_buffer(next_line_buffer_, size_)) {
-                        // remove_eol(next_line_buffer_, ssize_);
+                    if (!append_next_line_to_buffer(next_line_buffer_,
+                                                    next_line_size_)) {
                         next_line_converter_.set_error_unterminated_quote();
                         return;
                     }
 
                     if constexpr (escaped_multiline_enabled) {
-                        while (escaped_eol(size_)) {
+                        while (escaped_eol(next_line_size_)) {
                             if (multiline_limit_reached(limit)) {
                                 return;
                             }
 
                             if (!append_next_line_to_buffer(next_line_buffer_,
-                                                            size_)) {
-                                // TODO not needed
-                                // remove_eol(next_line_buffer_, ssize_);
+                                                            next_line_size_)) {
                                 next_line_converter_
                                     .set_error_unterminated_escape();
                                 return;
@@ -674,7 +673,8 @@ private:
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_, size_);
+                    next_line_converter_.resplit(next_line_buffer_,
+                                                 next_line_size_);
                 }
             }
         }
@@ -735,15 +735,15 @@ private:
             return size;
         }
 
+        // TODO check why multiline fields result in additional allocations
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            // TODO make buffer_size an argument !!!!!!
+            // TODO make buffer_size an argument
             next_line_buffer_size_ = first_size + second_size + 3;
             first = static_cast<char*>(
                 realloc(static_cast<void*>(first), next_line_buffer_size_));
-            // TODO handle realloc
             if (!first) {
-                exit(EXIT_FAILURE);
+                throw std::bad_alloc{};
             }
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
@@ -794,9 +794,7 @@ private:
         bool crlf_;
         size_t line_number_{0};
 
-        // TODO check if needed
-        size_t size_{0};
-        ssize_t ssize_{0};
+        size_t next_line_size_{0};
     };
 
     ////////////////

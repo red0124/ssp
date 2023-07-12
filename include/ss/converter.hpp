@@ -382,30 +382,27 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
         clear_error();
-        // TODO check if this is needed
-        using return_type = no_void_validator_tup_t<Ts...>;
 
         if (!splitter_.valid()) {
             set_error_bad_split();
-            no_void_validator_tup_t<Ts...> ret{};
-            return ret;
+            return {};
         }
 
         if (!columns_mapped()) {
             if (sizeof...(Ts) != elems.size()) {
                 set_error_number_of_columns(sizeof...(Ts), elems.size());
-                return return_type{};
+                return {};
             }
         } else {
             if (sizeof...(Ts) != column_mappings_.size()) {
                 set_error_incompatible_mapping(sizeof...(Ts),
                                                column_mappings_.size());
-                return return_type{};
+                return {};
             }
 
             if (elems.size() != number_of_columns_) {
                 set_error_number_of_columns(number_of_columns_, elems.size());
-                return return_type{};
+                return {};
             }
         }
 
