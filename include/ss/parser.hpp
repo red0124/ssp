@@ -173,12 +173,14 @@ public:
 
             iterator() : parser_{nullptr} {
             }
+
             iterator(parser<Options...>* parser) : parser_{parser} {
             }
 
             value& operator*() {
                 return value_;
             }
+
             value* operator->() {
                 return &value_;
             }
@@ -223,6 +225,7 @@ public:
         iterator begin() {
             return ++iterator{parser_};
         }
+
         iterator end() {
             return iterator{};
         }
@@ -281,6 +284,7 @@ public:
 
         template <typename Fun>
         auto on_error(Fun&& fun) {
+            // TODO disable these if throw_on_error
             if (!parser_.valid()) {
                 if constexpr (std::is_invocable_v<Fun>) {
                     fun();
@@ -743,6 +747,7 @@ private:
             first = static_cast<char*>(
                 realloc(static_cast<void*>(first), next_line_buffer_size_));
             if (!first) {
+                // TODO restore first in order to prevent memory leak
                 throw std::bad_alloc{};
             }
             std::copy_n(second, second_size + 1, first + first_size);
@@ -791,7 +796,7 @@ private:
         std::string delim_;
         FILE* file_{nullptr};
 
-        bool crlf_;
+        bool crlf_{false};
         size_t line_number_{0};
 
         size_t next_line_size_{0};
