@@ -63,6 +63,8 @@ public:
     bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
+        } else if constexpr (throw_on_error) {
+            return true;
         } else {
             return !error_;
         }
