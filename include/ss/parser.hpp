@@ -480,6 +480,7 @@ private:
 
     void set_error_invalid_conversion() {
         if constexpr (string_error) {
+            // TODO remove buffer from error msg
             error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(reader_.line_number_))
