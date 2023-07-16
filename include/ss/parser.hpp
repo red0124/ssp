@@ -44,7 +44,8 @@ public:
             if constexpr (ignore_header) {
                 ignore_next();
             } else {
-                header_ = reader_.get_next_row();
+                // TODO read header after use_fields is called
+                header_ = reader_.get_header();
             }
         } else {
             set_error_file_not_open();
@@ -769,14 +770,15 @@ private:
             return true;
         }
 
-        std::vector<std::string> get_next_row() {
-            std::vector<std::string> next_row;
-            next_line_converter_.split(next_line_buffer_, delim_);
-            auto& next_row_raw = next_line_converter_.splitter_.split_data_;
-            for (const auto& [begin, end] : next_row_raw) {
-                next_row.emplace_back(begin, end);
+        std::vector<std::string> get_header() {
+            std::vector<std::string> header;
+            std::string header_buffer = next_line_buffer_;
+            converter_.split(header_buffer.data(), delim_);
+            auto& header_row_raw = converter_.splitter_.split_data_;
+            for (const auto& [begin, end] : header_row_raw) {
+                header.emplace_back(begin, end);
             }
-            return next_row;
+            return header;
         }
 
         ////////////////
