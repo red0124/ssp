@@ -53,20 +53,20 @@ Brian S. Wolfe 40 1.9
 Bill (Heath) Gates 65 3.3
 ```
 # Features
- * [Works on any type](#Custom-conversions)
+ * [Works on any type](#custom-conversions)
  * Easy to use
  * No exceptions
- * [Works with headers](#Headers)
- * [Works with quotes, escapes and spacings](#Setup)
- * [Works with values containing new lines](#Multiline)
- * [Columns and rows can be ignored](#Special-types)
+ * [Works with headers](#headers)
+ * [Works with quotes, escapes and spacings](#setup)
+ * [Works with values containing new lines](#multiline)
+ * [Columns and rows can be ignored](#special-types)
  * Works with any type of delimiter
  * Can return whole objects composed of converted values
- * [Descriptive error handling can be enabled](#Error-handling)
- * [Restrictions can be added for each column](#Restrictions)
- * [Works with `std::optional` and `std::variant`](#Special-types)
+ * [Descriptive error handling can be enabled](#error-handling)
+ * [Restrictions can be added for each column](#restrictions)
+ * [Works with `std::optional` and `std::variant`](#special-types)
  * Works with **`CRLF`** and **`LF`**
- * [Conversions can be chained if invalid](#Substitute-conversions)
+ * [Conversions can be chained if invalid](#substitute-conversions)
  * Fast
 
 # Single header
