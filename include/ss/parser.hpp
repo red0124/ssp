@@ -681,8 +681,13 @@ private:
                         }
                     }
 
+<<<<<<< Updated upstream
                     next_line_converter_.resplit(next_line_buffer_, size,
                                                  delim_);
+=======
+                    next_line_converter_.resplit(next_line_buffer_,
+                                                 next_line_size_, delim_);
+>>>>>>> Stashed changes
                 }
             }
         }
