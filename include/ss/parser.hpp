@@ -152,7 +152,7 @@ public:
     struct iterable {
         struct iterator {
             using value = std::conditional_t<get_object, T,
-                                            no_void_validator_tup_t<T, Ts...>>;
+                                             no_void_validator_tup_t<T, Ts...>>;
 
             iterator() : parser_{nullptr} {
             }
@@ -623,7 +623,8 @@ private:
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_, size);
+                    next_line_converter_.resplit(next_line_buffer_, size,
+                                                 delim_);
                 }
             }
 
