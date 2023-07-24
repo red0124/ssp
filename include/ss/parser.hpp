@@ -681,8 +681,8 @@ private:
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_,
-                                                 next_line_size_);
+                    next_line_converter_.resplit(next_line_buffer_, size,
+                                                 delim_);
                 }
             }
         }

@@ -203,7 +203,7 @@ private:
     ////////////////
 
     const split_data& resplit(line_ptr_type new_line, ssize_t new_size,
-                              const std::string& delim = default_delimiter) {
+                              const std::string& delim) {
         return splitter_.resplit(new_line, new_size, delim);
     }
 
