@@ -17,6 +17,7 @@
 #include <vector>
 #define SSP_DISABLE_FAST_FLOAT
 
+
 namespace ss {
 
 ////////////////
@@ -393,6 +394,7 @@ T to_object(U&& data) {
 }
 
 } /* trait */
+
 
 namespace ss {
 
@@ -1380,6 +1382,7 @@ public:
 
 } /* ss */
 
+
 #ifndef SSP_DISABLE_FAST_FLOAT
 #else
 #endif
@@ -1909,7 +1912,7 @@ private:
     ////////////////
 
     const split_data& resplit(line_ptr_type new_line, ssize_t new_size,
-                              const std::string& delim = default_delimiter) {
+                              const std::string& delim) {
         return splitter_.resplit(new_line, new_size, delim);
     }
 
@@ -2198,6 +2201,7 @@ private:
 
 } /* ss */
 
+
 namespace ss {
 
 template <typename... Matchers>
@@ -2339,9 +2343,8 @@ public:
     template <bool get_object, typename T, typename... Ts>
     struct iterable {
         struct iterator {
-            using value =
-                std::conditional_t<get_object, T,
-                                       no_void_validator_tup_t<T, Ts...>>;
+            using value = std::conditional_t<get_object, T,
+                                             no_void_validator_tup_t<T, Ts...>>;
 
             iterator() : parser_{nullptr} {
             }
@@ -2812,7 +2815,8 @@ private:
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_, size);
+                    next_line_converter_.resplit(next_line_buffer_, size,
+                                                 delim_);
                 }
             }
 

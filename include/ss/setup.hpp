@@ -109,10 +109,10 @@ struct get_matcher<Matcher, T, Ts...> {
     struct is_matcher : is_instance_of_matcher<U, Matcher> {};
 
     static_assert(count_v<is_matcher, T, Ts...> <= 1,
-                  "the same matcher is cannot"
+                  "the same matcher cannot"
                   "be defined multiple times");
     using type = std::conditional_t<is_matcher<T>::value, T,
-                               typename get_matcher<Matcher, Ts...>::type>;
+                                    typename get_matcher<Matcher, Ts...>::type>;
 };
 
 template <template <char...> class Matcher>
@@ -150,7 +150,7 @@ struct get_multiline;
 template <typename T, typename... Ts>
 struct get_multiline<T, Ts...> {
     using type = std::conditional_t<is_instance_of_multiline<T>::value, T,
-                               typename get_multiline<Ts...>::type>;
+                                    typename get_multiline<Ts...>::type>;
 };
 
 template <>
