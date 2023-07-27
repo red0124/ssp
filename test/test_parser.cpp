@@ -27,6 +27,7 @@ struct unique_file_name {
     }
 
     ~unique_file_name() {
+        // TODO uncomment
         // std::filesystem::remove(name);
     }
 };
@@ -692,7 +693,6 @@ std::string no_quote(const std::string& s) {
 }
 
 TEST_CASE("parser test csv on multiple lines with quotes") {
-    // TODO test with "_""_""_",...
     unique_file_name f;
     std::vector<X> data = {{1, 2, "\"x\r\nx\nx\""},
                            {3, 4, "\"y\ny\r\ny\""},
@@ -1174,7 +1174,7 @@ struct random_number_generator {
     }
 
     bool rand_bool() {
-        return rand() % 4 == 0;
+        return (rand() % 100) > 50;
     }
 
     template <typename T>
@@ -1233,11 +1233,11 @@ column make_column(const std::string& input_header,
         }
 
         if (!setup::escape::enabled && !setup::quote::enabled) {
-            if (!setup::trim_left::enabled && el.has_spaces_left) {
+            if (setup::trim_left::enabled && el.has_spaces_left) {
                 continue;
             }
 
-            if (!setup::trim_right::enabled && el.has_spaces_right) {
+            if (setup::trim_right::enabled && el.has_spaces_right) {
                 continue;
             }
         }
@@ -1245,18 +1245,22 @@ column make_column(const std::string& input_header,
         filtered_fields.push_back(el);
     }
 
-    return column{.header = input_header, .fields = filtered_fields};
+    column c;
+    c.header = input_header;
+    c.fields = filtered_fields;
+    return c;
 }
 
 void replace_all2(std::string& s, const std::string& old_value,
                   const std::string& new_value) {
-    while (true) {
+    for (size_t i = 0; i < 999; ++i) {
         size_t pos = s.find(old_value);
         if (pos == std::string::npos) {
             return;
         }
         s.replace(pos, old_value.size(), new_value);
     }
+    FAIL("bad replace");
 }
 
 template <typename... Ts>
@@ -1266,9 +1270,11 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
     using setup = ss::setup<Ts...>;
     constexpr static auto escape = '\\';
     constexpr static auto quote = '"';
+    constexpr static auto space = ' ';
+    constexpr static auto new_line = '\n';
     constexpr static auto helper0 = '#';
     constexpr static auto helper1 = '$';
-    constexpr static auto new_line = '\n';
+    // constexpr static auto helper3 = '&';
 
     std::vector<std::string> output;
 
@@ -1279,6 +1285,8 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
             replace_all2(value, {escape, quote}, {helper1});
 
             bool quote_newline = rng.rand_bool();
+            bool quote_spacings = rng.rand_bool();
+            bool has_spaces = el.has_spaces_right || el.has_spaces_left;
 
             // handle escape
             replace_all2(value, {escape}, {helper0});
@@ -1296,7 +1304,8 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 
             replace_all2(value, {escape, quote}, {helper1});
 
-            if (rng.rand_bool() || quote_newline) {
+            if (rng.rand_bool() || quote_newline ||
+                (quote_spacings && has_spaces)) {
                 replace_all2(value, {quote}, {helper0});
                 if (rng.rand_bool()) {
                     replace_all2(value, {helper0}, {escape, quote});
@@ -1308,25 +1317,43 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 
             replace_all2(value, {helper1}, {escape, quote});
 
+            if (!quote_spacings && has_spaces) {
+                replace_all2(value, {escape, space}, {helper0});
+                replace_all2(value, {space}, {helper0});
+                replace_all2(value, {helper0}, {escape, space});
+            }
+
             output.push_back(value);
         }
     } else if (setup::escape::enabled) {
         for (const auto& el : data) {
             auto value = el.value;
+
             replace_all2(value, {escape}, {helper0});
             rng.rand_insert_n(value, escape, 3);
             replace_all2(value, {new_line}, {helper1});
             replace_all2(value, {helper1}, {escape, new_line});
+
             replace_all2(value, {escape, escape}, {escape});
             replace_all2(value, {escape, helper0}, {helper0});
+
             replace_all2(value, {helper0, escape}, {helper0});
             replace_all2(value, {helper0}, {escape, escape});
+
+            if (setup::trim_right::enabled || setup::trim_left::enabled) {
+                // escape space
+                replace_all2(value, {escape, space}, {helper0});
+                replace_all2(value, {space}, {helper0});
+                replace_all2(value, {helper0}, {escape, space});
+            }
+
             output.push_back(value);
         }
     } else if (setup::quote::enabled) {
         for (const auto& el : data) {
             auto value = el.value;
-            if (rng.rand_bool() || el.has_new_line) {
+            if (rng.rand_bool() || el.has_new_line || el.has_spaces_left ||
+                el.has_spaces_right) {
                 replace_all2(value, {quote}, {helper0});
                 replace_all2(value, {helper0}, {quote, quote});
                 value = std::string{quote} + value + std::string{quote};
@@ -1375,13 +1402,31 @@ void write_to_file(const std::vector<std::string>& data,
 
 template <typename... Ts>
 void test_combinations(const std::vector<column>& input_data,
-                       const std::string& delim) {
+                       const std::string& delim, bool include_header) {
     // TODO test without string_error
     using setup = ss::setup<Ts..., ss::string_error>;
 
     unique_file_name f;
     std::vector<std::vector<field>> expected_data;
-    size_t n = rng.rand() % 10;
+    std::vector<std::string> header;
+    std::vector<field> field_header;
+
+    for (const auto& el : input_data) {
+        header.push_back(el.header);
+        field_header.push_back(field{el.header});
+    }
+
+    if (include_header) {
+        auto header_data = generate_csv_data<Ts...>(field_header, delim);
+        write_to_file(header_data, delim, f.name);
+    }
+
+    std::vector<int> layout;
+    size_t n = 1 + rng.rand() % 10;
+
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        layout.push_back(i);
+    }
 
     for (size_t i = 0; i < n; ++i) {
         std::vector<field> raw_data;
@@ -1398,84 +1443,153 @@ void test_combinations(const std::vector<column>& input_data,
         auto data = generate_csv_data<Ts...>(raw_data, delim);
         write_to_file(data, delim, f.name);
 
-        // TODO remove
+        /*
         std::cout << "[.";
         for (const auto& el : data) {
             std::cout << el << '.';
         }
         std::cout << "]" << std::endl;
+         */
     }
 
-    std::cout << delim << std::endl;
-    ss::parser<setup> p{f.name, delim};
+    auto layout_combinations = vector_combinations(layout, layout.size());
 
-    auto check_error = [&p] {
-        CHECK(p.valid());
-        if (!p.valid()) {
-            std::cout << p.error_msg() << std::endl;
+    auto remove_duplicates = [](const auto& vec) {
+        std::vector<int> unique_vec;
+        std::unordered_set<int> vec_set;
+        for (const auto& el : vec) {
+            if (vec_set.find(el) == vec_set.end()) {
+                vec_set.insert(el);
+                unique_vec.push_back(el);
+            }
         }
+
+        return unique_vec;
     };
 
-    for (size_t i = 0; i < n; ++i) {
-        switch (expected_data[i].size()) {
-        case 0:
-            // TODO handle;
-            break;
-        case 1: {
-            auto s0 = p.template get_next<std::string>();
-            check_error();
-            std::cout << s0 << std::endl;
-            CHECK(s0 == expected_data[i][0].value);
-            break;
+    std::vector<std::vector<int>> unique_layout_combinations;
+    for (const auto& layout : layout_combinations) {
+        unique_layout_combinations.push_back(remove_duplicates(layout));
+    }
+
+    if (!include_header) {
+        unique_layout_combinations.clear();
+        unique_layout_combinations.push_back(layout);
+    }
+
+    for (const auto& layout : unique_layout_combinations) {
+        ss::parser<setup> p{f.name, delim};
+
+        if (include_header) {
+            std::vector<std::string> fields;
+            for (const auto& index : layout) {
+                fields.push_back(header[index]);
+            }
+
+            p.use_fields(fields);
+
+            if (!p.valid()) {
+                std::cout << p.error_msg() << std::endl;
+            }
+
+            REQUIRE(p.valid());
         }
-        case 2: {
-            auto [s0, s1] = p.template get_next<std::string, std::string>();
-            check_error();
-            std::cout << s0 << ' ' << s1 << std::endl;
-            CHECK(s0 == expected_data[i][0].value);
-            CHECK(s1 == expected_data[i][1].value);
-            break;
-        }
-        case 3: {
-            auto [s0, s1, s2] =
-                p.template get_next<std::string, std::string, std::string>();
-            check_error();
-            std::cout << s0 << ' ' << s1 << ' ' << s2 << std::endl;
-            CHECK(s0 == expected_data[i][0].value);
-            CHECK(s1 == expected_data[i][1].value);
-            CHECK(s2 == expected_data[i][2].value);
-            break;
-        }
-        case 4: {
-            auto [s0, s1, s2, s3] =
-                p.template get_next<std::string, std::string, std::string,
-                                    std::string>();
-            check_error();
-            std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3 << std::endl;
-            CHECK(s0 == expected_data[i][0].value);
-            CHECK(s1 == expected_data[i][1].value);
-            CHECK(s2 == expected_data[i][2].value);
-            CHECK(s3 == expected_data[i][3].value);
-            break;
-        }
-        case 5: {
-            auto [s0, s1, s2, s3, s4] =
-                p.template get_next<std::string, std::string, std::string,
-                                    std::string, std::string>();
-            check_error();
-            std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3 << ' ' << s4
-                      << std::endl;
-            CHECK(s0 == expected_data[i][0].value);
-            CHECK(s1 == expected_data[i][1].value);
-            CHECK(s2 == expected_data[i][2].value);
-            CHECK(s3 == expected_data[i][3].value);
-            CHECK(s4 == expected_data[i][4].value);
-            break;
-        }
-            // ...
-        default:
-            // TODO handle
-            break;
+
+        auto check_error = [&p] {
+            CHECK(p.valid());
+            if (!p.valid()) {
+                std::cout << p.error_msg() << std::endl;
+            }
+        };
+
+        int num_columns = layout.size();
+        for (size_t i = 0; i < n + 1; ++i) {
+            switch (num_columns) {
+            case 1: {
+                auto s0 = p.template get_next<std::string>();
+                if (i < n) {
+                    check_error();
+                    // std::cout << s0 << std::endl;
+                    CHECK(s0 == expected_data[i][layout[0]].value);
+                } else {
+                    CHECK(p.eof());
+                    CHECK(!p.valid());
+                }
+                break;
+            }
+            case 2: {
+                auto [s0, s1] = p.template get_next<std::string, std::string>();
+                if (i < n) {
+                    check_error();
+                    // std::cout << s0 << ' ' << s1 << std::endl;
+                    CHECK(s0 == expected_data[i][layout[0]].value);
+                    CHECK(s1 == expected_data[i][layout[1]].value);
+                } else {
+                    CHECK(p.eof());
+                    CHECK(!p.valid());
+                }
+                break;
+            }
+            case 3: {
+                auto [s0, s1, s2] =
+                    p.template get_next<std::string, std::string,
+                                        std::string>();
+                if (i < n) {
+                    check_error();
+                    // std::cout << s0 << ' ' << s1 << ' ' << s2 << std::endl;
+                    CHECK(s0 == expected_data[i][layout[0]].value);
+                    CHECK(s1 == expected_data[i][layout[1]].value);
+                    CHECK(s2 == expected_data[i][layout[2]].value);
+                } else {
+                    CHECK(p.eof());
+                    CHECK(!p.valid());
+                }
+                break;
+            }
+            case 4: {
+                auto [s0, s1, s2, s3] =
+                    p.template get_next<std::string, std::string, std::string,
+                                        std::string>();
+                if (i < n) {
+                    check_error();
+                    /*
+                    std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
+                              << std::endl;
+                              */
+                    CHECK(s0 == expected_data[i][layout[0]].value);
+                    CHECK(s1 == expected_data[i][layout[1]].value);
+                    CHECK(s2 == expected_data[i][layout[2]].value);
+                    CHECK(s3 == expected_data[i][layout[3]].value);
+                } else {
+                    CHECK(p.eof());
+                    CHECK(!p.valid());
+                }
+                break;
+            }
+            case 5: {
+                auto [s0, s1, s2, s3, s4] =
+                    p.template get_next<std::string, std::string, std::string,
+                                        std::string, std::string>();
+                if (i < n) {
+                    check_error();
+                    //std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
+                              // << ' ' << s4 << std::endl;
+                    CHECK(s0 == expected_data[i][layout[0]].value);
+                    CHECK(s1 == expected_data[i][layout[1]].value);
+                    CHECK(s2 == expected_data[i][layout[2]].value);
+                    CHECK(s3 == expected_data[i][layout[3]].value);
+                    CHECK(s4 == expected_data[i][layout[4]].value);
+                } else {
+                    CHECK(p.eof());
+                    CHECK(!p.valid());
+                }
+                break;
+            }
+            default:
+                FAIL(("Invalid number of columns: " +
+                      std::to_string(num_columns)));
+                break;
+            }
         }
     }
 }
@@ -1483,30 +1597,56 @@ void test_combinations(const std::vector<column>& input_data,
 // TODO rename
 template <typename... Ts>
 void test_combinations_impl() {
-    column data0 =
-        make_column<Ts...>("data0", {field{111}, field{11}, field{1}});
+    column ints0 =
+        make_column<Ts...>("ints0", {field{123}, field{45}, field{6}});
+    column ints1 =
+        make_column<Ts...>("ints1", {field{123}, field{45}, field{6}});
+    column ints2 =
+        make_column<Ts...>("ints2", {field{123}, field{45}, field{6}});
 
-    column data1 = make_column<Ts...>("data1", {field{"hel\\lo"}, field{"h\ni"},
-                                                field{"new\nline"}});
+    column floats0 =
+        make_column<Ts...>("floats0", {field{1.23}, field{456.7}, field{0.8},
+                                       field{910}, field{123456789.987654321}});
+    column floats1 =
+        make_column<Ts...>("floats1", {field{1.23}, field{456.7}, field{0.8},
+                                       field{910}, field{123456789.987654321}});
+    column floats2 =
+        make_column<Ts...>("floats2", {field{1.23}, field{456.7}, field{0.8},
+                                       field{910}, field{123456789.987654321}});
 
-    column data2 =
-        make_column<Ts...>("data2", {field{222}, field{22}, field{12345}});
+    column strings0 =
+        make_column<Ts...>("strings0", {field{"just"}, field{"some"},
+                                        field{"random"}, field{"string"}});
 
-    column data3 =
-        make_column<Ts...>("data3", {field{"h\"mm"}, field{"::::::::"}});
+    column strings1 =
+        make_column<Ts...>("strings1", {field{"st\"rings"}, field{"w\"\"ith"},
+                                        field{"qu\"otes\\"}, field{"\\a\\n\\d"},
+                                        field{"escapes\""}});
 
-    column data4 =
-        make_column<Ts...>("data4", {field{"h\"\"e\\llloooo"}, field{":D"}});
+    column strings2 =
+        make_column<Ts...>("strings2",
+                           {field{"  with  "}, field{"  spaces"},
+                            field{"and  "}, field{"\nnew"}, field{"  \nlines"},
+                            field{"  a\n\nn\n\nd  "}, field{" \nso\n  "},
+                            field{"on"}});
 
-    auto columns0 = std::vector{data0, data1, data2, data3, data4};
-    auto columns1 = std::vector{data4, data3, data2, data1, data0};
-    auto columns2 = std::vector{data2, data3, data0, data4, data1};
+    auto columns0 = std::vector{ints0, strings0, floats0, strings1, strings2};
+    auto columns1 = std::vector{strings2, strings1, floats0, strings0, ints0};
+    auto columns2 = std::vector{floats0, strings1, ints0, strings2, strings0};
+    auto columns3 = std::vector{ints0, ints1, ints2};
+    auto columns4 = std::vector{floats0, floats1, floats2};
+    auto columns5 = std::vector{strings1, strings2};
+    auto columns6 = std::vector{strings1};
+    auto columns7 = std::vector{strings2};
 
-    for (size_t i = 0; i < 2; ++i) {
-        for (const auto& delimiter: {",", "-", "--"}) {
-            test_combinations<Ts...>(columns0, delimiter);
-            test_combinations<Ts...>(columns1, delimiter);
-            test_combinations<Ts...>(columns2, delimiter);
+    for (size_t i = 0; i < 3; ++i) {
+        for (const auto& delimiter : {",", "-", "--"}) {
+            for (const auto& columns :
+                 {columns0, columns1, columns2, columns3, columns4, columns5,
+                  columns6, columns7}) {
+                test_combinations<Ts...>(columns, delimiter, false);
+                test_combinations<Ts...>(columns, delimiter, true);
+            }
         }
     }
 }
@@ -1520,10 +1660,37 @@ TEST_CASE("parser test various cases version 2") {
     using multiline = ss::multiline;
 
     test_combinations_impl<>();
+    test_combinations_impl<trim>();
+    test_combinations_impl<triml>();
+    test_combinations_impl<trimr>();
+
     test_combinations_impl<escape>();
+    test_combinations_impl<escape, trim>();
+    test_combinations_impl<escape, triml>();
+    test_combinations_impl<escape, trimr>();
+
     test_combinations_impl<quote>();
+    test_combinations_impl<quote, trim>();
+    test_combinations_impl<quote, triml>();
+    test_combinations_impl<quote, trimr>();
+
     test_combinations_impl<escape, quote>();
+    test_combinations_impl<escape, quote, trim>();
+    test_combinations_impl<escape, quote, triml>();
+    test_combinations_impl<escape, quote, trimr>();
+
     test_combinations_impl<escape, multiline>();
+    test_combinations_impl<escape, multiline, trim>();
+    test_combinations_impl<escape, multiline, triml>();
+    test_combinations_impl<escape, multiline, trimr>();
+
     test_combinations_impl<quote, multiline>();
+    test_combinations_impl<quote, multiline, trim>();
+    test_combinations_impl<quote, multiline, triml>();
+    test_combinations_impl<quote, multiline, trimr>();
+
     test_combinations_impl<quote, escape, multiline>();
+    test_combinations_impl<quote, escape, multiline, trim>();
+    test_combinations_impl<quote, escape, multiline, triml>();
+    test_combinations_impl<quote, escape, multiline, trimr>();
 }

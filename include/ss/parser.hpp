@@ -776,9 +776,9 @@ private:
         std::vector<std::string> get_header() {
             std::vector<std::string> header;
             std::string header_buffer = next_line_buffer_;
-            converter_.split(header_buffer.data(), delim_);
-            auto& header_row_raw = converter_.splitter_.split_data_;
-            for (const auto& [begin, end] : header_row_raw) {
+            ss::splitter<Options...> splitter;
+            splitter.split(header_buffer.data(), delim_);
+            for (const auto& [begin, end] : splitter.split_data_) {
                 header.emplace_back(begin, end);
             }
             return header;

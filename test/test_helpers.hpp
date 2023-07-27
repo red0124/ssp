@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -87,3 +88,25 @@ struct buffer {
     } catch (ss::exception & e) {                                              \
         CHECK_FALSE(std::string{e.what()}.empty());                            \
     }
+
+template <typename T>
+std::vector<std::vector<T>> vector_combinations(
+    const std::vector<T>& v, size_t n) {
+    std::vector<std::vector<T>> ret;
+    if (n <= 1) {
+        for (const auto& i : v) {
+            ret.push_back({i});
+        }
+        return ret;
+    }
+
+    auto inner_combinations = vector_combinations(v, n - 1);
+    for (const auto& i : v) {
+        for (auto j : inner_combinations) {
+            j.insert(j.begin(), i);
+            ret.push_back(move(j));
+        }
+    }
+    return ret;
+}
+

@@ -269,7 +269,7 @@ private:
     static_assert(
         !multiline::enabled ||
             (multiline::enabled && (quote::enabled || escape::enabled)),
-        "to enable multiline either quote or escape need to be enabled");
+        "to enable multiline either quote or escape needs to be enabled");
 
     static_assert(!(trim_all::enabled && trim_left_only::enabled) &&
                       !(trim_all::enabled && trim_right_only::enabled),

@@ -127,26 +127,6 @@ std::vector<std::string> combinations(const std::vector<std::string>& v,
     return ret;
 }
 
-std::vector<std::vector<std::string>> vector_combinations(
-    const std::vector<std::string>& v, size_t n) {
-    std::vector<std::vector<std::string>> ret;
-    if (n <= 1) {
-        for (const auto& i : v) {
-            ret.push_back({i});
-        }
-        return ret;
-    }
-
-    auto inner_combinations = vector_combinations(v, n - 1);
-    for (const auto& i : v) {
-        for (auto j : inner_combinations) {
-            j.insert(j.begin(), i);
-            ret.push_back(move(j));
-        }
-    }
-    return ret;
-}
-
 std::pair<std::vector<std::string>, std::vector<std::vector<std::string>>>
 make_combinations(const std::vector<std::string>& input,
                   const std::vector<std::string>& output,
