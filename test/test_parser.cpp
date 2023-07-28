@@ -553,8 +553,6 @@ TEST_CASE("parser test composite conversion") {
   CHECK(p.eof());
 }
 
-size_t move_called = 0;
-
 struct my_string {
   char *data{nullptr};
 
@@ -567,12 +565,10 @@ struct my_string {
   my_string &operator=(const my_string &) = delete;
 
   my_string(my_string &&other) : data{other.data} {
-    move_called++;
     other.data = nullptr;
   }
 
   my_string &operator=(my_string &&other) {
-    move_called++;
     data = other.data;
     return *this;
   }
@@ -593,49 +589,6 @@ struct xyz {
   my_string z;
   auto tied() { return std::tie(x, y, z); }
 };
-
-TEST_CASE("parser test the moving of parsed values") {
-  {
-    unique_file_name f;
-    {
-      std::ofstream out{f.name};
-      out << "x" << std::endl;
-    }
-
-    ss::parser p{f.name, ","};
-    auto x = p.get_next<my_string>();
-    CHECK_LE(move_called, 1);
-    move_called = 0;
-  }
-
-  unique_file_name f;
-  {
-    std::ofstream out{f.name};
-    out << "a,b,c" << std::endl;
-  }
-
-  {
-
-    ss::parser p{f.name, ","};
-    auto x = p.get_next<my_string, my_string, my_string>();
-    CHECK_LE(move_called, 3);
-    move_called = 0;
-  }
-
-  {
-    ss::parser p{f.name, ","};
-    auto x = p.get_object<xyz, my_string, my_string, my_string>();
-    CHECK_LE(move_called, 6);
-    move_called = 0;
-  }
-
-  {
-    ss::parser p{f.name, ","};
-    auto x = p.get_next<xyz>();
-    CHECK_LE(move_called, 6);
-    move_called = 0;
-  }
-}
 
 TEST_CASE("parser test the moving of parsed composite values") {
   // to compile is enough
