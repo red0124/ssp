@@ -1,4 +1,4 @@
-name: msvc-ci
+name: win-msvc-ci
 
 on:
   push:
