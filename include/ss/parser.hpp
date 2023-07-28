@@ -1,5 +1,7 @@
 #pragma once
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "common.hpp"
 #include "converter.hpp"
 #include "extract.hpp"
