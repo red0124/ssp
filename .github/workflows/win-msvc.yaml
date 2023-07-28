@@ -1,0 +1,48 @@
+name: msvc-ci
+
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  ci:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{matrix.config.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - { os: windows-2019, vs: "Visual Studio 2020" }
+        build: [Debug, Release]
+        platform: [Win32, x64]
+
+    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
