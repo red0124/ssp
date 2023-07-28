@@ -8,11 +8,11 @@
 ```
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)
-![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)
-![ubuntu-latest-icc](https://github.com/red0124/ssp/workflows/ubuntu-latest-icc-ci/badge.svg)
-![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)
-![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)   
+[![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
+[![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
+[![ubuntu-latest-icc](https://github.com/red0124/ssp/workflows/ubuntu-latest-icc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-icc.yml)
+[![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
+[![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
 
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#The-converter)
 
