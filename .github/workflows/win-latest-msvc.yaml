@@ -17,10 +17,16 @@ on:
 
 jobs:
   ci:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
     defaults:
       run:
         shell: bash
+
     runs-on: windows-latest
+
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +35,7 @@ jobs:
         platform: [Win32, x64]
 
     name: "${{matrix.vs}}:${{matrix.platform}}:${{matrix.build}}"
+
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -37,7 +44,7 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -G ${{ matrix.vs }} -A ${{ matrix.platform }} -D CMAKE_BUILD_TYPE=${{ matrix.build }}
+        run: cmake -S test -B build -G "${{ matrix.vs }}" -A ${{ matrix.platform }} -D CMAKE_BUILD_TYPE=${{ matrix.build }}
 
       - name: Build
         run: cmake --build build -j ${{ steps.cores.outputs.count }}
