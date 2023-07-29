@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// TODO add single header tests
 std::string time_now_rand() {
     std::stringstream ss;
     auto t = std::time(nullptr);
@@ -1652,6 +1653,7 @@ void test_combinations_impl() {
 }
 
 TEST_CASE("parser test various cases version 2") {
+    // TODO handle crlf
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;
     using trim = ss::trim<' '>;
