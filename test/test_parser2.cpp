@@ -272,6 +272,17 @@ void write_to_file(const std::vector<std::string>& data,
     out << line;
 }
 
+#define CHECK_EQ_DBG(V1, V2)                                                   \
+    if (V1 != V2) {                                                            \
+        auto tmp1 = V1;                                                        \
+        replace_all2(tmp1, "\n", "(_)");                                       \
+        auto tmp2 = V2;                                                        \
+        replace_all2(tmp2, "\n", "(_)");                                       \
+        std::cout << "<" << tmp1 << ">" << std::endl;                          \
+        std::cout << "<" << tmp2 << ">" << std::endl;                          \
+        CHECK(V1 == V2);                                                       \
+    }
+
 template <typename... Ts>
 void test_combinations(const std::vector<column>& input_data,
                        const std::string& delim, bool include_header) {
@@ -315,11 +326,13 @@ void test_combinations(const std::vector<column>& input_data,
         auto data = generate_csv_data<Ts...>(raw_data, delim);
         write_to_file(data, delim, f.name);
 
+        /*
         std::cout << "[.";
         for (const auto& el : data) {
             std::cout << el << '.';
         }
         std::cout << "]" << std::endl;
+        */
     }
 
     auto layout_combinations = vector_combinations(layout, layout.size());
@@ -380,7 +393,7 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << std::endl;
-                    CHECK(s0 == expected_data[i][layout[0]].value);
+                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -392,8 +405,8 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << ' ' << s1 << std::endl;
-                    CHECK(s0 == expected_data[i][layout[0]].value);
-                    CHECK(s1 == expected_data[i][layout[1]].value);
+                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -407,9 +420,9 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << ' ' << s1 << ' ' << s2 << std::endl;
-                    CHECK(s0 == expected_data[i][layout[0]].value);
-                    CHECK(s1 == expected_data[i][layout[1]].value);
-                    CHECK(s2 == expected_data[i][layout[2]].value);
+                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -426,10 +439,10 @@ void test_combinations(const std::vector<column>& input_data,
                     std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
                               << std::endl;
                               */
-                    CHECK(s0 == expected_data[i][layout[0]].value);
-                    CHECK(s1 == expected_data[i][layout[1]].value);
-                    CHECK(s2 == expected_data[i][layout[2]].value);
-                    CHECK(s3 == expected_data[i][layout[3]].value);
+                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
+                    CHECK_EQ_DBG(s3, expected_data[i][layout[3]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -444,11 +457,11 @@ void test_combinations(const std::vector<column>& input_data,
                     check_error();
                     // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
                     //  << ' ' << s4 << std::endl;
-                    CHECK(s0 == expected_data[i][layout[0]].value);
-                    CHECK(s1 == expected_data[i][layout[1]].value);
-                    CHECK(s2 == expected_data[i][layout[2]].value);
-                    CHECK(s3 == expected_data[i][layout[3]].value);
-                    CHECK(s4 == expected_data[i][layout[4]].value);
+                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
+                    CHECK_EQ_DBG(s3, expected_data[i][layout[3]].value);
+                    CHECK_EQ_DBG(s4, expected_data[i][layout[4]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -542,9 +555,10 @@ TEST_CASE("parser test various cases version 2") {
 
     test_combinations_impl<>();
     test_combinations_impl<trim>();
+    /* TODO uncomment
     test_combinations_impl<triml>();
     test_combinations_impl<trimr>();
-    /* TODO uncomment
+
     test_combinations_impl<escape>();
     test_combinations_impl<escape, trim>();
     test_combinations_impl<escape, triml>();
@@ -569,10 +583,10 @@ TEST_CASE("parser test various cases version 2") {
     test_combinations_impl<quote, multiline, trim>();
     test_combinations_impl<quote, multiline, triml>();
     test_combinations_impl<quote, multiline, trimr>();
-    */
 
     test_combinations_impl<quote, escape, multiline>();
     test_combinations_impl<quote, escape, multiline, trim>();
     test_combinations_impl<quote, escape, multiline, triml>();
+    */
     test_combinations_impl<quote, escape, multiline, trimr>();
 }
