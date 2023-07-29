@@ -1344,14 +1344,21 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 void write_to_file(const std::vector<std::string>& data,
                    const std::string& delim, const std::string& file_name) {
     std::ofstream out{file_name, std::ios_base::app};
+    std::string line;
     for (size_t i = 0; i < data.size(); ++i) {
-        out << data[i];
+        line += data[i];
         if (i != data.size() - 1) {
-            out << delim;
+            line += delim;
         }
     }
-    out << std::endl;
-    out.close();
+
+#ifdef _WIN32
+    line += "\n";
+#else
+    line += "\r\n";
+#endif
+
+    out << line;
 }
 
 template <typename... Ts>
@@ -1526,8 +1533,8 @@ void test_combinations(const std::vector<column>& input_data,
                                         std::string, std::string>();
                 if (i < n) {
                     check_error();
-                    //std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
-                              // << ' ' << s4 << std::endl;
+                    // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
+                    //  << ' ' << s4 << std::endl;
                     CHECK(s0 == expected_data[i][layout[0]].value);
                     CHECK(s1 == expected_data[i][layout[1]].value);
                     CHECK(s2 == expected_data[i][layout[2]].value);
