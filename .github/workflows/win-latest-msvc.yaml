@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        vs: ["Visual Studio 2020"]
+        vs: [vs17, vs16]
         build: [Debug, Release]
         platform: [Win32, x64]
 
