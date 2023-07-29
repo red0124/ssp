@@ -136,7 +136,11 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
     constexpr static auto escape = '\\';
     constexpr static auto quote = '"';
     constexpr static auto space = ' ';
+#ifdef _WIN32
+    constexpr static auto new_line = "\r\n";
+#else
     constexpr static auto new_line = '\n';
+#endif
     constexpr static auto helper0 = '#';
     constexpr static auto helper1 = '$';
     // constexpr static auto helper3 = '&';
@@ -274,13 +278,15 @@ void write_to_file(const std::vector<std::string>& data,
 
 #define CHECK_EQ_DBG(V1, V2)                                                   \
     if (V1 != V2) {                                                            \
+        CHECK(V1 == V2);                                                       \
         auto tmp1 = V1;                                                        \
+        replace_all2(tmp1, "\r\n", "(-)");                                     \
         replace_all2(tmp1, "\n", "(_)");                                       \
         auto tmp2 = V2;                                                        \
+        replace_all2(tmp2, "\r\n", "(-)");                                     \
         replace_all2(tmp2, "\n", "(_)");                                       \
         std::cout << "<" << tmp1 << ">" << std::endl;                          \
         std::cout << "<" << tmp2 << ">" << std::endl;                          \
-        CHECK(V1 == V2);                                                       \
     }
 
 template <typename... Ts>
