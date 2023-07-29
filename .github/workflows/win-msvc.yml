@@ -51,8 +51,8 @@ jobs:
 
       - name: Configure
         run: >-
-          cmake -S test -B build -G "${{matrix.config.vs}}"
-          -A ${{matrix.platform}} --config ${{matrix.build}}
+          cmake -S test -B build --config ${{matrix.build}
+          -G "${{matrix.config.vs}}" -A ${{matrix.platform}}
 
       - name: Build
         run: cmake --build build -j ${{steps.cores.outputs.count}}
