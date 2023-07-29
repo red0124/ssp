@@ -1,4 +1,4 @@
-name: win-msvc-ci
+name: win-latest-msvc-ci
 
 on:
   push:
@@ -20,16 +20,15 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{matrix.config.os}}
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        config:
-        - { os: windows-2019, vs: "Visual Studio 2020" }
+        vs: ["Visual Studio 2020"]
         build: [Debug, Release]
         platform: [Win32, x64]
 
-    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
+    name: "${{matrix.vs}}:${{matrix.platform}}:${{matrix.build}}"
     steps:
       - name: checkout
         uses: actions/checkout@v2
