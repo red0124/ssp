@@ -25,17 +25,17 @@ jobs:
       run:
         shell: bash
 
-    runs-on: {{ matrix.config.os }} 
+    runs-on: ${{ matrix.config.os }}
 
     strategy:
       fail-fast: false
       matrix:
         config:
-        - os: windows-2019
-          vs: "Visual Studio 16 2019"
+          - os: windows-2019
+            vs: "Visual Studio 16 2019"
 
-        - os: windows-latest
-          vs: "Visual Studio 17 2022"
+          - os: windows-latest
+            vs: "Visual Studio 17 2022"
 
         build: [Debug, Release]
         platform: [Win32, x64]
@@ -50,11 +50,14 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -G "${{ matrix.config.vs }}" -A ${{ matrix.platform }} --config ${{ matrix.build }}
+        run: >-
+          cmake -S test -B build -G "${{matrix.config.vs}}"
+          -A ${{matrix.platform}} --config ${{matrix.build}}
 
       - name: Build
-        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
 
       - name: Run
         working-directory: build
-        run: ctest -C Debug --output-on-failure -j ${{ steps.cores.outputs.count }}
+        run: >-
+          ctest -C Debug --output-on-failure -j ${{steps.cores.outputs.count}}
