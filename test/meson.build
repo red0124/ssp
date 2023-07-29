@@ -3,6 +3,7 @@ test_sources = files([
       'test_splitter.cpp',
       'test_converter.cpp',
       'test_parser.cpp',
+      'test_parser2.cpp',
       'test_extractions.cpp',
       'test_extractions_without_fast_float.cpp',
       ])

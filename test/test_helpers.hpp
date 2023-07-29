@@ -1,6 +1,9 @@
 #pragma once
-#include <vector>
 #include <string>
+#include <vector>
+#include <sstream>
+#include <ctime>
+#include <iomanip>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -8,57 +11,83 @@
 #include <doctest.h>
 #endif
 
+namespace {
 struct buffer {
-  std::string data_;
+    std::string data_;
 
-  char *operator()(const std::string &data) {
-    data_ = data;
-    return data_.data();
-  }
+    char* operator()(const std::string& data) {
+        data_ = data;
+        return data_.data();
+    }
 
-  char *append(const std::string &data) {
-    data_ += data;
-    return data_.data();
-  }
+    char* append(const std::string& data) {
+        data_ += data;
+        return data_.data();
+    }
 
-  char *append_overwrite_last(const std::string &data, size_t size) {
-    data_.resize(data_.size() - size);
-    return append(data);
-  }
+    char* append_overwrite_last(const std::string& data, size_t size) {
+        data_.resize(data_.size() - size);
+        return append(data);
+    }
 };
 
 [[maybe_unused]] inline buffer buff;
 
+std::string time_now_rand() {
+    std::stringstream ss;
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    ss << std::put_time(&tm, "%d%m%Y%H%M%S");
+    srand(time(nullptr));
+    return ss.str() + std::to_string(rand());
+}
+
+struct unique_file_name {
+    static inline int i = 0;
+
+    const std::string name;
+
+    unique_file_name(const std::string& test)
+        : name{"random_" + test + "_" + std::to_string(i++) + "_" + time_now_rand() +
+               "_file.csv"} {
+    }
+
+    ~unique_file_name() {
+        // TODO uncomment
+        // std::filesystem::remove(name);
+    }
+};
+
 #define CHECK_FLOATING_CONVERSION(input, type)                                 \
-  {                                                                            \
-    auto eps = std::numeric_limits<type>::min();                               \
-    std::string s = #input;                                                    \
-    auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());                \
-    REQUIRE(t.has_value());                                                    \
-    CHECK_LT(std::abs(t.value() - type(input)), eps);                          \
-  }                                                                            \
-  {                                                                            \
-    /* check negative too */                                                   \
-    auto eps = std::numeric_limits<type>::min();                               \
-    auto s = std::string("-") + #input;                                        \
-    auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());                \
-    REQUIRE(t.has_value());                                                    \
-    CHECK_LT(std::abs(t.value() - type(-input)), eps);                         \
-  }
+    {                                                                          \
+        auto eps = std::numeric_limits<type>::min();                           \
+        std::string s = #input;                                                \
+        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
+        REQUIRE(t.has_value());                                                \
+        CHECK_LT(std::abs(t.value() - type(input)), eps);                      \
+    }                                                                          \
+    {                                                                          \
+        /* check negative too */                                               \
+        auto eps = std::numeric_limits<type>::min();                           \
+        auto s = std::string("-") + #input;                                    \
+        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
+        REQUIRE(t.has_value());                                                \
+        CHECK_LT(std::abs(t.value() - type(-input)), eps);                     \
+    }
 
 #define CHECK_INVALID_CONVERSION(input, type)                                  \
-  {                                                                            \
-    std::string s = input;                                                     \
-    auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());                \
-    CHECK_FALSE(t.has_value());                                                \
-  }
+    {                                                                          \
+        std::string s = input;                                                 \
+        auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
+        CHECK_FALSE(t.has_value());                                            \
+    }
 
 #define REQUIRE_VARIANT(var, el, type)                                         \
-  {                                                                            \
-    auto ptr = std::get_if<type>(&var);                                        \
-    REQUIRE(ptr);                                                              \
-    REQUIRE_EQ(el, *ptr);                                                      \
-  }
+    {                                                                          \
+        auto ptr = std::get_if<type>(&var);                                    \
+        REQUIRE(ptr);                                                          \
+        REQUIRE_EQ(el, *ptr);                                                  \
+    }
 
 #define CHECK_NOT_VARIANT(var, type) CHECK(!std::holds_alternative<type>(var));
 
@@ -71,8 +100,8 @@ struct buffer {
     }
 
 template <typename T>
-std::vector<std::vector<T>> vector_combinations(
-    const std::vector<T>& v, size_t n) {
+std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
+                                                size_t n) {
     std::vector<std::vector<T>> ret;
     if (n <= 1) {
         for (const auto& i : v) {
@@ -90,4 +119,4 @@ std::vector<std::vector<T>> vector_combinations(
     }
     return ret;
 }
-
+} /* namespace */

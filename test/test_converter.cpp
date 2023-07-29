@@ -588,7 +588,7 @@ TEST_CASE("converter test ss:oor restriction (out of range) with exceptions") {
     }
 }
 
-const std::vector<int> extracted_vector = {1, 2, 3};
+const inline std::vector<int> extracted_vector = {1, 2, 3};
 
 // custom extract
 template <>

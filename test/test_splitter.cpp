@@ -153,7 +153,8 @@ make_combinations(const std::vector<std::string>& input,
 using matches_type = std::vector<std::pair<case_type, std::string>>;
 
 template <typename... Matchers>
-void test_combinations(matches_type& matches, std::vector<std::string> delims) {
+static inline void test_combinations(matches_type& matches,
+                                     std::vector<std::string> delims) {
 
     ss::splitter<Matchers...> s;
     ss::splitter<Matchers..., ss::throw_on_error> st;
@@ -520,7 +521,8 @@ TEST_CASE("splitter test error mode") {
 }
 
 template <typename Splitter>
-auto expect_unterminated_quote(Splitter& s, const std::string& line) {
+static inline auto expect_unterminated_quote(Splitter& s,
+                                             const std::string& line) {
     try {
         auto vec = s.split(buff(line.c_str()));
         CHECK(s.valid());
