@@ -139,11 +139,13 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 #ifdef _WIN32
     constexpr static auto new_line = "\r\n";
 #else
-    constexpr static auto new_line = '\n';
+    constexpr static auto new_line = "\n";
 #endif
     constexpr static auto helper0 = '#';
     constexpr static auto helper1 = '$';
     // constexpr static auto helper3 = '&';
+
+    auto escape_s = std::string{escape};
 
     std::vector<std::string> output;
 
@@ -162,7 +164,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
             rng.rand_insert_n(value, escape, 2);
             if (!quote_newline) {
                 replace_all2(value, {new_line}, {helper1});
-                replace_all2(value, {helper1}, {escape, new_line});
+                replace_all2(value, {helper1}, {escape_s + new_line});
             }
             replace_all2(value, {escape, escape}, {escape});
             replace_all2(value, {escape, helper0}, {helper0});
@@ -201,7 +203,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
             replace_all2(value, {escape}, {helper0});
             rng.rand_insert_n(value, escape, 3);
             replace_all2(value, {new_line}, {helper1});
-            replace_all2(value, {helper1}, {escape, new_line});
+            replace_all2(value, {helper1}, {escape_s + new_line});
 
             replace_all2(value, {escape, escape}, {escape});
             replace_all2(value, {escape, helper0}, {helper0});
