@@ -51,7 +51,7 @@ jobs:
 
       - name: Configure
         run: >-
-          cmake -S test -B build --config ${{matrix.build}}
+          cmake -S test -B build -D CMAKE_BUILD_TYPE=${{matrix.build}}
           -G "${{matrix.config.vs}}" -A ${{matrix.platform}}
 
       - name: Build
