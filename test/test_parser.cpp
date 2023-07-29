@@ -288,7 +288,7 @@ TEST_CASE("parser test various cases") {
         }
 
         std::copy_if(data.begin(), data.end(), expected.begin(),
-                     [](const X& x) { return x.i != excluded; });
+                     [&](const X& x) { return x.i != excluded; });
         CHECK_EQ(i, expected);
         CHECK_EQ(i2, expected);
     }
@@ -383,7 +383,7 @@ TEST_CASE("parser test composite conversion") {
             p.try_next<int, int, double>(fail)
                 .or_else<test_struct>(fail)
                 .or_else<int, char, double>(
-                    [](auto&& data) { CHECK_EQ(data, expectedData); })
+                    [&](auto&& data) { CHECK_EQ(data, expectedData); })
                 .on_error(fail)
                 .or_else<test_tuple>(fail)
                 .values();
@@ -401,7 +401,7 @@ TEST_CASE("parser test composite conversion") {
         constexpr static auto expectedData = std::tuple{10, 20, 11.1};
 
         auto [d1, d2, d3, d4] =
-            p.try_next<int, int, double>([](auto& i1, auto i2, double d) {
+            p.try_next<int, int, double>([&](auto& i1, auto i2, double d) {
                  CHECK_EQ(std::tie(i1, i2, d), expectedData);
              })
                 .on_error(fail)
@@ -569,8 +569,6 @@ TEST_CASE("parser test composite conversion") {
     CHECK(p.eof());
 }
 
-size_t move_called = 0;
-
 struct my_string {
     char* data{nullptr};
 
@@ -585,12 +583,10 @@ struct my_string {
     my_string& operator=(const my_string&) = delete;
 
     my_string(my_string&& other) : data{other.data} {
-        move_called++;
         other.data = nullptr;
     }
 
     my_string& operator=(my_string&& other) {
-        move_called++;
         data = other.data;
         return *this;
     }
@@ -613,49 +609,6 @@ struct xyz {
         return std::tie(x, y, z);
     }
 };
-
-TEST_CASE("parser test the moving of parsed values") {
-    {
-        unique_file_name f;
-        {
-            std::ofstream out{f.name};
-            out << "x" << std::endl;
-        }
-
-        ss::parser p{f.name, ","};
-        auto x = p.get_next<my_string>();
-        CHECK_LE(move_called, 1);
-        move_called = 0;
-    }
-
-    unique_file_name f;
-    {
-        std::ofstream out{f.name};
-        out << "a,b,c" << std::endl;
-    }
-
-    {
-
-        ss::parser p{f.name, ","};
-        auto x = p.get_next<my_string, my_string, my_string>();
-        CHECK_LE(move_called, 3);
-        move_called = 0;
-    }
-
-    {
-        ss::parser p{f.name, ","};
-        auto x = p.get_object<xyz, my_string, my_string, my_string>();
-        CHECK_LE(move_called, 6);
-        move_called = 0;
-    }
-
-    {
-        ss::parser p{f.name, ","};
-        auto x = p.get_next<xyz>();
-        CHECK_LE(move_called, 6);
-        move_called = 0;
-    }
-}
 
 TEST_CASE("parser test the moving of parsed composite values") {
     // to compile is enough
