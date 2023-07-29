@@ -37,7 +37,7 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=${{ matrix.build }}
+        run: cmake -S test -B build -G ${{ matrix.vs }} -A ${{ matrix.platform }} -D CMAKE_BUILD_TYPE=${{ matrix.build }}
 
       - name: Build
         run: cmake --build build -j ${{ steps.cores.outputs.count }}
