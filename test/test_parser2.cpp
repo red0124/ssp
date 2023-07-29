@@ -270,9 +270,9 @@ void write_to_file(const std::vector<std::string>& data,
     }
 
 #ifdef _WIN32
-    line += "\n";
-#else
     line += "\r\n";
+#else
+    line += "\n";
 #endif
 
     out << line;
