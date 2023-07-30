@@ -530,7 +530,6 @@ void test_combinations_impl() {
 } /* namespace */
 
 TEST_CASE("parser test various cases version 2") {
-    // TODO handle crlf
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;
     using trim = ss::trim<' '>;
@@ -540,7 +539,6 @@ TEST_CASE("parser test various cases version 2") {
 
     test_combinations_impl<>();
     test_combinations_impl<trim>();
-    /* TODO uncomment
     test_combinations_impl<triml>();
     test_combinations_impl<trimr>();
 
@@ -572,6 +570,5 @@ TEST_CASE("parser test various cases version 2") {
     test_combinations_impl<quote, escape, multiline>();
     test_combinations_impl<quote, escape, multiline, trim>();
     test_combinations_impl<quote, escape, multiline, triml>();
-    */
     test_combinations_impl<quote, escape, multiline, trimr>();
 }
