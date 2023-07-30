@@ -136,16 +136,10 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
     constexpr static auto escape = '\\';
     constexpr static auto quote = '"';
     constexpr static auto space = ' ';
-#ifdef _WIN32
-    constexpr static auto new_line = "\r\n";
-#else
-    constexpr static auto new_line = "\n";
-#endif
+    constexpr static auto new_line = '\n';
     constexpr static auto helper0 = '#';
     constexpr static auto helper1 = '$';
     // constexpr static auto helper3 = '&';
-
-    auto escape_s = std::string{escape};
 
     std::vector<std::string> output;
 
@@ -164,7 +158,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
             rng.rand_insert_n(value, escape, 2);
             if (!quote_newline) {
                 replace_all2(value, {new_line}, {helper1});
-                replace_all2(value, {helper1}, {escape_s + new_line});
+                replace_all2(value, {helper1}, {escape, new_line});
             }
             replace_all2(value, {escape, escape}, {escape});
             replace_all2(value, {escape, helper0}, {helper0});
@@ -203,7 +197,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
             replace_all2(value, {escape}, {helper0});
             rng.rand_insert_n(value, escape, 3);
             replace_all2(value, {new_line}, {helper1});
-            replace_all2(value, {helper1}, {escape_s + new_line});
+            replace_all2(value, {helper1}, {escape, new_line});
 
             replace_all2(value, {escape, escape}, {escape});
             replace_all2(value, {escape, helper0}, {helper0});
@@ -269,24 +263,21 @@ void write_to_file(const std::vector<std::string>& data,
         }
     }
 
-#ifdef _WIN32
-    line += "\r\n";
-#else
-    line += "\n";
-#endif
-
-    out << line;
+    out << line << std::endl;;
 }
 
 #define CHECK_EQ_DBG(V1, V2)                                                   \
     if (V1 != V2) {                                                            \
         CHECK(V1 == V2);                                                       \
+        std::cout << std::endl;                                                \
         auto tmp1 = V1;                                                        \
-        replace_all2(tmp1, "\r\n", "(-)");                                     \
-        replace_all2(tmp1, "\n", "(_)");                                       \
+        replace_all2(tmp1, "\n", "(n)");                                       \
+        replace_all2(tmp1, "\r", "(r)");                                       \
+        replace_all2(tmp1, " ", "_");                                          \
         auto tmp2 = V2;                                                        \
-        replace_all2(tmp2, "\r\n", "(-)");                                     \
-        replace_all2(tmp2, "\n", "(_)");                                       \
+        replace_all2(tmp2, "\n", "(n)");                                       \
+        replace_all2(tmp2, "\r", "(r)");                                       \
+        replace_all2(tmp2, " ", "_");                                          \
         std::cout << "<" << tmp1 << ">" << std::endl;                          \
         std::cout << "<" << tmp2 << ">" << std::endl;                          \
     }
@@ -510,25 +501,17 @@ void test_combinations_impl() {
                                         field{"random"}, field{"string"}});
 
     column strings1 =
-        make_column<Ts...>("strings1", {field{"st\"rings"}, field{"w\"\"ith"},
-                                        field{"qu\"otes\\"}, field{"\\a\\n\\d"},
-                                        field{"escapes\""}});
+        make_column<Ts...>("strings1",
+                           {field{"st\"rings"}, field{"w\"\"ith"},
+                            field{"qu\"otes\\"}, field{"\\a\\n\\d"},
+                            field{"escapes\""}});
 
-#ifdef _WIN32
-    column strings2 =
-        make_column<Ts...>("strings2", {field{"  with  "}, field{"  spaces"},
-                                        field{"and  "}, field{"\r\nnew"},
-                                        field{"  \r\nlines"},
-                                        field{"  a\r\n\r\nn\r\n\r\nd  "},
-                                        field{" \r\nso\r\n  "}, field{"on"}});
-#else
     column strings2 =
         make_column<Ts...>("strings2",
                            {field{"  with  "}, field{"  spaces"},
                             field{"and  "}, field{"\nnew"}, field{"  \nlines"},
                             field{"  a\n\nn\n\nd  "}, field{" \nso\n  "},
                             field{"on"}});
-#endif
 
     auto columns0 = std::vector{ints0, strings0, floats0, strings1, strings2};
     auto columns1 = std::vector{strings2, strings1, floats0, strings0, ints0};
