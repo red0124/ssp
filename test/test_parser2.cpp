@@ -263,23 +263,18 @@ void write_to_file(const std::vector<std::string>& data,
         }
     }
 
-    out << line << std::endl;;
+    out << line << std::endl;
 }
 
-#define CHECK_EQ_DBG(V1, V2)                                                   \
+#define CHECK_EQ_CRLF(V1, V2)                                                  \
     if (V1 != V2) {                                                            \
-        CHECK(V1 == V2);                                                       \
-        std::cout << std::endl;                                                \
         auto tmp1 = V1;                                                        \
-        replace_all2(tmp1, "\n", "(n)");                                       \
-        replace_all2(tmp1, "\r", "(r)");                                       \
-        replace_all2(tmp1, " ", "_");                                          \
         auto tmp2 = V2;                                                        \
-        replace_all2(tmp2, "\n", "(n)");                                       \
-        replace_all2(tmp2, "\r", "(r)");                                       \
-        replace_all2(tmp2, " ", "_");                                          \
-        std::cout << "<" << tmp1 << ">" << std::endl;                          \
-        std::cout << "<" << tmp2 << ">" << std::endl;                          \
+        replace_all2(tmp1, "\r\n", "\n");                                      \
+        replace_all2(tmp2, "\r\n", "\n");                                      \
+        CHECK(tmp1 == tmp2);                                                   \
+    } else {                                                                   \
+        CHECK(V1 == V2);                                                       \
     }
 
 template <typename... Ts>
@@ -392,7 +387,7 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << std::endl;
-                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -404,8 +399,8 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << ' ' << s1 << std::endl;
-                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -419,9 +414,9 @@ void test_combinations(const std::vector<column>& input_data,
                 if (i < n) {
                     check_error();
                     // std::cout << s0 << ' ' << s1 << ' ' << s2 << std::endl;
-                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
+                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -438,10 +433,10 @@ void test_combinations(const std::vector<column>& input_data,
                     std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
                               << std::endl;
                               */
-                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
-                    CHECK_EQ_DBG(s3, expected_data[i][layout[3]].value);
+                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
+                    CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -456,11 +451,11 @@ void test_combinations(const std::vector<column>& input_data,
                     check_error();
                     // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
                     //  << ' ' << s4 << std::endl;
-                    CHECK_EQ_DBG(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_DBG(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_DBG(s2, expected_data[i][layout[2]].value);
-                    CHECK_EQ_DBG(s3, expected_data[i][layout[3]].value);
-                    CHECK_EQ_DBG(s4, expected_data[i][layout[4]].value);
+                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
+                    CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
+                    CHECK_EQ_CRLF(s4, expected_data[i][layout[4]].value);
                 } else {
                     CHECK(p.eof());
                     CHECK(!p.valid());
@@ -501,10 +496,9 @@ void test_combinations_impl() {
                                         field{"random"}, field{"string"}});
 
     column strings1 =
-        make_column<Ts...>("strings1",
-                           {field{"st\"rings"}, field{"w\"\"ith"},
-                            field{"qu\"otes\\"}, field{"\\a\\n\\d"},
-                            field{"escapes\""}});
+        make_column<Ts...>("strings1", {field{"st\"rings"}, field{"w\"\"ith"},
+                                        field{"qu\"otes\\"}, field{"\\a\\n\\d"},
+                                        field{"escapes\""}});
 
     column strings2 =
         make_column<Ts...>("strings2",
