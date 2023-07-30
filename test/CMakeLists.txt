@@ -12,6 +12,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ssp INTERFACE -Wall -Wextra)
 endif()
 
+if (MSVC)
+  add_compile_options(/bigobj)
+else ()
+  add_compile_options(-Wa,-mbig-obj)
+endif ()
+
 include(FetchContent)
 FetchContent_Declare(
     DOCTEST

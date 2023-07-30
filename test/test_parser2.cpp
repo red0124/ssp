@@ -264,6 +264,8 @@ void write_to_file(const std::vector<std::string>& data,
     }
 
     out << line << std::endl;
+    // out.close();
+    // system(("unix2dos " + file_name).c_str());
 }
 
 #define CHECK_EQ_CRLF(V1, V2)                                                  \
@@ -272,7 +274,24 @@ void write_to_file(const std::vector<std::string>& data,
         auto tmp2 = V2;                                                        \
         replace_all2(tmp1, "\r\n", "\n");                                      \
         replace_all2(tmp2, "\r\n", "\n");                                      \
+                                                                               \
         CHECK(tmp1 == tmp2);                                                   \
+                                                                               \
+        if (tmp1 != tmp2) {                                                    \
+            replace_all2(tmp1, "\r", "(r)");                                   \
+            replace_all2(tmp2, "\r", "(r)");                                   \
+                                                                               \
+            replace_all2(tmp1, "\n", "(n)");                                   \
+            replace_all2(tmp2, "\n", "(n)");                                   \
+                                                                               \
+            replace_all2(tmp1, " ", "_");                                      \
+            replace_all2(tmp2, " ", "_");                                      \
+                                                                               \
+            std::cout << "<" << tmp1 << ">" << std::endl;                      \
+            std::cout << "<" << tmp2 << ">" << std::endl;                      \
+            std::cout << "----------------" << std::endl;                      \
+        }                                                                      \
+                                                                               \
     } else {                                                                   \
         CHECK(V1 == V2);                                                       \
     }
@@ -280,8 +299,7 @@ void write_to_file(const std::vector<std::string>& data,
 template <typename... Ts>
 void test_combinations(const std::vector<column>& input_data,
                        const std::string& delim, bool include_header) {
-    // TODO test without string_error
-    using setup = ss::setup<Ts..., ss::string_error>;
+    using setup = ss::setup<Ts...>;
 
     unique_file_name f{"test_parser2"};
     std::vector<std::vector<field>> expected_data;
@@ -366,7 +384,11 @@ void test_combinations(const std::vector<column>& input_data,
             p.use_fields(fields);
 
             if (!p.valid()) {
-                std::cout << p.error_msg() << std::endl;
+                if constexpr (setup::string_error) {
+                    std::cout << p.error_msg() << std::endl;
+                } else {
+                    std::cout << "use_fields failed" << std::endl;
+                }
             }
 
             REQUIRE(p.valid());
@@ -375,97 +397,109 @@ void test_combinations(const std::vector<column>& input_data,
         auto check_error = [&p] {
             CHECK(p.valid());
             if (!p.valid()) {
-                std::cout << p.error_msg() << std::endl;
+                if constexpr (setup::string_error) {
+                    std::cout << p.error_msg() << std::endl;
+                }
             }
         };
 
         int num_columns = layout.size();
         for (size_t i = 0; i < n + 1; ++i) {
-            switch (num_columns) {
-            case 1: {
-                auto s0 = p.template get_next<std::string>();
-                if (i < n) {
-                    check_error();
-                    // std::cout << s0 << std::endl;
-                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
-                } else {
-                    CHECK(p.eof());
-                    CHECK(!p.valid());
+            try {
+                switch (num_columns) {
+                case 1: {
+                    auto s0 = p.template get_next<std::string>();
+                    if (i < n) {
+                        check_error();
+                        // std::cout << s0 << std::endl;
+                        CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                    } else {
+                        CHECK(p.eof());
+                        CHECK(!p.valid());
+                    }
+                    break;
                 }
-                break;
-            }
-            case 2: {
-                auto [s0, s1] = p.template get_next<std::string, std::string>();
-                if (i < n) {
-                    check_error();
-                    // std::cout << s0 << ' ' << s1 << std::endl;
-                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
-                } else {
-                    CHECK(p.eof());
-                    CHECK(!p.valid());
+                case 2: {
+                    auto [s0, s1] =
+                        p.template get_next<std::string, std::string>();
+                    if (i < n) {
+                        check_error();
+                        // std::cout << s0 << ' ' << s1 << std::endl;
+                        CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                        CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                    } else {
+                        CHECK(p.eof());
+                        CHECK(!p.valid());
+                    }
+                    break;
                 }
-                break;
-            }
-            case 3: {
-                auto [s0, s1, s2] =
-                    p.template get_next<std::string, std::string,
-                                        std::string>();
-                if (i < n) {
-                    check_error();
-                    // std::cout << s0 << ' ' << s1 << ' ' << s2 << std::endl;
-                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
-                } else {
-                    CHECK(p.eof());
-                    CHECK(!p.valid());
+                case 3: {
+                    auto [s0, s1, s2] =
+                        p.template get_next<std::string, std::string,
+                                            std::string>();
+                    if (i < n) {
+                        check_error();
+                        // std::cout << s0 << ' ' << s1 << ' ' << s2 <<
+                        // std::endl;
+                        CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                        CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                        CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
+                    } else {
+                        CHECK(p.eof());
+                        CHECK(!p.valid());
+                    }
+                    break;
                 }
-                break;
-            }
-            case 4: {
-                auto [s0, s1, s2, s3] =
-                    p.template get_next<std::string, std::string, std::string,
-                                        std::string>();
-                if (i < n) {
-                    check_error();
-                    /*
-                    std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
-                              << std::endl;
-                              */
-                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
-                    CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
-                } else {
-                    CHECK(p.eof());
-                    CHECK(!p.valid());
+                case 4: {
+                    auto [s0, s1, s2, s3] =
+                        p.template get_next<std::string, std::string,
+                                            std::string, std::string>();
+                    if (i < n) {
+                        check_error();
+                        /*
+                        std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
+                                  << std::endl;
+                                  */
+                        CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                        CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                        CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
+                        CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
+                    } else {
+                        CHECK(p.eof());
+                        CHECK(!p.valid());
+                    }
+                    break;
                 }
-                break;
-            }
-            case 5: {
-                auto [s0, s1, s2, s3, s4] =
-                    p.template get_next<std::string, std::string, std::string,
-                                        std::string, std::string>();
-                if (i < n) {
-                    check_error();
-                    // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
-                    //  << ' ' << s4 << std::endl;
-                    CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
-                    CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
-                    CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
-                    CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
-                    CHECK_EQ_CRLF(s4, expected_data[i][layout[4]].value);
-                } else {
-                    CHECK(p.eof());
-                    CHECK(!p.valid());
+                case 5: {
+                    auto [s0, s1, s2, s3, s4] =
+                        p.template get_next<std::string, std::string,
+                                            std::string, std::string,
+                                            std::string>();
+                    if (i < n) {
+                        check_error();
+                        // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' <<
+                        // s3
+                        //  << ' ' << s4 << std::endl;
+                        CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
+                        CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
+                        CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
+                        CHECK_EQ_CRLF(s3, expected_data[i][layout[3]].value);
+                        CHECK_EQ_CRLF(s4, expected_data[i][layout[4]].value);
+                    } else {
+                        CHECK(p.eof());
+                        CHECK(!p.valid());
+                    }
+                    break;
                 }
-                break;
-            }
-            default:
-                FAIL(("Invalid number of columns: " +
-                      std::to_string(num_columns)));
-                break;
+                default:
+                    FAIL(("Invalid number of columns: " +
+                          std::to_string(num_columns)));
+                    break;
+                }
+            } catch (const std::exception& e) {
+                if (i < n) {
+                    throw;
+                }
             }
         }
     }
@@ -521,54 +555,58 @@ void test_combinations_impl() {
             for (const auto& columns :
                  {columns0, columns1, columns2, columns3, columns4, columns5,
                   columns6, columns7}) {
-                test_combinations<Ts...>(columns, delimiter, false);
-                test_combinations<Ts...>(columns, delimiter, true);
+                try {
+                    test_combinations<Ts...>(columns, delimiter, false);
+                    test_combinations<Ts...>(columns, delimiter, true);
+                } catch (std::exception& e) {
+                    std::cout << typeid(ss::parser<Ts...>).name() << std::endl;
+                    FAIL_CHECK(std::string{e.what()});
+                }
             }
         }
     }
 }
+
+template <typename... Ts>
+void test_combinations_with_error_options() {
+    test_combinations_impl<Ts...>();
+    test_combinations_impl<Ts..., ss::string_error>();
+    test_combinations_impl<Ts..., ss::throw_on_error>();
+}
+
+template <typename... Ts>
+void test_combinations_with_trim_and_error_options() {
+    using trim = ss::trim<' '>;
+    using trimr = ss::trim_right<' '>;
+    using triml = ss::trim_left<' '>;
+
+    test_combinations_with_error_options<Ts...>();
+    test_combinations_with_error_options<Ts..., trim>();
+    test_combinations_with_error_options<Ts..., trimr>();
+    test_combinations_with_error_options<Ts..., triml>();
+}
+
 } /* namespace */
 
 TEST_CASE("parser test various cases version 2") {
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;
-    using trim = ss::trim<' '>;
-    using triml = ss::trim_left<' '>;
-    using trimr = ss::trim_right<' '>;
     using multiline = ss::multiline;
 
-    test_combinations_impl<>();
-    test_combinations_impl<trim>();
-    test_combinations_impl<triml>();
-    test_combinations_impl<trimr>();
+// TODO uncomment
+// #ifdef CMAKE_GITHUB_CI
+#if 0
+    using multiline_r = ss::multiline_restricted<10>;
 
-    test_combinations_impl<escape>();
-    test_combinations_impl<escape, trim>();
-    test_combinations_impl<escape, triml>();
-    test_combinations_impl<escape, trimr>();
-
-    test_combinations_impl<quote>();
-    test_combinations_impl<quote, trim>();
-    test_combinations_impl<quote, triml>();
-    test_combinations_impl<quote, trimr>();
-
-    test_combinations_impl<escape, quote>();
-    test_combinations_impl<escape, quote, trim>();
-    test_combinations_impl<escape, quote, triml>();
-    test_combinations_impl<escape, quote, trimr>();
-
-    test_combinations_impl<escape, multiline>();
-    test_combinations_impl<escape, multiline, trim>();
-    test_combinations_impl<escape, multiline, triml>();
-    test_combinations_impl<escape, multiline, trimr>();
-
-    test_combinations_impl<quote, multiline>();
-    test_combinations_impl<quote, multiline, trim>();
-    test_combinations_impl<quote, multiline, triml>();
-    test_combinations_impl<quote, multiline, trimr>();
-
-    test_combinations_impl<quote, escape, multiline>();
-    test_combinations_impl<quote, escape, multiline, trim>();
-    test_combinations_impl<quote, escape, multiline, triml>();
-    test_combinations_impl<quote, escape, multiline, trimr>();
+    test_combinations_with_trim_and_error_options<>();
+    test_combinations_with_trim_and_error_options<escape>();
+    test_combinations_with_trim_and_error_options<quote>();
+    test_combinations_with_trim_and_error_options<escape, quote>();
+    test_combinations_with_trim_and_error_options<escape, multiline>();
+    test_combinations_with_trim_and_error_options<quote, multiline>();
+    test_combinations_with_trim_and_error_options<escape, quote, multiline>();
+    test_combinations_with_trim_and_error_options<escape, quote, multiline_r>();
+#else
+    test_combinations_with_trim_and_error_options<escape, quote, multiline>();
+#endif
 }

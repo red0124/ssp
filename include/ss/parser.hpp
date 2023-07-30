@@ -45,7 +45,6 @@ public:
             if constexpr (ignore_header) {
                 ignore_next();
             } else {
-                // TODO read header after use_fields is called
                 header_ = reader_.get_header();
             }
         } else {
@@ -462,7 +461,7 @@ private:
         constexpr static auto error_msg = " could not be opened";
 
         if constexpr (string_error) {
-            error_.append(file_name_).append(" could not be opened");
+            error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
         } else {
@@ -471,10 +470,10 @@ private:
     }
 
     void set_error_eof_reached() {
-        constexpr static auto error_msg = " reached end of file";
+        constexpr static auto error_msg = " read on end of file";
 
         if constexpr (string_error) {
-            error_.append(file_name_).append(" reached end of file");
+            error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
         } else {
