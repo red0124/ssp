@@ -2792,6 +2792,8 @@ private:
 
             if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
+                    size -= next_line_converter_.size_shifted();
+
                     if (multiline_limit_reached(limit)) {
                         return true;
                     }
@@ -2857,9 +2859,6 @@ private:
         }
 
         void undo_remove_eol(char* buffer, size_t& string_end) {
-            if (next_line_converter_.unterminated_quote()) {
-                string_end -= next_line_converter_.size_shifted();
-            }
             if (crlf_) {
                 std::copy_n("\r\n\0", 3, buffer + string_end);
                 string_end += 2;
