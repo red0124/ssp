@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#define CMAKE_GITHUB_CI
+
 // parser tests v2
 
 namespace {
