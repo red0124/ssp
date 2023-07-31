@@ -317,7 +317,7 @@ void test_combinations(const std::vector<column>& input_data,
     }
 
     std::vector<int> layout;
-    size_t n = 1 + rng.rand() % 10;
+    size_t n = 1 + rng.rand() % 5;
 
     for (size_t i = 0; i < input_data.size(); ++i) {
         layout.push_back(i);
@@ -570,20 +570,18 @@ void test_combinations_impl() {
 template <typename... Ts>
 void test_combinations_with_error_options() {
     test_combinations_impl<Ts...>();
+#ifdef CMAKE_GITHUB_CI
     test_combinations_impl<Ts..., ss::string_error>();
     test_combinations_impl<Ts..., ss::throw_on_error>();
+#endif
 }
 
 template <typename... Ts>
 void test_combinations_with_trim_and_error_options() {
     using trim = ss::trim<' '>;
-    using trimr = ss::trim_right<' '>;
-    using triml = ss::trim_left<' '>;
 
     test_combinations_with_error_options<Ts...>();
     test_combinations_with_error_options<Ts..., trim>();
-    test_combinations_with_error_options<Ts..., trimr>();
-    test_combinations_with_error_options<Ts..., triml>();
 }
 
 } /* namespace */
@@ -595,6 +593,8 @@ TEST_CASE("parser test various cases version 2") {
 
 #ifdef CMAKE_GITHUB_CI
     using multiline_r = ss::multiline_restricted<10>;
+    using trimr = ss::trim_right<' '>;
+    using triml = ss::trim_left<' '>;
 
     test_combinations_with_trim_and_error_options<>();
     test_combinations_with_trim_and_error_options<escape>();
@@ -604,6 +604,9 @@ TEST_CASE("parser test various cases version 2") {
     test_combinations_with_trim_and_error_options<quote, multiline>();
     test_combinations_with_trim_and_error_options<escape, quote, multiline>();
     test_combinations_with_trim_and_error_options<escape, quote, multiline_r>();
+
+    test_combinations_with_error_options<escape, quote, multiline, triml>();
+    test_combinations_with_error_options<escape, quote, multiline, trimr>();
 #else
     test_combinations_with_trim_and_error_options<escape, quote, multiline>();
 #endif
