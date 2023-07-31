@@ -593,9 +593,7 @@ TEST_CASE("parser test various cases version 2") {
     using escape = ss::escape<'\\'>;
     using multiline = ss::multiline;
 
-// TODO uncomment
-// #ifdef CMAKE_GITHUB_CI
-#if 0
+#ifdef CMAKE_GITHUB_CI
     using multiline_r = ss::multiline_restricted<10>;
 
     test_combinations_with_trim_and_error_options<>();

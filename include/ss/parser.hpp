@@ -656,7 +656,7 @@ private:
 
             if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
-                    size -= next_line_converter_.size_shifted();
+                    next_line_size_ -= next_line_converter_.size_shifted();
 
                     if (multiline_limit_reached(limit)) {
                         return;
