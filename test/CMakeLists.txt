@@ -32,7 +32,7 @@ set(DOCTEST "${FETCHCONTENT_BASE_DIR}/doctest-src")
 
 enable_testing()
 
-foreach(name IN ITEMS test_splitter test_parser test_converter tesst_extractions
+foreach(name IN ITEMS test_splitter test_parser test_converter test_extractions
                       test_parser2_segment1 test_parser2_segment2
                       test_parser2_segment3 test_parser2_segment4)
     add_executable("${name}" "${name}.cpp")
