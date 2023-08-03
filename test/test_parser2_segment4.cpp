@@ -1,3 +1,4 @@
+#define SEGMENT_NAME "segment4"
 #include "test_parser2.hpp"
 
 TEST_CASE("parser test various cases version 2 segment 4") {

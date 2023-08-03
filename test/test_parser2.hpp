@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#ifndef SEGMENT_NAME
+#error "SEGMENT_NAME must be defined"
+#endif
+
 // parser tests v2
 
 namespace {
@@ -304,7 +308,7 @@ void test_data_combinations(const std::vector<column>& input_data,
         return;
     }
 
-    unique_file_name f{"test_parser2"};
+    unique_file_name f{"test_parser2" + std::string{SEGMENT_NAME}};
     std::vector<std::vector<field>> expected_data;
     std::vector<std::string> header;
     std::vector<field> field_header;
