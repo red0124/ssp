@@ -1,23 +1,26 @@
-test_sources = files([
-      'test_main.cpp',
-      'test_splitter.cpp',
-      'test_converter.cpp',
-      'test_parser.cpp',
-      'test_parser2_segment1.cpp',
-      'test_parser2_segment2.cpp',
-      'test_parser2_segment3.cpp',
-      'test_parser2_segment4.cpp',
-      'test_extractions.cpp',
-      'test_extractions_without_fast_float.cpp',
-      ])
-
 doctest_dep = dependency('doctest')
+add_project_arguments('-DDOCTEST_CONFIG_IMPLEMENT_WITH_MAIN', language: 'cpp')
 
-test_exe = executable(
-  'test_ssp',
-  sources: test_sources,
-  dependencies: [doctest_dep, ssp_dep],
-  cpp_args: '-lstdc++fs'
-  )
+tests = [
+  'parser',
+  'splitter',
+  'converter',
+  'extractions',
+  'parser2_segment1',
+  'parser2_segment2',
+  'parser2_segment3',
+  'parser2_segment4',
+  'extractions_without_fast_float',
+]
 
-test('test_ssp', test_exe)
+foreach name : tests
+
+  exe = executable(
+    name,
+    'test_' + name + '.cpp',
+    dependencies: [doctest_dep, ssp_dep]
+    )
+
+  test('test_' + name, exe, timeout: 60)
+endforeach
+
