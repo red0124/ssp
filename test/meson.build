@@ -6,10 +6,10 @@ tests = [
   'splitter',
   'converter',
   'extractions',
-  'parser2_segment1',
-  'parser2_segment2',
-  'parser2_segment3',
-  'parser2_segment4',
+  'parser2_1',
+  'parser2_2',
+  'parser2_3',
+  'parser2_4',
   'extractions_without_fast_float',
 ]
 
