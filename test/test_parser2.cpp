@@ -10,8 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define CMAKE_GITHUB_CI
-
 // parser tests v2
 
 namespace {
@@ -22,7 +20,7 @@ struct random_number_generator {
     size_t z4 = 12344;
 
     size_t rand() {
-        unsigned int b;
+        uint32_t b;
         b = ((z1 << 6) ^ z1) >> 13;
         z1 = ((z1 & 4294967294U) << 18) ^ b;
         b = ((z2 << 2) ^ z2) >> 27;
@@ -266,8 +264,6 @@ void write_to_file(const std::vector<std::string>& data,
     }
 
     out << line << std::endl;
-    // out.close();
-    // system(("unix2dos " + file_name).c_str());
 }
 
 #define CHECK_EQ_CRLF(V1, V2)                                                  \
@@ -291,6 +287,7 @@ void write_to_file(const std::vector<std::string>& data,
                                                                                \
             std::cout << "<" << tmp1 << ">" << std::endl;                      \
             std::cout << "<" << tmp2 << ">" << std::endl;                      \
+            std::cout << "file: " << f.name << std::endl;                      \
             std::cout << "----------------" << std::endl;                      \
         }                                                                      \
                                                                                \
@@ -299,14 +296,27 @@ void write_to_file(const std::vector<std::string>& data,
     }
 
 template <typename... Ts>
-void test_combinations(const std::vector<column>& input_data,
-                       const std::string& delim, bool include_header) {
+void test_data_combinations(const std::vector<column>& input_data,
+                            const std::string& delim, bool include_header) {
     using setup = ss::setup<Ts...>;
+
+    if (setup::ignore_header && !include_header) {
+        return;
+    }
 
     unique_file_name f{"test_parser2"};
     std::vector<std::vector<field>> expected_data;
     std::vector<std::string> header;
     std::vector<field> field_header;
+
+    auto add_blank_if_ignore_empty = [&] {
+        if constexpr (setup::ignore_empty) {
+            size_t n = rng.rand() % 3;
+            for (size_t i = 0; i < n; ++i) {
+                write_to_file({}, delim, f.name);
+            }
+        }
+    };
 
     for (const auto& el : input_data) {
         header.push_back(el.header);
@@ -336,6 +346,8 @@ void test_combinations(const std::vector<column>& input_data,
             raw_data.push_back(fields[rng.rand_index(fields)]);
         }
 
+        add_blank_if_ignore_empty();
+
         expected_data.push_back(raw_data);
         auto data = generate_csv_data<Ts...>(raw_data, delim);
         write_to_file(data, delim, f.name);
@@ -349,7 +361,9 @@ void test_combinations(const std::vector<column>& input_data,
         */
     }
 
-    auto layout_combinations = vector_combinations(layout, layout.size());
+    auto layout_combinations = include_header && !setup::ignore_header
+                                   ? vector_combinations(layout, layout.size())
+                                   : std::vector<std::vector<int>>{layout};
 
     auto remove_duplicates = [](const auto& vec) {
         std::vector<int> unique_vec;
@@ -369,15 +383,10 @@ void test_combinations(const std::vector<column>& input_data,
         unique_layout_combinations.push_back(remove_duplicates(layout));
     }
 
-    if (!include_header) {
-        unique_layout_combinations.clear();
-        unique_layout_combinations.push_back(layout);
-    }
-
     for (const auto& layout : unique_layout_combinations) {
         ss::parser<setup> p{f.name, delim};
 
-        if (include_header) {
+        if (include_header && !setup::ignore_header) {
             std::vector<std::string> fields;
             for (const auto& index : layout) {
                 fields.push_back(header[index]);
@@ -507,9 +516,8 @@ void test_combinations(const std::vector<column>& input_data,
     }
 }
 
-// TODO rename
 template <typename... Ts>
-void test_combinations_impl() {
+void test_option_combinations() {
     column ints0 =
         make_column<Ts...>("ints0", {field{123}, field{45}, field{6}});
     column ints1 =
@@ -558,8 +566,8 @@ void test_combinations_impl() {
                  {columns0, columns1, columns2, columns3, columns4, columns5,
                   columns6, columns7}) {
                 try {
-                    test_combinations<Ts...>(columns, delimiter, false);
-                    test_combinations<Ts...>(columns, delimiter, true);
+                    test_data_combinations<Ts...>(columns, delimiter, false);
+                    test_data_combinations<Ts...>(columns, delimiter, true);
                 } catch (std::exception& e) {
                     std::cout << typeid(ss::parser<Ts...>).name() << std::endl;
                     FAIL_CHECK(std::string{e.what()});
@@ -570,20 +578,36 @@ void test_combinations_impl() {
 }
 
 template <typename... Ts>
-void test_combinations_with_error_options() {
-    test_combinations_impl<Ts...>();
+void test_option_combinations0() {
+    test_option_combinations<Ts...>();
 #ifdef CMAKE_GITHUB_CI
-    test_combinations_impl<Ts..., ss::string_error>();
-    test_combinations_impl<Ts..., ss::throw_on_error>();
+    test_option_combinations<Ts..., ss::ignore_empty>();
 #endif
 }
 
 template <typename... Ts>
-void test_combinations_with_trim_and_error_options() {
+void test_option_combinations1() {
+    test_option_combinations0<Ts...>();
+#ifdef CMAKE_GITHUB_CI
+    test_option_combinations0<Ts..., ss::ignore_header>();
+#endif
+}
+
+template <typename... Ts>
+void test_option_combinations2() {
+    test_option_combinations1<Ts...>();
+#ifdef CMAKE_GITHUB_CI
+    test_option_combinations1<Ts..., ss::string_error>();
+    test_option_combinations1<Ts..., ss::throw_on_error>();
+#endif
+}
+
+template <typename... Ts>
+void test_option_combinations3() {
     using trim = ss::trim<' '>;
 
-    test_combinations_with_error_options<Ts...>();
-    test_combinations_with_error_options<Ts..., trim>();
+    test_option_combinations2<Ts...>();
+    test_option_combinations2<Ts..., trim>();
 }
 
 } /* namespace */
@@ -598,18 +622,18 @@ TEST_CASE("parser test various cases version 2") {
     using trimr = ss::trim_right<' '>;
     using triml = ss::trim_left<' '>;
 
-    test_combinations_with_trim_and_error_options<>();
-    test_combinations_with_trim_and_error_options<escape>();
-    test_combinations_with_trim_and_error_options<quote>();
-    test_combinations_with_trim_and_error_options<escape, quote>();
-    test_combinations_with_trim_and_error_options<escape, multiline>();
-    test_combinations_with_trim_and_error_options<quote, multiline>();
-    test_combinations_with_trim_and_error_options<escape, quote, multiline>();
-    test_combinations_with_trim_and_error_options<escape, quote, multiline_r>();
+    test_option_combinations3<>();
+    test_option_combinations3<escape>();
+    test_option_combinations3<quote>();
+    test_option_combinations3<escape, quote>();
+    test_option_combinations3<escape, multiline>();
+    test_option_combinations3<quote, multiline>();
+    test_option_combinations3<escape, quote, multiline>();
+    test_option_combinations3<escape, quote, multiline_r>();
 
-    test_combinations_with_error_options<escape, quote, multiline, triml>();
-    test_combinations_with_error_options<escape, quote, multiline, trimr>();
+    test_option_combinations<escape, quote, multiline, triml>();
+    test_option_combinations<escape, quote, multiline, trimr>();
 #else
-    test_combinations_with_trim_and_error_options<escape, quote, multiline>();
+    test_option_combinations3<escape, quote, multiline>();
 #endif
 }
