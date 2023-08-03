@@ -612,7 +612,9 @@ void test_option_combinations3() {
 
 } /* namespace */
 
-TEST_CASE("parser test various cases version 2") {
+#if 0
+
+TEST_CASE("parser test various cases version 2 segment 1") {
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;
     using multiline = ss::multiline;
@@ -622,18 +624,27 @@ TEST_CASE("parser test various cases version 2") {
     using trimr = ss::trim_right<' '>;
     using triml = ss::trim_left<' '>;
 
+    // segment 1
     test_option_combinations3<>();
     test_option_combinations3<escape>();
     test_option_combinations3<quote>();
+
+    // segment 2
     test_option_combinations3<escape, quote>();
     test_option_combinations3<escape, multiline>();
     test_option_combinations3<quote, multiline>();
+
+    // segment 3
     test_option_combinations3<escape, quote, multiline>();
     test_option_combinations3<escape, quote, multiline_r>();
 
+    // segment 4
     test_option_combinations<escape, quote, multiline, triml>();
     test_option_combinations<escape, quote, multiline, trimr>();
 #else
     test_option_combinations3<escape, quote, multiline>();
 #endif
 }
+
+#endif
+

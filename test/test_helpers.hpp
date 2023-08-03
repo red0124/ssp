@@ -1,9 +1,10 @@
 #pragma once
-#include <string>
-#include <vector>
-#include <sstream>
 #include <ctime>
 #include <iomanip>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <filesystem>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -48,13 +49,12 @@ struct unique_file_name {
     const std::string name;
 
     unique_file_name(const std::string& test)
-        : name{"random_" + test + "_" + std::to_string(i++) + "_" + time_now_rand() +
-               "_file.csv"} {
+        : name{"random_" + test + "_" + std::to_string(i++) + "_" +
+               time_now_rand() + "_file.csv"} {
     }
 
     ~unique_file_name() {
-        // TODO uncomment
-        // std::filesystem::remove(name);
+        std::filesystem::remove(name);
     }
 };
 
