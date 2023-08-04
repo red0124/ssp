@@ -12,7 +12,8 @@
 #ifndef SSP_DISABLE_FAST_FLOAT
 #include <fast_float/fast_float.h>
 #else
-#include <charconv>
+#include <algorithm>
+#include <cstdlib>
 #endif
 
 namespace ss {
@@ -40,12 +41,32 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
-    T ret;
-    auto [ptr, ec] = std::from_chars(begin, end, ret);
+    constexpr static auto buff_max = 64;
+    char buff[buff_max];
+    size_t string_range = std::distance(begin, end);
 
-    if (ec != std::errc() || ptr != end) {
+    if (string_range > buff_max) {
         return std::nullopt;
     }
+
+    std::copy_n(begin, string_range, buff);
+    buff[string_range] = '\0';
+
+    T ret;
+    char* parse_end = nullptr;
+
+    if constexpr (std::is_same_v<T, float>) {
+        ret = std::strtof(buff, &parse_end);
+    } else if constexpr (std::is_same_v<T, double>) {
+        ret = std::strtod(buff, &parse_end);
+    } else if constexpr (std::is_same_v<T, long double>) {
+        ret = std::strtold(buff, &parse_end);
+    }
+
+    if (parse_end != buff + string_range) {
+        return std::nullopt;
+    }
+
     return ret;
 }
 
