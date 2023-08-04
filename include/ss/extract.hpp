@@ -167,6 +167,7 @@ inline bool sub_overflow(long long& result, long long operand) {
     return __builtin_ssubll_overflow(result, operand, &result);
 }
 
+// Note: sub_overflow function should be unreachable for unsigned values
 template <>
 inline bool sub_overflow(unsigned int& result, unsigned int operand) {
     return __builtin_usub_overflow(result, operand, &result);
@@ -184,8 +185,8 @@ inline bool sub_overflow(unsigned long long& result,
 }
 
 template <typename T, typename F>
-bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
-    if (mul_overflow<T>(value, 10) || add_last_digit_owerflow(value, digit)) {
+bool shift_and_add_overflow(T& value, T digit, F add_last_digit_overflow) {
+    if (mul_overflow<T>(value, 10) || add_last_digit_overflow(value, digit)) {
         return true;
     }
     return false;
@@ -223,17 +224,17 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
 
 #if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
     !defined(MINGW32_CLANG)
-    auto add_last_digit_owerflow =
+    auto add_last_digit_overflow =
         (is_negative) ? sub_overflow<T> : add_overflow<T>;
 #else
-    auto add_last_digit_owerflow = is_negative;
+    auto add_last_digit_overflow = is_negative;
 #endif
 
     T value = 0;
     for (auto i = begin; i != end; ++i) {
         if (auto digit = from_char(*i);
             !digit || shift_and_add_overflow<T>(value, digit.value(),
-                                                add_last_digit_owerflow)) {
+                                                add_last_digit_overflow)) {
             return std::nullopt;
         }
     }

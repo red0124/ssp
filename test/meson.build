@@ -14,13 +14,14 @@ tests = [
 ]
 
 foreach name : tests
+  test_name = 'test_' + name
 
   exe = executable(
-    name,
-    'test_' + name + '.cpp',
+    test_name,
+    test_name + '.cpp',
     dependencies: [doctest_dep, ssp_dep]
     )
 
-  test('test_' + name, exe, timeout: 60)
+  test(test_name, exe, timeout: 60)
 endforeach
 

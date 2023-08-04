@@ -287,7 +287,7 @@ public:
 
         template <typename Fun>
         auto on_error(Fun&& fun) {
-            // TODO disable these if throw_on_error
+            assert_throw_on_error_not_defined<throw_on_error>();
             if (!parser_.valid()) {
                 if constexpr (std::is_invocable_v<Fun>) {
                     fun();
@@ -355,6 +355,7 @@ public:
     template <typename... Ts, typename Fun = none>
     composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
         Fun&& fun = none{}) {
+        assert_throw_on_error_not_defined<throw_on_error>();
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
             std::optional<Ret>>(get_next<Ts...>(), std::forward<Fun>(fun));
@@ -364,6 +365,7 @@ public:
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
     composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+        assert_throw_on_error_not_defined<throw_on_error>();
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
     }
@@ -742,7 +744,6 @@ private:
             return size;
         }
 
-        // TODO check why multiline fields result in additional allocations
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
             // TODO make buffer_size an argument

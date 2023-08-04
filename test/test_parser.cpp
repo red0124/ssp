@@ -9,6 +9,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// TODO remove
+#include <iostream>
+
 namespace {
 [[maybe_unused]] void replace_all(std::string& s, const std::string& from,
                                   const std::string& to) {
@@ -86,13 +89,35 @@ static void make_and_write(const std::string& file_name,
 }
 } /* namespace */
 
-TEST_CASE("parser test various cases") {
+TEST_CASE("test file not found") {
+    unique_file_name f{"test_parser"};
+
+    {
+        ss::parser p{f.name, ","};
+        CHECK_FALSE(p.valid());
+    }
+
+    {
+        ss::parser<ss::string_error> p{f.name, ","};
+        CHECK_FALSE(p.valid());
+    }
+
+    try {
+        ss::parser<ss::throw_on_error> p{f.name, ","};
+        FAIL("Expected exception...");
+    } catch (const std::exception& e) {
+        CHECK_FALSE(std::string{e.what()}.empty());
+    }
+}
+
+template <typename... Ts>
+void test_various_cases() {
     unique_file_name f{"test_parser"};
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
     {
-        ss::parser<ss::string_error> p{f.name, ","};
+        ss::parser<Ts...> p{f.name, ","};
         ss::parser p0{std::move(p)};
         p = std::move(p0);
         std::vector<X> i;
@@ -101,7 +126,7 @@ TEST_CASE("parser test various cases") {
         std::vector<X> i2;
 
         while (!p.eof()) {
-            auto a = p.get_next<int, double, std::string>();
+            auto a = p.template get_next<int, double, std::string>();
             i.emplace_back(ss::to_object<X>(a));
         }
 
@@ -319,6 +344,12 @@ TEST_CASE("parser test various cases") {
     }
 }
 
+TEST_CASE("parser test various cases") {
+    test_various_cases();
+    test_various_cases<ss::string_error>();
+    test_various_cases<ss::throw_on_error>();
+}
+
 using test_tuple = std::tuple<double, char, double>;
 struct test_struct {
     int i;
@@ -332,8 +363,8 @@ struct test_struct {
 static inline void expect_test_struct(const test_struct&) {
 }
 
-// various scenarios
-TEST_CASE("parser test composite conversion") {
+template <typename... Ts>
+void test_composite_conversion() {
     unique_file_name f{"test_parser"};
     {
         std::ofstream out{f.name};
@@ -344,9 +375,10 @@ TEST_CASE("parser test composite conversion") {
         }
     }
 
-    ss::parser<ss::string_error> p{f.name, ","};
+    ss::parser<Ts...> p{f.name, ","};
     auto fail = [] { FAIL(""); };
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
+    auto ignore_error = [] {};
 
     REQUIRE(p.valid());
     REQUIRE_FALSE(p.eof());
@@ -355,12 +387,12 @@ TEST_CASE("parser test composite conversion") {
         constexpr static auto expectedData = std::tuple{10, 'a', 11.1};
 
         auto [d1, d2, d3, d4] =
-            p.try_next<int, int, double>(fail)
-                .or_else<test_struct>(fail)
-                .or_else<int, char, double>(
+            p.template try_next<int, int, double>(fail)
+                .template or_else<test_struct>(fail)
+                .template or_else<int, char, double>(
                     [&](auto&& data) { CHECK_EQ(data, expectedData); })
                 .on_error(fail)
-                .or_else<test_tuple>(fail)
+                .template or_else<test_tuple>(fail)
                 .values();
 
         REQUIRE(p.valid());
@@ -376,15 +408,16 @@ TEST_CASE("parser test composite conversion") {
         constexpr static auto expectedData = std::tuple{10, 20, 11.1};
 
         auto [d1, d2, d3, d4] =
-            p.try_next<int, int, double>([&](auto& i1, auto i2, double d) {
-                 CHECK_EQ(std::tie(i1, i2, d), expectedData);
-             })
+            p.template try_next<int, int, double>(
+                 [&](auto& i1, auto i2, double d) {
+                     CHECK_EQ(std::tie(i1, i2, d), expectedData);
+                 })
                 .on_error(fail)
-                .or_object<test_struct, int, double, char>(fail)
+                .template or_object<test_struct, int, double, char>(fail)
                 .on_error(fail)
-                .or_else<test_tuple>(fail)
+                .template or_else<test_tuple>(fail)
                 .on_error(fail)
-                .or_else<int, char, double>(fail)
+                .template or_else<int, char, double>(fail)
                 .values();
 
         REQUIRE(p.valid());
@@ -399,12 +432,12 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE(!p.eof());
 
         auto [d1, d2, d3, d4, d5] =
-            p.try_object<test_struct, int, double, char>(fail)
+            p.template try_object<test_struct, int, double, char>(fail)
                 .on_error(expect_error)
-                .or_else<int, char, char>(fail)
-                .or_else<test_struct>(fail)
-                .or_else<test_tuple>(fail)
-                .or_else<int, char, double>(fail)
+                .template or_else<int, char, char>(fail)
+                .template or_else<test_struct>(fail)
+                .template or_else<test_tuple>(fail)
+                .template or_else<int, char, double>(fail)
                 .values();
 
         REQUIRE_FALSE(p.valid());
@@ -419,10 +452,10 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE(!p.eof());
 
         auto [d1, d2] =
-            p.try_next<int, double>([](auto& i, auto& d) {
+            p.template try_next<int, double>([](auto& i, auto& d) {
                  REQUIRE_EQ(std::tie(i, d), std::tuple{10, 11.1});
              })
-                .or_else<int, double>([](auto&, auto&) { FAIL(""); })
+                .template or_else<int, double>([](auto&, auto&) { FAIL(""); })
                 .values();
 
         REQUIRE(p.valid());
@@ -433,9 +466,10 @@ TEST_CASE("parser test composite conversion") {
     {
         REQUIRE(!p.eof());
 
-        auto [d1, d2] = p.try_next<int, double>([](auto&, auto&) { FAIL(""); })
-                            .or_else<test_struct>(expect_test_struct)
-                            .values();
+        auto [d1, d2] =
+            p.template try_next<int, double>([](auto&, auto&) { FAIL(""); })
+                .template or_else<test_struct>(expect_test_struct)
+                .values();
 
         REQUIRE(p.valid());
         REQUIRE_FALSE(d1);
@@ -447,11 +481,12 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE(!p.eof());
 
         auto [d1, d2, d3, d4, d5] =
-            p.try_next<int, int, double>(fail)
-                .or_object<test_struct, int, double, char>()
-                .or_else<test_struct>(expect_test_struct)
-                .or_else<test_tuple>(fail)
-                .or_else<std::tuple<int, double>>(fail)
+            p.template try_next<int, int, double>(fail)
+                .template or_object<test_struct, int, double, char>()
+                .template or_else<test_struct>(expect_test_struct)
+                .template or_else<test_tuple>(fail)
+                .template or_else<std::tuple<int, double>>(fail)
+                .on_error(ignore_error)
                 .on_error(expect_error)
                 .values();
 
@@ -466,11 +501,15 @@ TEST_CASE("parser test composite conversion") {
     {
         REQUIRE(!p.eof());
 
-        auto [d1, d2] = p.try_next<int, std::optional<int>>()
-                            .on_error(fail)
-                            .or_else<std::tuple<int, std::string>>(fail)
-                            .on_error(fail)
-                            .values();
+        auto [d1, d2] =
+            p.template try_next<int, std::optional<int>>()
+                .on_error(ignore_error)
+                .on_error(fail)
+                .template or_else<std::tuple<int, std::string>>(fail)
+                .on_error(ignore_error)
+                .on_error(fail)
+                .on_error(ignore_error)
+                .values();
 
         REQUIRE(p.valid());
         REQUIRE(d1);
@@ -481,11 +520,12 @@ TEST_CASE("parser test composite conversion") {
     {
         REQUIRE_FALSE(p.eof());
 
-        auto [d1, d2] = p.try_next<int, std::variant<int, std::string>>()
-                            .on_error(fail)
-                            .or_else<std::tuple<int, std::string>>(fail)
-                            .on_error(fail)
-                            .values();
+        auto [d1, d2] =
+            p.template try_next<int, std::variant<int, std::string>>()
+                .on_error(fail)
+                .template or_else<std::tuple<int, std::string>>(fail)
+                .on_error(fail)
+                .values();
 
         REQUIRE(p.valid());
         REQUIRE(d1);
@@ -496,8 +536,8 @@ TEST_CASE("parser test composite conversion") {
     {
         REQUIRE(!p.eof());
 
-        auto [d1, d2] = p.try_object<test_struct, int, double, char>()
-                            .or_else<int>(fail)
+        auto [d1, d2] = p.template try_object<test_struct, int, double, char>()
+                            .template or_else<int>(fail)
                             .values();
         REQUIRE(p.valid());
         REQUIRE(d1);
@@ -509,10 +549,10 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE_FALSE(p.eof());
 
         auto [d1, d2, d3, d4] =
-            p.try_next<int, int>([] { return false; })
-                .or_else<int, double>([](auto&) { return false; })
-                .or_else<int, int>()
-                .or_else<int, int>(fail)
+            p.template try_next<int, int>([] { return false; })
+                .template or_else<int, double>([](auto&) { return false; })
+                .template or_else<int, int>()
+                .template or_else<int, int>(fail)
                 .values();
 
         REQUIRE(p.valid());
@@ -527,10 +567,11 @@ TEST_CASE("parser test composite conversion") {
         REQUIRE(!p.eof());
 
         auto [d1, d2, d3, d4] =
-            p.try_object<test_struct, int, double, char>([] { return false; })
-                .or_else<int, double>([](auto&) { return false; })
-                .or_object<test_struct, int, double, char>()
-                .or_else<int, int>(fail)
+            p.template try_object<test_struct, int, double, char>(
+                 [] { return false; })
+                .template or_else<int, double>([](auto&) { return false; })
+                .template or_object<test_struct, int, double, char>()
+                .template or_else<int, int>(fail)
                 .values();
 
         REQUIRE(p.valid());
@@ -542,6 +583,11 @@ TEST_CASE("parser test composite conversion") {
     }
 
     CHECK(p.eof());
+}
+
+// various scenarios
+TEST_CASE("parser test composite conversion") {
+    test_composite_conversion<ss::string_error>();
 }
 
 struct my_string {
@@ -585,17 +631,24 @@ struct xyz {
     }
 };
 
-TEST_CASE("parser test the moving of parsed composite values") {
+template <typename... Ts>
+void test_moving_of_parsed_composite_values() {
     // to compile is enough
     return;
-    ss::parser p{"", ""};
-    p.try_next<my_string, my_string, my_string>()
-        .or_else<my_string, my_string, my_string, my_string>([](auto&&) {})
-        .or_else<my_string>([](auto&) {})
-        .or_else<xyz>([](auto&&) {})
-        .or_object<xyz, my_string, my_string, my_string>([](auto&&) {})
-        .or_else<std::tuple<my_string, my_string, my_string>>(
+    ss::parser<Ts...> p{"", ""};
+    p.template try_next<my_string, my_string, my_string>()
+        .template or_else<my_string, my_string, my_string, my_string>(
+            [](auto&&) {})
+        .template or_else<my_string>([](auto&) {})
+        .template or_else<xyz>([](auto&&) {})
+        .template or_object<xyz, my_string, my_string, my_string>([](auto&&) {})
+        .template or_else<std::tuple<my_string, my_string, my_string>>(
             [](auto&, auto&, auto&) {});
+}
+
+TEST_CASE("parser test the moving of parsed composite values") {
+    test_moving_of_parsed_composite_values();
+    test_moving_of_parsed_composite_values<ss::string_error>();
 }
 
 TEST_CASE("parser test error mode") {
@@ -612,6 +665,25 @@ TEST_CASE("parser test error mode") {
     p.get_next<int>();
     CHECK_FALSE(p.valid());
     CHECK_FALSE(p.error_msg().empty());
+}
+
+TEST_CASE("parser throw on error mode") {
+    unique_file_name f{"test_parser"};
+    {
+        std::ofstream out{f.name};
+        out << "junk" << std::endl;
+        out << "junk" << std::endl;
+    }
+
+    ss::parser<ss::throw_on_error> p(f.name, ",");
+
+    REQUIRE_FALSE(p.eof());
+    try {
+        p.get_next<int>();
+        FAIL("Expected exception...");
+    } catch (const std::exception& e) {
+        CHECK_FALSE(std::string{e.what()}.empty());
+    }
 }
 
 static inline std::string no_quote(const std::string& s) {
@@ -791,6 +863,114 @@ TEST_CASE("parser test multiline restricted") {
     }
 
     CHECK_EQ(i, data);
+}
+
+template <typename... Ts>
+void expect_error_on_command(ss::parser<Ts...>& p,
+                             const std::function<void()> command) {
+    if (ss::setup<Ts...>::throw_on_error) {
+        try {
+            command();
+        } catch (const std::exception& e) {
+            CHECK_FALSE(std::string{e.what()}.empty());
+        }
+    } else {
+        command();
+        CHECK(!p.valid());
+        if constexpr (ss::setup<Ts...>::string_error) {
+            CHECK_FALSE(p.error_msg().empty());
+        }
+    }
+}
+
+template <typename... Ts>
+void test_unterminated_line_impl(const std::vector<std::string>& lines,
+                                 size_t bad_line) {
+    unique_file_name f{"test_parser"};
+    std::ofstream out{f.name};
+    for (const auto& line : lines) {
+        out << line << std::endl;
+    }
+    out.close();
+
+    ss::parser<Ts...> p{f.name};
+    size_t line = 0;
+    while (!p.eof()) {
+        auto command = [&] { p.template get_next<int, double, std::string>(); };
+
+        if (line == bad_line) {
+            expect_error_on_command(p, command);
+            break;
+        } else {
+            CHECK(p.valid());
+            ++line;
+        }
+    }
+}
+
+template <typename... Ts>
+void test_unterminated_line(const std::vector<std::string>& lines,
+                            size_t bad_line) {
+    test_unterminated_line_impl<Ts...>(lines, bad_line);
+    test_unterminated_line_impl<Ts..., ss::string_error>(lines, bad_line);
+    test_unterminated_line_impl<Ts..., ss::throw_on_error>(lines, bad_line);
+}
+
+// TODO add more cases
+TEST_CASE("parser test csv on multiple with errors") {
+    using multiline = ss::multiline_restricted<3>;
+    using escape = ss::escape<'\\'>;
+    using quote = ss::quote<'"'>;
+
+    // unterminated escape
+    {
+        const std::vector<std::string> lines{"1,2,just\\"};
+        test_unterminated_line<multiline, escape>(lines, 0);
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    // unterminated quote
+    {
+        const std::vector<std::string> lines{"1,2,\"just"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<multiline, quote>(lines, 0);
+    }
+
+    // unterminated quote and escape
+    {
+        const std::vector<std::string> lines{"1,2,\"just\\"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"1,2,\"just\\\n\\"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"1,2,\"just\n\\"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    // multiline limmit reached escape
+    {
+        const std::vector<std::string> lines{"1,2,\\\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape>(lines, 0);
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    // multiline limmit reached quote
+    {
+        const std::vector<std::string> lines{"1,2,\"\n\n\n\n\njust\""};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<multiline, quote>(lines, 0);
+    }
+
+    // multiline limmit reached quote and escape
+    {
+        const std::vector<std::string> lines{"1,2,\"\\\n\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
 }
 
 template <typename T, typename Tuple>
@@ -976,6 +1156,64 @@ TEST_CASE("parser test various cases with header") {
     test_fields<int, double, str>(o, d, {Int, Dbl, Str});
     test_fields<double, str, int>(o, d, {Dbl, Str, Int});
     test_fields<double, int, str>(o, d, {Dbl, Int, Str});
+}
+
+template <typename... Ts>
+void test_invalid_fields_impl(const std::vector<std::string>& lines,
+                              const std::vector<std::string>& fields) {
+    unique_file_name f{"test_parser"};
+    std::ofstream out{f.name};
+    for (const auto& line : lines) {
+        out << line << std::endl;
+    }
+    out.close();
+
+    /* TODO test
+    {
+        // No fields specified
+        ss::parser<Ts...> p{f.name, ","};
+        p.use_fields();
+        CHECK(!p.valid());
+    }
+    */
+
+    {
+        // Unknown field
+        ss::parser<Ts...> p{f.name, ","};
+        auto command = [&] { p.use_fields("Unknown"); };
+        expect_error_on_command(p, command);
+    }
+
+    {
+        // Field used multiple times
+        ss::parser<Ts...> p{f.name, ","};
+        auto command = [&] { p.use_fields(fields[0], fields[0]); };
+        expect_error_on_command(p, command);
+    }
+
+    {
+        // Mapping out of range
+        ss::parser<Ts...> p{f.name, ","};
+        auto command = [&] {
+            p.use_fields(fields[0]);
+            p.template get_next<std::string, std::string>();
+        };
+        expect_error_on_command(p, command);
+    }
+}
+
+template <typename... Ts>
+void test_invalid_fields(const std::vector<std::string>& lines,
+                         const std::vector<std::string>& fields) {
+    test_invalid_fields_impl(lines, fields);
+    test_invalid_fields_impl<ss::string_error>(lines, fields);
+    test_invalid_fields_impl<ss::throw_on_error>(lines, fields);
+}
+
+// TODO add more test cases
+TEST_CASE("parser test invalid header fields usage") {
+    test_invalid_fields({"Int,String,Double", "1,hi,2.34"},
+                        {"Int", "String", "Double"});
 }
 
 static inline void test_ignore_empty(const std::vector<X>& data) {
