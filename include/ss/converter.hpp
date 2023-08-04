@@ -344,39 +344,6 @@ private:
         }
     }
 
-    void set_error_invalid_mapping() {
-        constexpr static auto error_msg = "received empty mapping";
-
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append(error_msg);
-        } else if constexpr (throw_on_error) {
-            throw ss::exception{error_msg};
-        } else {
-            error_ = true;
-        }
-    }
-
-    void set_error_mapping_out_of_range(size_t maximum_index,
-                                        size_t number_of_columnts) {
-        constexpr static auto error_msg1 = "maximum index: ";
-        constexpr static auto error_msg2 = ", greater than number of columns: ";
-
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append(error_msg1)
-                .append(std::to_string(maximum_index))
-                .append(error_msg2)
-                .append(std::to_string(number_of_columnts));
-        } else if constexpr (throw_on_error) {
-            throw ss::exception{error_msg1 + std::to_string(maximum_index) +
-                                error_msg2 +
-                                std::to_string(number_of_columnts)};
-        } else {
-            error_ = true;
-        }
-    }
-
     ////////////////
     // convert implementation
     ////////////////
@@ -433,19 +400,9 @@ private:
         return column_mappings_[tuple_position];
     }
 
+    // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        if (positions.empty()) {
-            set_error_invalid_mapping();
-            return;
-        }
-
-        auto max_index = *std::max_element(positions.begin(), positions.end());
-        if (max_index >= number_of_columns) {
-            set_error_mapping_out_of_range(max_index, number_of_columns);
-            return;
-        }
-
         column_mappings_ = positions;
         number_of_columns_ = number_of_columns;
     }

@@ -138,6 +138,12 @@ public:
         }
 
         auto fields = std::vector<std::string>{fields_args...};
+
+        if (fields.empty()) {
+            set_error_empty_mapping();
+            return;
+        }
+
         std::vector<size_t> column_mappings;
 
         for (const auto& field : fields) {
@@ -159,6 +165,7 @@ public:
         reader_.converter_.set_column_mapping(column_mappings, header_.size());
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
+
         if (line() == 0) {
             ignore_next();
         }
@@ -485,15 +492,11 @@ private:
 
     void set_error_invalid_conversion() {
         if constexpr (string_error) {
-            // TODO remove buffer from error msg
             error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(reader_.line_number_))
                 .append(": ")
-                .append(reader_.converter_.error_msg())
-                .append(": \"")
-                .append(reader_.buffer_)
-                .append("\"");
+                .append(reader_.converter_.error_msg());
         } else if constexpr (!throw_on_error) {
             error_ = true;
         }
@@ -533,6 +536,19 @@ private:
             error_.append(file_name_).append(error_msg).append(field);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg + field};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void set_error_empty_mapping() {
+        constexpr static auto error_msg = "received empty mapping";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }

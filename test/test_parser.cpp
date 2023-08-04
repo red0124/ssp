@@ -1168,14 +1168,12 @@ void test_invalid_fields_impl(const std::vector<std::string>& lines,
     }
     out.close();
 
-    /* TODO test
     {
         // No fields specified
         ss::parser<Ts...> p{f.name, ","};
-        p.use_fields();
-        CHECK(!p.valid());
+        auto command = [&] { p.use_fields(); };
+        expect_error_on_command(p, command);
     }
-    */
 
     {
         // Unknown field
