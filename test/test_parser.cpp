@@ -9,9 +9,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-// TODO remove
-#include <iostream>
-
 namespace {
 [[maybe_unused]] void replace_all(std::string& s, const std::string& from,
                                   const std::string& to) {
@@ -51,13 +48,13 @@ void update_if_crlf(std::string& s) {
 
 struct X {
     constexpr static auto delim = ",";
-    constexpr static auto make_empty = "_EMPTY_";
+    constexpr static auto empty = "_EMPTY_";
     int i;
     double d;
     std::string s;
 
     std::string to_string() const {
-        if (s == make_empty) {
+        if (s == empty) {
             return "";
         }
 
@@ -1050,17 +1047,18 @@ static inline void check_size(size_t size1, size_t size2) {
     CHECK_EQ(size1, size2);
 }
 
-template <typename... Ts>
-static void test_fields(const std::string file_name, const std::vector<X>& data,
-                        const std::vector<std::string>& fields) {
+template <typename Setup, typename... Ts>
+static void test_fields_impl(const std::string file_name,
+                             const std::vector<X>& data,
+                             const std::vector<std::string>& fields) {
     using CaseType = std::tuple<Ts...>;
 
-    ss::parser p{file_name, ","};
+    ss::parser<Setup> p{file_name, ","};
     CHECK_FALSE(p.field_exists("Unknown"));
     p.use_fields(fields);
     std::vector<CaseType> i;
 
-    for (const auto& a : p.iterate<CaseType>()) {
+    for (const auto& a : p.template iterate<CaseType>()) {
         i.push_back(a);
     }
 
@@ -1076,6 +1074,16 @@ static void test_fields(const std::string file_name, const std::vector<X>& data,
             CHECK_EQ(std::get<std::string>(i[j]), data[j].s);
         }
     }
+}
+
+template <typename... Ts>
+static void test_fields(const std::string file_name, const std::vector<X>& data,
+                        const std::vector<std::string>& fields) {
+    test_fields_impl<ss::setup<>, Ts...>(file_name, data, fields);
+    test_fields_impl<ss::setup<ss::string_error>, Ts...>(file_name, data,
+                                                         fields);
+    test_fields_impl<ss::setup<ss::throw_on_error>, Ts...>(file_name, data,
+                                                           fields);
 }
 
 TEST_CASE("parser test various cases with header") {
@@ -1280,22 +1288,23 @@ TEST_CASE("parser test invalid header fields usage") {
                         {"Int", "String", "Double"});
 }
 
-static inline void test_ignore_empty(const std::vector<X>& data) {
+template <typename... Ts>
+void test_ignore_empty_impl(const std::vector<X>& data) {
     unique_file_name f{"test_parser"};
     make_and_write(f.name, data);
 
     std::vector<X> expected;
     for (const auto& d : data) {
-        if (d.s != X::make_empty) {
+        if (d.s != X::empty) {
             expected.push_back(d);
         }
     }
 
     {
-        ss::parser<ss::string_error, ss::ignore_empty> p{f.name, ","};
+        ss::parser<ss::ignore_empty, Ts...> p{f.name, ","};
 
         std::vector<X> i;
-        for (const auto& a : p.iterate<X>()) {
+        for (const auto& a : p.template iterate<X>()) {
             i.push_back(a);
         }
 
@@ -1303,71 +1312,70 @@ static inline void test_ignore_empty(const std::vector<X>& data) {
     }
 
     {
-        ss::parser<ss::string_error> p{f.name, ","};
+        ss::parser<Ts...> p{f.name, ","};
         std::vector<X> i;
         size_t n = 0;
-        for (const auto& a : p.iterate<X>()) {
-            if (data.at(n).s == X::make_empty) {
-                CHECK_FALSE(p.valid());
+        while (!p.eof()) {
+            try {
+                ++n;
+                const auto& a = p.template get_next<X>();
+                if (data.at(n - 1).s == X::empty) {
+                    CHECK_FALSE(p.valid());
+                    continue;
+                }
+                i.push_back(a);
+            } catch (...) {
+                CHECK_EQ(data.at(n - 1).s, X::empty);
             }
-            i.push_back(a);
-            ++n;
         }
 
-        if (data != expected) {
-            CHECK_NE(i, expected);
-        }
+        CHECK_EQ(i, expected);
     }
+}
+
+template <typename... Ts>
+void test_ignore_empty(const std::vector<X>& data) {
+    test_ignore_empty_impl(data);
+    test_ignore_empty_impl<ss::string_error>(data);
+    test_ignore_empty_impl<ss::throw_on_error>(data);
 }
 
 TEST_CASE("parser test various cases with empty lines") {
     test_ignore_empty({{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
 
     test_ignore_empty(
-        {{1, 2, X::make_empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
+        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
 
     test_ignore_empty(
-        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::make_empty}});
+        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::empty}});
 
     test_ignore_empty(
-        {{1, 2, "x"}, {5, 6, X::make_empty}, {9, 10, "v"}, {11, 12, "w"}});
+        {{1, 2, "x"}, {5, 6, X::empty}, {9, 10, "v"}, {11, 12, "w"}});
 
-    test_ignore_empty({{1, 2, X::make_empty},
-                       {5, 6, X::make_empty},
-                       {9, 10, "v"},
-                       {11, 12, "w"}});
+    test_ignore_empty(
+        {{1, 2, X::empty}, {5, 6, X::empty}, {9, 10, "v"}, {11, 12, "w"}});
 
-    test_ignore_empty({{1, 2, X::make_empty},
-                       {3, 4, "y"},
-                       {9, 10, "v"},
-                       {11, 12, X::make_empty}});
+    test_ignore_empty(
+        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::empty}});
 
-    test_ignore_empty({{1, 2, "x"},
-                       {3, 4, "y"},
-                       {9, 10, X::make_empty},
-                       {11, 12, X::make_empty}});
+    test_ignore_empty(
+        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, X::empty}, {11, 12, X::empty}});
 
-    test_ignore_empty({{1, 2, X::make_empty},
-                       {3, 4, "y"},
-                       {9, 10, X::make_empty},
-                       {11, 12, X::make_empty}});
+    test_ignore_empty(
+        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, X::empty}, {11, 12, X::empty}});
 
-    test_ignore_empty({{1, 2, X::make_empty},
-                       {3, 4, X::make_empty},
-                       {9, 10, X::make_empty},
-                       {11, 12, X::make_empty}});
+    test_ignore_empty({{1, 2, X::empty},
+                       {3, 4, X::empty},
+                       {9, 10, X::empty},
+                       {11, 12, X::empty}});
 
-    test_ignore_empty({{1, 2, "x"},
-                       {3, 4, X::make_empty},
-                       {9, 10, X::make_empty},
-                       {11, 12, X::make_empty}});
+    test_ignore_empty(
+        {{1, 2, "x"}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, X::empty}});
 
-    test_ignore_empty({{1, 2, X::make_empty},
-                       {3, 4, X::make_empty},
-                       {9, 10, X::make_empty},
-                       {11, 12, "w"}});
+    test_ignore_empty(
+        {{1, 2, X::empty}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, "w"}});
 
-    test_ignore_empty({{11, 12, X::make_empty}});
+    test_ignore_empty({{11, 12, X::empty}});
 
     test_ignore_empty({});
 }
