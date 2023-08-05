@@ -23,6 +23,24 @@ namespace {
     }
 }
 
+template <typename... Ts>
+void expect_error_on_command(ss::parser<Ts...>& p,
+                             const std::function<void()> command) {
+    if (ss::setup<Ts...>::throw_on_error) {
+        try {
+            command();
+        } catch (const std::exception& e) {
+            CHECK_FALSE(std::string{e.what()}.empty());
+        }
+    } else {
+        command();
+        CHECK(!p.valid());
+        if constexpr (ss::setup<Ts...>::string_error) {
+            CHECK_FALSE(p.error_msg().empty());
+        }
+    }
+}
+
 void update_if_crlf(std::string& s) {
 #ifdef _WIN32
     replace_all(s, "\r\n", "\n");
@@ -879,24 +897,6 @@ TEST_CASE("parser test multiline restricted") {
     }
 
     CHECK_EQ(i, data);
-}
-
-template <typename... Ts>
-void expect_error_on_command(ss::parser<Ts...>& p,
-                             const std::function<void()> command) {
-    if (ss::setup<Ts...>::throw_on_error) {
-        try {
-            command();
-        } catch (const std::exception& e) {
-            CHECK_FALSE(std::string{e.what()}.empty());
-        }
-    } else {
-        command();
-        CHECK(!p.valid());
-        if constexpr (ss::setup<Ts...>::string_error) {
-            CHECK_FALSE(p.error_msg().empty());
-        }
-    }
 }
 
 template <typename... Ts>

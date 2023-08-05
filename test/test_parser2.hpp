@@ -120,7 +120,7 @@ column make_column(const std::string& input_header,
     return c;
 }
 
-void replace_all2(std::string& s, const std::string& old_value,
+[[maybe_unused] void replace_all2(std::string& s, const std::string& old_value,
                   const std::string& new_value) {
     for (size_t i = 0; i < 999; ++i) {
         size_t pos = s.find(old_value);
@@ -256,7 +256,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
     return output;
 }
 
-void write_to_file(const std::vector<std::string>& data,
+[[maybe_unused]] void write_to_file(const std::vector<std::string>& data,
                    const std::string& delim, const std::string& file_name) {
     std::ofstream out{file_name, std::ios_base::app};
     std::string line;
@@ -651,4 +651,3 @@ TEST_CASE("parser test various cases version 2 segment 1") {
 }
 
 #endif
-
