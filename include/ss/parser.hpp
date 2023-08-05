@@ -832,7 +832,7 @@ private:
         }
 
         std::string get_buffer() {
-            return std::string{next_line_buffer_};
+            return std::string{next_line_buffer_, next_line_buffer_size_};
         }
 
         ////////////////
