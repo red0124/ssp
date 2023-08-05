@@ -27,7 +27,6 @@ Lets say we have a csv file containing students in a given format '$name,$age,$g
 $ cat students.csv
 James Bailey,65,2.5
 Brian S. Wolfe,40,1.9
-Nathan Fielder,37,Really good grades
 Bill (Heath) Gates,65,3.3
 ```
 ```cpp
@@ -35,12 +34,10 @@ Bill (Heath) Gates,65,3.3
 #include <ss/parser.hpp>
 
 int main() {
-    ss::parser p{"students.csv", ","};
+    ss::parser<ss::throw_on_error> p{"students.csv", ","};
 
-    for(const auto& [name, age, grade] : p.iterate<std::string, int, float>()) {
-        if (p.valid()) {
-            std::cout << name << ' ' << age << ' ' << grade << std::endl;
-        }
+    for (auto&& [name, age, grade] : p.iterate<std::string, int, float>()) {
+        std::cout << name << ' ' << age << ' ' << grade << std::endl;
     }
 
     return 0;
