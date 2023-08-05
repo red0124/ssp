@@ -45,7 +45,7 @@ public:
             if constexpr (ignore_header) {
                 ignore_next();
             } else {
-                header_ = reader_.get_header();
+                raw_header_ = reader_.get_buffer();
             }
         } else {
             handle_error_file_not_open();
@@ -123,6 +123,10 @@ public:
     }
 
     bool field_exists(const std::string& field) {
+        if (header_.empty()) {
+            split_header_data();
+        }
+
         return header_index(field).has_value();
     }
 
@@ -131,6 +135,10 @@ public:
         if constexpr (ignore_header) {
             handle_error_header_ignored();
             return;
+        }
+
+        if (header_.empty()) {
+            split_header_data();
         }
 
         if (!valid()) {
@@ -432,6 +440,15 @@ private:
     // header
     ////////////////
 
+    void split_header_data() {
+        ss::splitter<Options...> splitter;
+        std::string raw_header_copy = raw_header_;
+        splitter.split(raw_header_copy.data(), reader_.delim_);
+        for (const auto& [begin, end] : splitter.split_data_) {
+            header_.emplace_back(begin, end);
+        }
+    }
+
     std::optional<size_t> header_index(const std::string& field) {
         auto it = std::find(header_.begin(), header_.end(), field);
 
@@ -508,8 +525,7 @@ private:
 
     void handle_error_header_ignored() {
         constexpr static auto error_msg =
-            ": \"the header row is ignored within the setup it cannot be "
-            "used\"";
+            ": the header row is ignored within the setup it cannot be used";
 
         if constexpr (string_error) {
             error_.clear();
@@ -796,15 +812,8 @@ private:
             return true;
         }
 
-        std::vector<std::string> get_header() {
-            std::vector<std::string> header;
-            std::string header_buffer = next_line_buffer_;
-            ss::splitter<Options...> splitter;
-            splitter.split(header_buffer.data(), delim_);
-            for (const auto& [begin, end] : splitter.split_data_) {
-                header.emplace_back(begin, end);
-            }
-            return header;
+        std::string get_buffer() {
+            return std::string{next_line_buffer_};
         }
 
         ////////////////
@@ -838,6 +847,7 @@ private:
     error_type error_{};
     reader reader_;
     std::vector<std::string> header_;
+    std::string raw_header_;
     bool eof_{false};
 };
 

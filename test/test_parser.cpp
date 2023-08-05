@@ -700,7 +700,8 @@ static inline std::string no_quote(const std::string& s) {
     return s;
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes") {
+template <typename... Ts>
+void test_quote_multiline() {
     unique_file_name f{"test_parser"};
     std::vector<X> data = {{1, 2, "\"x\r\nx\nx\""},
                            {3, 4, "\"y\ny\r\ny\""},
@@ -720,11 +721,11 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
         }
     }
 
-    ss::parser<ss::multiline, ss::quote<'"'>> p{f.name, ","};
+    ss::parser<ss::multiline, ss::quote<'"'>, Ts...> p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
-        auto a = p.get_next<int, double, std::string>();
+        auto a = p.template get_next<int, double, std::string>();
         i.emplace_back(ss::to_object<X>(a));
     }
 
@@ -733,11 +734,19 @@ TEST_CASE("parser test csv on multiple lines with quotes") {
     }
     CHECK_EQ(i, data);
 
-    ss::parser<ss::quote<'"'>> p_no_multiline{f.name, ","};
+    ss::parser<ss::quote<'"'>, Ts...> p_no_multiline{f.name, ","};
     while (!p.eof()) {
-        auto a = p_no_multiline.get_next<int, double, std::string>();
-        CHECK(!p.valid());
+        auto command = [&] {
+            p_no_multiline.template get_next<int, double, std::string>();
+        };
+        expect_error_on_command(p_no_multiline, command);
     }
+}
+
+TEST_CASE("parser test csv on multiple lines with quotes") {
+    test_quote_multiline();
+    test_quote_multiline<ss::string_error>();
+    test_quote_multiline<ss::throw_on_error>();
 }
 
 static inline std::string no_escape(std::string& s) {
