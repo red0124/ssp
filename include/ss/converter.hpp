@@ -124,7 +124,7 @@ public:
         if (splitter_.valid()) {
             return convert<Ts...>(splitter_.split_data_);
         } else {
-            set_error_bad_split();
+            handle_error_bad_split();
             return {};
         }
     }
@@ -234,7 +234,7 @@ private:
         return error;
     }
 
-    void set_error_bad_split() {
+    void handle_error_bad_split() {
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
@@ -243,31 +243,31 @@ private:
         }
     }
 
-    void set_error_unterminated_escape() {
+    void handle_error_unterminated_escape() {
         if constexpr (string_error) {
             error_.clear();
-            splitter_.set_error_unterminated_escape();
+            splitter_.handle_error_unterminated_escape();
             error_.append(splitter_.error_msg());
         } else if constexpr (throw_on_error) {
-            splitter_.set_error_unterminated_escape();
+            splitter_.handle_error_unterminated_escape();
         } else {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_quote() {
+    void handle_error_unterminated_quote() {
         if constexpr (string_error) {
             error_.clear();
-            splitter_.set_error_unterminated_quote();
+            splitter_.handle_error_unterminated_quote();
             error_.append(splitter_.error_msg());
         } else if constexpr (throw_on_error) {
-            splitter_.set_error_unterminated_quote();
+            splitter_.handle_error_unterminated_quote();
         } else {
             error_ = true;
         }
     }
 
-    void set_error_multiline_limit_reached() {
+    void handle_error_multiline_limit_reached() {
         constexpr static auto error_msg = "multiline limit reached";
 
         if constexpr (string_error) {
@@ -280,7 +280,7 @@ private:
         }
     }
 
-    void set_error_invalid_conversion(const string_range msg, size_t pos) {
+    void handle_error_invalid_conversion(const string_range msg, size_t pos) {
         constexpr static auto error_msg = "invalid conversion for parameter ";
 
         if constexpr (string_error) {
@@ -293,8 +293,8 @@ private:
         }
     }
 
-    void set_error_validate(const char* const error, const string_range msg,
-                            size_t pos) {
+    void handle_error_validation_failed(const char* const error,
+                                        const string_range msg, size_t pos) {
         if constexpr (string_error) {
             error_.clear();
             error_.append(error).append(" ").append(error_sufix(msg, pos));
@@ -305,7 +305,7 @@ private:
         }
     }
 
-    void set_error_number_of_columns(size_t expected_pos, size_t pos) {
+    void handle_error_number_of_columns(size_t expected_pos, size_t pos) {
         constexpr static auto error_msg1 =
             "invalid number of columns, expected: ";
         constexpr static auto error_msg2 = ", got: ";
@@ -324,8 +324,8 @@ private:
         }
     }
 
-    void set_error_incompatible_mapping(size_t argument_size,
-                                        size_t mapping_size) {
+    void handle_error_incompatible_mapping(size_t argument_size,
+                                           size_t mapping_size) {
         constexpr static auto error_msg1 =
             "number of arguments does not match mapping, expected: ";
         constexpr static auto error_msg2 = ", got: ";
@@ -353,24 +353,25 @@ private:
         clear_error();
 
         if (!splitter_.valid()) {
-            set_error_bad_split();
+            handle_error_bad_split();
             return {};
         }
 
         if (!columns_mapped()) {
             if (sizeof...(Ts) != elems.size()) {
-                set_error_number_of_columns(sizeof...(Ts), elems.size());
+                handle_error_number_of_columns(sizeof...(Ts), elems.size());
                 return {};
             }
         } else {
             if (sizeof...(Ts) != column_mappings_.size()) {
-                set_error_incompatible_mapping(sizeof...(Ts),
-                                               column_mappings_.size());
+                handle_error_incompatible_mapping(sizeof...(Ts),
+                                                  column_mappings_.size());
                 return {};
             }
 
             if (elems.size() != number_of_columns_) {
-                set_error_number_of_columns(number_of_columns_, elems.size());
+                handle_error_number_of_columns(number_of_columns_,
+                                               elems.size());
                 return {};
             }
         }
@@ -429,16 +430,17 @@ private:
         }
 
         if (!extract(msg.first, msg.second, dst)) {
-            set_error_invalid_conversion(msg, pos);
+            handle_error_invalid_conversion(msg, pos);
             return;
         }
 
         if constexpr (has_m_ss_valid_t<T>) {
             if (T validator; !validator.ss_valid(dst)) {
                 if constexpr (has_m_error_t<T>) {
-                    set_error_validate(validator.error(), msg, pos);
+                    handle_error_validation_failed(validator.error(), msg, pos);
                 } else {
-                    set_error_validate("validation error", msg, pos);
+                    handle_error_validation_failed("validation error", msg,
+                                                   pos);
                 }
                 return;
             }

@@ -39,7 +39,7 @@ public:
         if (reader_.file_) {
             read_line();
             if (eof_) {
-                set_error_eof_reached();
+                handle_error_eof_reached();
                 return;
             }
             if constexpr (ignore_header) {
@@ -48,7 +48,7 @@ public:
                 header_ = reader_.get_header();
             }
         } else {
-            set_error_file_not_open();
+            handle_error_file_not_open();
             eof_ = true;
         }
     }
@@ -100,7 +100,7 @@ public:
 
         reader_.update();
         if (!reader_.converter_.valid()) {
-            set_error_invalid_conversion();
+            handle_error_invalid_conversion();
             read_line();
             return {};
         }
@@ -108,14 +108,14 @@ public:
         clear_error();
 
         if (eof_) {
-            set_error_eof_reached();
+            handle_error_eof_reached();
             return {};
         }
 
         auto value = reader_.converter_.template convert<T, Ts...>();
 
         if (!reader_.converter_.valid()) {
-            set_error_invalid_conversion();
+            handle_error_invalid_conversion();
         }
 
         read_line();
@@ -129,7 +129,7 @@ public:
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
         if constexpr (ignore_header) {
-            set_error_header_ignored();
+            handle_error_header_ignored();
             return;
         }
 
@@ -140,7 +140,7 @@ public:
         auto fields = std::vector<std::string>{fields_args...};
 
         if (fields.empty()) {
-            set_error_empty_mapping();
+            handle_error_empty_mapping();
             return;
         }
 
@@ -148,14 +148,14 @@ public:
 
         for (const auto& field : fields) {
             if (std::count(fields.begin(), fields.end(), field) != 1) {
-                set_error_field_used_multiple_times(field);
+                handle_error_field_used_multiple_times(field);
                 return;
             }
 
             auto index = header_index(field);
 
             if (!index) {
-                set_error_invalid_field(field);
+                handle_error_invalid_field(field);
                 return;
             }
 
@@ -344,7 +344,7 @@ public:
             auto value =
                 parser_.reader_.converter_.template convert<U, Us...>();
             if (!parser_.reader_.converter_.valid()) {
-                parser_.set_error_invalid_conversion();
+                parser_.handle_error_invalid_conversion();
             }
             return value;
         }
@@ -391,7 +391,7 @@ private:
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
                 if (!try_invoke_impl(arg, std::forward<Fun>(fun))) {
-                    set_error_failed_check();
+                    handle_error_failed_check();
                 }
             } else {
                 try_invoke_impl(arg, std::forward<Fun>(fun));
@@ -454,10 +454,11 @@ private:
         }
     }
 
-    void set_error_failed_check() {
+    void handle_error_failed_check() {
         constexpr static auto error_msg = " failed check";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
@@ -466,10 +467,11 @@ private:
         }
     }
 
-    void set_error_file_not_open() {
+    void handle_error_file_not_open() {
         constexpr static auto error_msg = " could not be opened";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
@@ -478,10 +480,11 @@ private:
         }
     }
 
-    void set_error_eof_reached() {
+    void handle_error_eof_reached() {
         constexpr static auto error_msg = " read on end of file";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
@@ -490,8 +493,9 @@ private:
         }
     }
 
-    void set_error_invalid_conversion() {
+    void handle_error_invalid_conversion() {
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(reader_.line_number_))
@@ -502,12 +506,13 @@ private:
         }
     }
 
-    void set_error_header_ignored() {
+    void handle_error_header_ignored() {
         constexpr static auto error_msg =
             ": \"the header row is ignored within the setup it cannot be "
             "used\"";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg};
@@ -516,11 +521,12 @@ private:
         }
     }
 
-    void set_error_invalid_field(const std::string& field) {
+    void handle_error_invalid_field(const std::string& field) {
         constexpr static auto error_msg =
             ": header does not contain given field: ";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg).append(field);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg + field};
@@ -529,10 +535,11 @@ private:
         }
     }
 
-    void set_error_field_used_multiple_times(const std::string& field) {
+    void handle_error_field_used_multiple_times(const std::string& field) {
         constexpr static auto error_msg = ": given field used multiple times: ";
 
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_).append(error_msg).append(field);
         } else if constexpr (throw_on_error) {
             throw ss::exception{file_name_ + error_msg + field};
@@ -541,7 +548,7 @@ private:
         }
     }
 
-    void set_error_empty_mapping() {
+    void handle_error_empty_mapping() {
         constexpr static auto error_msg = "received empty mapping";
 
         if constexpr (string_error) {
@@ -664,7 +671,7 @@ private:
 
                     if (!append_next_line_to_buffer(next_line_buffer_,
                                                     next_line_size_)) {
-                        next_line_converter_.set_error_unterminated_escape();
+                        next_line_converter_.handle_error_unterminated_escape();
                         return;
                     }
                 }
@@ -682,7 +689,7 @@ private:
 
                     if (!append_next_line_to_buffer(next_line_buffer_,
                                                     next_line_size_)) {
-                        next_line_converter_.set_error_unterminated_quote();
+                        next_line_converter_.handle_error_unterminated_quote();
                         return;
                     }
 
@@ -695,7 +702,7 @@ private:
                             if (!append_next_line_to_buffer(next_line_buffer_,
                                                             next_line_size_)) {
                                 next_line_converter_
-                                    .set_error_unterminated_escape();
+                                    .handle_error_unterminated_escape();
                                 return;
                             }
                         }
@@ -716,7 +723,7 @@ private:
         bool multiline_limit_reached(size_t& limit) {
             if constexpr (multiline::size > 0) {
                 if (limit++ >= multiline::size) {
-                    next_line_converter_.set_error_multiline_limit_reached();
+                    next_line_converter_.handle_error_multiline_limit_reached();
                     return true;
                 }
             }

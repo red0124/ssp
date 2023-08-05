@@ -82,7 +82,7 @@ private:
         // resplitting, continue from last slice
         if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
             !unterminated_quote()) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -91,7 +91,7 @@ private:
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -123,7 +123,7 @@ private:
         unterminated_quote_ = false;
     }
 
-    void set_error_empty_delimiter() {
+    void handle_error_empty_delimiter() {
         constexpr static auto error_msg = "empty delimiter";
 
         if constexpr (string_error) {
@@ -136,7 +136,7 @@ private:
         }
     }
 
-    void set_error_mismatched_quote(size_t n) {
+    void handle_error_mismatched_quote(size_t n) {
         constexpr static auto error_msg = "mismatched quote at position: ";
 
         if constexpr (string_error) {
@@ -150,7 +150,7 @@ private:
     }
 
     // TODO rename with handle error
-    void set_error_unterminated_escape() {
+    void handle_error_unterminated_escape() {
         constexpr static auto error_msg =
             "unterminated escape at the end of the line";
 
@@ -165,7 +165,7 @@ private:
     }
 
     // TODO handle this efficiently (if multiline is enabled)
-    void set_error_unterminated_quote() {
+    void handle_error_unterminated_quote() {
         constexpr static auto error_msg = "unterminated quote";
 
         if constexpr (string_error) {
@@ -178,7 +178,7 @@ private:
         }
     }
 
-    void set_error_invalid_resplit() {
+    void handle_error_invalid_resplit() {
         constexpr static auto error_msg =
             "invalid resplit, new line must be longer"
             "than the end of the last slice";
@@ -263,7 +263,7 @@ private:
             if (escape::match(*curr)) {
                 if (curr[1] == '\0') {
                     if constexpr (!multiline::enabled) {
-                        set_error_unterminated_escape();
+                        handle_error_unterminated_escape();
                     }
                     done_ = true;
                     return;
@@ -311,7 +311,7 @@ private:
         clear_error();
         switch (delimiter.size()) {
         case 0:
-            set_error_empty_delimiter();
+            handle_error_empty_delimiter();
             return split_data_;
         case 1:
             return split_impl(delimiter[0]);
@@ -392,7 +392,7 @@ private:
                                 // eol, unterminated escape
                                 // eg: ... "hel\\0
                                 if constexpr (!multiline::enabled) {
-                                    set_error_unterminated_escape();
+                                    handle_error_unterminated_escape();
                                 }
                                 done_ = true;
                                 break;
@@ -412,7 +412,7 @@ private:
                         shift_and_set_current();
                         unterminated_quote_ = true;
                         if constexpr (!multiline::enabled) {
-                            set_error_unterminated_quote();
+                            handle_error_unterminated_quote();
                         }
                         split_data_.emplace_back(line_, begin_);
                         done_ = true;
@@ -452,7 +452,7 @@ private:
                 } else {
                     // mismatched quote
                     // eg: ...,"hel"lo,... -> error
-                    set_error_mismatched_quote(end_ - line_);
+                    handle_error_mismatched_quote(end_ - line_);
                     split_data_.emplace_back(line_, begin_);
                 }
                 done_ = true;
