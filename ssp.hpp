@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -395,6 +395,26 @@ T to_object(U&& data) {
 
 } /* trait */
 
+namespace ss {
+
+////////////////
+// exception
+////////////////
+
+class exception : public std::exception {
+    std::string msg_;
+
+public:
+    exception(const std::string& msg): msg_{msg} {
+    }
+
+    virtual char const* what() const noexcept {
+        return msg_.c_str();
+    }
+};
+
+} /* ss */
+
 
 namespace ss {
 
@@ -610,6 +630,12 @@ template <bool StringError>
 inline void assert_string_error_defined() {
     static_assert(StringError,
                   "'string_error' needs to be enabled to use 'error_msg'");
+}
+
+template <bool ThrowOnError>
+inline void assert_throw_on_error_not_defined() {
+    static_assert(!ThrowOnError, "cannot handle errors manually if "
+                                 "'throw_on_error' is enabled");
 }
 
 #if __unix__
@@ -848,19 +874,25 @@ class ignore_header;
 class ignore_empty;
 
 ////////////////
+// throw_on_error
+////////////////
+
+class throw_on_error;
+
+////////////////
 // setup implementation
 ////////////////
 
-template <typename... Ts>
+template <typename... Options>
 struct setup {
 private:
-    template <typename T>
+    template <typename Option>
     struct is_matcher
-        : std::disjunction<is_instance_of_matcher_t<T, quote>,
-                           is_instance_of_matcher_t<T, escape>,
-                           is_instance_of_matcher_t<T, trim>,
-                           is_instance_of_matcher_t<T, trim_left>,
-                           is_instance_of_matcher_t<T, trim_right>> {};
+        : std::disjunction<is_instance_of_matcher_t<Option, quote>,
+                           is_instance_of_matcher_t<Option, escape>,
+                           is_instance_of_matcher_t<Option, trim>,
+                           is_instance_of_matcher_t<Option, trim_left>,
+                           is_instance_of_matcher_t<Option, trim_right>> {};
 
     template <typename T>
     struct is_string_error : std::is_same<T, string_error> {};
@@ -871,39 +903,48 @@ private:
     template <typename T>
     struct is_ignore_empty : std::is_same<T, ignore_empty> {};
 
-    constexpr static auto count_matcher = count_v<is_matcher, Ts...>;
+    template <typename T>
+    struct is_throw_on_error : std::is_same<T, throw_on_error> {};
+
+    constexpr static auto count_matcher = count_v<is_matcher, Options...>;
 
     constexpr static auto count_multiline =
-        count_v<is_instance_of_multiline, Ts...>;
+        count_v<is_instance_of_multiline, Options...>;
 
-    constexpr static auto count_string_error = count_v<is_string_error, Ts...>;
+    constexpr static auto count_string_error =
+        count_v<is_string_error, Options...>;
 
     constexpr static auto count_ignore_header =
-        count_v<is_ignore_header, Ts...>;
+        count_v<is_ignore_header, Options...>;
 
-    constexpr static auto count_ignore_empty = count_v<is_ignore_empty, Ts...>;
+    constexpr static auto count_throw_on_error =
+        count_v<is_throw_on_error, Options...>;
+
+    constexpr static auto count_ignore_empty =
+        count_v<is_ignore_empty, Options...>;
 
     constexpr static auto number_of_valid_setup_types =
         count_matcher + count_multiline + count_string_error +
-        count_ignore_header + count_ignore_empty;
+        count_ignore_header + count_ignore_empty + count_throw_on_error;
 
-    using trim_left_only = get_matcher_t<trim_left, Ts...>;
-    using trim_right_only = get_matcher_t<trim_right, Ts...>;
-    using trim_all = get_matcher_t<trim, Ts...>;
+    using trim_left_only = get_matcher_t<trim_left, Options...>;
+    using trim_right_only = get_matcher_t<trim_right, Options...>;
+    using trim_all = get_matcher_t<trim, Options...>;
 
 public:
-    using quote = get_matcher_t<quote, Ts...>;
-    using escape = get_matcher_t<escape, Ts...>;
+    using quote = get_matcher_t<quote, Options...>;
+    using escape = get_matcher_t<escape, Options...>;
 
     using trim_left =
         std::conditional_t<trim_all::enabled, trim_all, trim_left_only>;
     using trim_right =
         std::conditional_t<trim_all::enabled, trim_all, trim_right_only>;
 
-    using multiline = get_multiline_t<Ts...>;
+    using multiline = get_multiline_t<Options...>;
     constexpr static bool string_error = (count_string_error == 1);
     constexpr static bool ignore_header = (count_ignore_header == 1);
     constexpr static bool ignore_empty = (count_ignore_empty == 1);
+    constexpr static bool throw_on_error = (count_throw_on_error == 1);
 
 private:
 #define ASSERT_MSG "cannot have the same match character in multiple matchers"
@@ -922,37 +963,45 @@ private:
     static_assert(
         !multiline::enabled ||
             (multiline::enabled && (quote::enabled || escape::enabled)),
-        "to enable multiline either quote or escape need to be enabled");
+        "to enable multiline either quote or escape needs to be enabled");
 
     static_assert(!(trim_all::enabled && trim_left_only::enabled) &&
                       !(trim_all::enabled && trim_right_only::enabled),
                   "ambiguous trim setup");
 
     static_assert(count_multiline <= 1, "mutliline defined multiple times");
+
     static_assert(count_string_error <= 1,
                   "string_error defined multiple times");
 
-    static_assert(number_of_valid_setup_types == sizeof...(Ts),
+    static_assert(count_throw_on_error <= 1,
+                  "throw_on_error defined multiple times");
+
+    static_assert(count_throw_on_error + count_string_error <= 1,
+                  "cannot define both throw_on_error and string_error");
+
+    static_assert(number_of_valid_setup_types == sizeof...(Options),
                   "one or multiple invalid setup parameters defined");
 };
 
-template <typename... Ts>
-struct setup<setup<Ts...>> : setup<Ts...> {};
+template <typename... Options>
+struct setup<setup<Options...>> : setup<Options...> {};
 
 } /* ss */
 
 namespace ss {
 
-template <typename... Ts>
+template <typename... Options>
 class splitter {
 private:
-    using quote = typename setup<Ts...>::quote;
-    using trim_left = typename setup<Ts...>::trim_left;
-    using trim_right = typename setup<Ts...>::trim_right;
-    using escape = typename setup<Ts...>::escape;
-    using multiline = typename setup<Ts...>::multiline;
+    using quote = typename setup<Options...>::quote;
+    using trim_left = typename setup<Options...>::trim_left;
+    using trim_right = typename setup<Options...>::trim_right;
+    using escape = typename setup<Options...>::escape;
+    using multiline = typename setup<Options...>::multiline;
 
-    constexpr static auto string_error = setup<Ts...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
     using error_type = std::conditional_t<string_error, std::string, bool>;
@@ -963,6 +1012,8 @@ public:
     bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
+        } else if constexpr (throw_on_error) {
+            return true;
         } else {
             return !error_;
         }
@@ -1009,7 +1060,7 @@ private:
         // resplitting, continue from last slice
         if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
             !unterminated_quote()) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -1018,7 +1069,7 @@ private:
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -1044,55 +1095,75 @@ private:
     void clear_error() {
         if constexpr (string_error) {
             error_.clear();
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = false;
         }
         unterminated_quote_ = false;
     }
 
-    void set_error_empty_delimiter() {
+    void handle_error_empty_delimiter() {
+        constexpr static auto error_msg = "empty delimiter";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("empt  delimiter");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_mismatched_quote(size_t n) {
+    void handle_error_mismatched_quote(size_t n) {
+        constexpr static auto error_msg = "mismatched quote at position: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("mismatched quote at position: " + std::to_string(n));
+            error_.append(error_msg + std::to_string(n));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + std::to_string(n)};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_escape() {
+    void handle_error_unterminated_escape() {
+        constexpr static auto error_msg =
+            "unterminated escape at the end of the line";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated escape at the end of the line");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_quote() {
-        unterminated_quote_ = true;
+    void handle_error_unterminated_quote() {
+        constexpr static auto error_msg = "unterminated quote";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated quote");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_invalid_resplit() {
-        unterminated_quote_ = false;
+    void handle_error_invalid_resplit() {
+        constexpr static auto error_msg =
+            "invalid resplit, new line must be longer"
+            "than the end of the last slice";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid resplit, new line must be longer"
-                          "than the end of the last slice");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
@@ -1167,7 +1238,9 @@ private:
         if constexpr (escape::enabled) {
             if (escape::match(*curr)) {
                 if (curr[1] == '\0') {
-                    set_error_unterminated_escape();
+                    if constexpr (!multiline::enabled) {
+                        handle_error_unterminated_escape();
+                    }
                     done_ = true;
                     return;
                 }
@@ -1214,7 +1287,7 @@ private:
         clear_error();
         switch (delimiter.size()) {
         case 0:
-            set_error_empty_delimiter();
+            handle_error_empty_delimiter();
             return split_data_;
         case 1:
             return split_impl(delimiter[0]);
@@ -1294,7 +1367,9 @@ private:
                             if (end_[1] == '\0') {
                                 // eol, unterminated escape
                                 // eg: ... "hel\\0
-                                set_error_unterminated_escape();
+                                if constexpr (!multiline::enabled) {
+                                    handle_error_unterminated_escape();
+                                }
                                 done_ = true;
                                 break;
                             }
@@ -1311,7 +1386,10 @@ private:
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
                         shift_and_set_current();
-                        set_error_unterminated_quote();
+                        unterminated_quote_ = true;
+                        if constexpr (!multiline::enabled) {
+                            handle_error_unterminated_quote();
+                        }
                         split_data_.emplace_back(line_, begin_);
                         done_ = true;
                         break;
@@ -1350,7 +1428,7 @@ private:
                 } else {
                     // mismatched quote
                     // eg: ...,"hel"lo,... -> error
-                    set_error_mismatched_quote(end_ - line_);
+                    handle_error_mismatched_quote(end_ - line_);
                     split_data_.emplace_back(line_, begin_);
                 }
                 done_ = true;
@@ -1387,6 +1465,7 @@ public:
 #else
 #endif
 
+// TODO try from_chars for integer conversions
 namespace ss {
 
 ////////////////
@@ -1412,12 +1491,32 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
-    T ret;
-    auto [ptr, ec] = std::from_chars(begin, end, ret);
+    constexpr static auto buff_max = 64;
+    char buff[buff_max];
+    size_t string_range = std::distance(begin, end);
 
-    if (ec != std::errc() || ptr != end) {
+    if (string_range > buff_max) {
         return std::nullopt;
     }
+
+    std::copy_n(begin, string_range, buff);
+    buff[string_range] = '\0';
+
+    T ret;
+    char* parse_end = nullptr;
+
+    if constexpr (std::is_same_v<T, float>) {
+        ret = std::strtof(buff, &parse_end);
+    } else if constexpr (std::is_same_v<T, double>) {
+        ret = std::strtod(buff, &parse_end);
+    } else if constexpr (std::is_same_v<T, long double>) {
+        ret = std::strtold(buff, &parse_end);
+    }
+
+    if (parse_end != buff + string_range) {
+        return std::nullopt;
+    }
+
     return ret;
 }
 
@@ -1539,6 +1638,7 @@ inline bool sub_overflow(long long& result, long long operand) {
     return __builtin_ssubll_overflow(result, operand, &result);
 }
 
+// Note: sub_overflow function should be unreachable for unsigned values
 template <>
 inline bool sub_overflow(unsigned int& result, unsigned int operand) {
     return __builtin_usub_overflow(result, operand, &result);
@@ -1556,8 +1656,8 @@ inline bool sub_overflow(unsigned long long& result,
 }
 
 template <typename T, typename F>
-bool shift_and_add_overflow(T& value, T digit, F add_last_digit_owerflow) {
-    if (mul_overflow<T>(value, 10) || add_last_digit_owerflow(value, digit)) {
+bool shift_and_add_overflow(T& value, T digit, F add_last_digit_overflow) {
+    if (mul_overflow<T>(value, 10) || add_last_digit_overflow(value, digit)) {
         return true;
     }
     return false;
@@ -1595,17 +1695,17 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
 
 #if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
     !defined(MINGW32_CLANG)
-    auto add_last_digit_owerflow =
+    auto add_last_digit_overflow =
         (is_negative) ? sub_overflow<T> : add_overflow<T>;
 #else
-    auto add_last_digit_owerflow = is_negative;
+    auto add_last_digit_overflow = is_negative;
 #endif
 
     T value = 0;
     for (auto i = begin; i != end; ++i) {
         if (auto digit = from_char(*i);
             !digit || shift_and_add_overflow<T>(value, digit.value(),
-                                                add_last_digit_owerflow)) {
+                                                add_last_digit_overflow)) {
             return std::nullopt;
         }
     }
@@ -1813,11 +1913,12 @@ constexpr bool tied_class_v = tied_class<Ts...>::value;
 // converter
 ////////////////
 
-template <typename... Matchers>
+template <typename... Options>
 class converter {
-    using line_ptr_type = typename splitter<Matchers...>::line_ptr_type;
+    using line_ptr_type = typename splitter<Options...>::line_ptr_type;
 
-    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto default_delimiter = ",";
 
     using error_type = std::conditional_t<string_error, std::string, bool>;
@@ -1837,7 +1938,12 @@ public:
     no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
-        return convert<Ts...>(splitter_.split_data_);
+        if (splitter_.valid()) {
+            return convert<Ts...>(splitter_.split_data_);
+        } else {
+            handle_error_bad_split();
+            return {};
+        }
     }
 
     // parses already split line, returns 'T' object with extracted values
@@ -1880,6 +1986,8 @@ public:
     bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
+        } else if constexpr (throw_on_error) {
+            return true;
         } else {
             return !error_;
         }
@@ -1943,98 +2051,111 @@ private:
         return error;
     }
 
-    void set_error_unterminated_quote() {
+    void handle_error_bad_split() {
         if constexpr (string_error) {
             error_.clear();
             error_.append(splitter_.error_msg());
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_escape() {
+    void handle_error_unterminated_escape() {
         if constexpr (string_error) {
             error_.clear();
-            splitter_.set_error_unterminated_escape();
+            splitter_.handle_error_unterminated_escape();
             error_.append(splitter_.error_msg());
+        } else if constexpr (throw_on_error) {
+            splitter_.handle_error_unterminated_escape();
         } else {
             error_ = true;
         }
     }
 
-    void set_error_multiline_limit_reached() {
+    void handle_error_unterminated_quote() {
         if constexpr (string_error) {
             error_.clear();
-            error_.append("multiline limit reached.");
+            splitter_.handle_error_unterminated_quote();
+            error_.append(splitter_.error_msg());
+        } else if constexpr (throw_on_error) {
+            splitter_.handle_error_unterminated_quote();
         } else {
             error_ = true;
         }
     }
 
-    void set_error_invalid_conversion(const string_range msg, size_t pos) {
+    void handle_error_multiline_limit_reached() {
+        constexpr static auto error_msg = "multiline limit reached";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid conversion for parameter ")
-                .append(error_sufix(msg, pos));
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_validate(const char* const error, const string_range msg,
-                            size_t pos) {
+    void handle_error_invalid_conversion(const string_range msg, size_t pos) {
+        constexpr static auto error_msg = "invalid conversion for parameter ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(error_msg).append(error_sufix(msg, pos));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + error_sufix(msg, pos)};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void handle_error_validation_failed(const char* const error,
+                                        const string_range msg, size_t pos) {
         if constexpr (string_error) {
             error_.clear();
             error_.append(error).append(" ").append(error_sufix(msg, pos));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error + (" " + error_sufix(msg, pos))};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_number_of_columns(size_t expected_pos, size_t pos) {
+    void handle_error_number_of_columns(size_t expected_pos, size_t pos) {
+        constexpr static auto error_msg1 =
+            "invalid number of columns, expected: ";
+        constexpr static auto error_msg2 = ", got: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid number of columns, expected: ")
+            error_.append(error_msg1)
                 .append(std::to_string(expected_pos))
-                .append(", got: ")
+                .append(error_msg2)
                 .append(std::to_string(pos));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg1 + std::to_string(expected_pos) +
+                                error_msg2 + std::to_string(pos)};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_incompatible_mapping(size_t argument_size,
-                                        size_t mapping_size) {
+    void handle_error_incompatible_mapping(size_t argument_size,
+                                           size_t mapping_size) {
+        constexpr static auto error_msg1 =
+            "number of arguments does not match mapping, expected: ";
+        constexpr static auto error_msg2 = ", got: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_
-                .append(
-                    "number of arguments does not match mapping, expected: ")
+            error_.append(error_msg1)
                 .append(std::to_string(mapping_size))
-                .append(", got: ")
+                .append(error_msg2)
                 .append(std::to_string(argument_size));
-        } else {
-            error_ = true;
-        }
-    }
-
-    void set_error_invalid_mapping() {
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append("received empty mapping");
-        } else {
-            error_ = true;
-        }
-    }
-
-    void set_error_mapping_out_of_range(size_t maximum_index,
-                                        size_t number_of_columnts) {
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append("maximum index: ")
-                .append(std::to_string(maximum_index))
-                .append(", greater then number of columns: ")
-                .append(std::to_string(number_of_columnts));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg1 + std::to_string(mapping_size) +
+                                error_msg2 + std::to_string(argument_size)};
         } else {
             error_ = true;
         }
@@ -2047,29 +2168,28 @@ private:
     template <typename... Ts>
     no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
         clear_error();
-        using return_type = no_void_validator_tup_t<Ts...>;
 
         if (!splitter_.valid()) {
-            set_error_unterminated_quote();
-            no_void_validator_tup_t<Ts...> ret{};
-            return ret;
+            handle_error_bad_split();
+            return {};
         }
 
         if (!columns_mapped()) {
             if (sizeof...(Ts) != elems.size()) {
-                set_error_number_of_columns(sizeof...(Ts), elems.size());
-                return return_type{};
+                handle_error_number_of_columns(sizeof...(Ts), elems.size());
+                return {};
             }
         } else {
             if (sizeof...(Ts) != column_mappings_.size()) {
-                set_error_incompatible_mapping(sizeof...(Ts),
-                                               column_mappings_.size());
-                return return_type{};
+                handle_error_incompatible_mapping(sizeof...(Ts),
+                                                  column_mappings_.size());
+                return {};
             }
 
             if (elems.size() != number_of_columns_) {
-                set_error_number_of_columns(number_of_columns_, elems.size());
-                return return_type{};
+                handle_error_number_of_columns(number_of_columns_,
+                                               elems.size());
+                return {};
             }
         }
 
@@ -2098,19 +2218,9 @@ private:
         return column_mappings_[tuple_position];
     }
 
+    // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        if (positions.empty()) {
-            set_error_invalid_mapping();
-            return;
-        }
-
-        auto max_index = *std::max_element(positions.begin(), positions.end());
-        if (max_index >= number_of_columns) {
-            set_error_mapping_out_of_range(max_index, number_of_columns);
-            return;
-        }
-
         column_mappings_ = positions;
         number_of_columns_ = number_of_columns;
     }
@@ -2137,16 +2247,17 @@ private:
         }
 
         if (!extract(msg.first, msg.second, dst)) {
-            set_error_invalid_conversion(msg, pos);
+            handle_error_invalid_conversion(msg, pos);
             return;
         }
 
         if constexpr (has_m_ss_valid_t<T>) {
             if (T validator; !validator.ss_valid(dst)) {
                 if constexpr (has_m_error_t<T>) {
-                    set_error_validate(validator.error(), msg, pos);
+                    handle_error_validation_failed(validator.error(), msg, pos);
                 } else {
-                    set_error_validate("validation error", msg, pos);
+                    handle_error_validation_failed("validation error", msg,
+                                                   pos);
                 }
                 return;
             }
@@ -2190,7 +2301,7 @@ private:
     ////////////////
 
     error_type error_{};
-    splitter<Matchers...> splitter_;
+    splitter<Options...> splitter_;
 
     template <typename...>
     friend class parser;
@@ -2201,25 +2312,27 @@ private:
 
 } /* ss */
 
+// TODO add single header tests
 
 namespace ss {
 
-template <typename... Matchers>
+template <typename... Options>
 class parser {
-    constexpr static auto string_error = setup<Matchers...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
 
-    using multiline = typename setup<Matchers...>::multiline;
+    using multiline = typename setup<Options...>::multiline;
     using error_type = std::conditional_t<string_error, std::string, bool>;
 
     constexpr static bool escaped_multiline_enabled =
-        multiline::enabled && setup<Matchers...>::escape::enabled;
+        multiline::enabled && setup<Options...>::escape::enabled;
 
     constexpr static bool quoted_multiline_enabled =
-        multiline::enabled && setup<Matchers...>::quote::enabled;
+        multiline::enabled && setup<Options...>::quote::enabled;
 
-    constexpr static bool ignore_header = setup<Matchers...>::ignore_header;
+    constexpr static bool ignore_header = setup<Options...>::ignore_header;
 
-    constexpr static bool ignore_empty = setup<Matchers...>::ignore_empty;
+    constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
     parser(const std::string& file_name,
@@ -2230,10 +2343,10 @@ public:
             if constexpr (ignore_header) {
                 ignore_next();
             } else {
-                header_ = reader_.get_next_row();
+                raw_header_ = reader_.get_buffer();
             }
         } else {
-            set_error_file_not_open();
+            handle_error_file_not_open();
             eof_ = true;
         }
     }
@@ -2248,6 +2361,8 @@ public:
     bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
+        } else if constexpr (throw_on_error) {
+            return true;
         } else {
             return !error_;
         }
@@ -2271,23 +2386,57 @@ public:
         return to_object<T>(get_next<Ts...>());
     }
 
+    // TODO make the method work with if valid() returns false
     size_t line() const {
         return valid() ? reader_.line_number_ - 1 : 0;
     }
 
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
+        std::optional<std::string> error;
+
+        if (!eof_) {
+            if constexpr (throw_on_error) {
+                try {
+                    reader_.parse();
+                } catch (...) {
+                    read_line();
+                    throw;
+                }
+            } else {
+                reader_.parse();
+            }
+        }
+
         reader_.update();
-        clear_error();
-        if (eof_) {
-            set_error_eof_reached();
+        if (!reader_.converter_.valid()) {
+            handle_error_invalid_conversion();
+            read_line();
             return {};
+        }
+
+        clear_error();
+
+        if (eof_) {
+            handle_error_eof_reached();
+            return {};
+        }
+
+        if constexpr (throw_on_error) {
+            try {
+                auto value = reader_.converter_.template convert<T, Ts...>();
+                read_line();
+                return value;
+            } catch (...) {
+                read_line();
+                throw;
+            }
         }
 
         auto value = reader_.converter_.template convert<T, Ts...>();
 
         if (!reader_.converter_.valid()) {
-            set_error_invalid_conversion();
+            handle_error_invalid_conversion();
         }
 
         read_line();
@@ -2295,14 +2444,22 @@ public:
     }
 
     bool field_exists(const std::string& field) {
+        if (header_.empty()) {
+            split_header_data();
+        }
+
         return header_index(field).has_value();
     }
 
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
         if constexpr (ignore_header) {
-            set_error_header_ignored();
+            handle_error_header_ignored();
             return;
+        }
+
+        if (header_.empty()) {
+            split_header_data();
         }
 
         if (!valid()) {
@@ -2310,18 +2467,24 @@ public:
         }
 
         auto fields = std::vector<std::string>{fields_args...};
+
+        if (fields.empty()) {
+            handle_error_empty_mapping();
+            return;
+        }
+
         std::vector<size_t> column_mappings;
 
         for (const auto& field : fields) {
             if (std::count(fields.begin(), fields.end(), field) != 1) {
-                set_error_field_used_multiple_times(field);
+                handle_error_field_used_multiple_times(field);
                 return;
             }
 
             auto index = header_index(field);
 
             if (!index) {
-                set_error_invalid_field(field);
+                handle_error_invalid_field(field);
                 return;
             }
 
@@ -2331,6 +2494,7 @@ public:
         reader_.converter_.set_column_mapping(column_mappings, header_.size());
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
+
         if (line() == 0) {
             ignore_next();
         }
@@ -2348,12 +2512,14 @@ public:
 
             iterator() : parser_{nullptr} {
             }
-            iterator(parser<Matchers...>* parser) : parser_{parser} {
+
+            iterator(parser<Options...>* parser) : parser_{parser} {
             }
 
             value& operator*() {
                 return value_;
             }
+
             value* operator->() {
                 return &value_;
             }
@@ -2389,21 +2555,22 @@ public:
 
         private:
             value value_;
-            parser<Matchers...>* parser_;
+            parser<Options...>* parser_;
         };
 
-        iterable(parser<Matchers...>* parser) : parser_{parser} {
+        iterable(parser<Options...>* parser) : parser_{parser} {
         }
 
         iterator begin() {
             return ++iterator{parser_};
         }
+
         iterator end() {
             return iterator{};
         }
 
     private:
-        parser<Matchers...>* parser_;
+        parser<Options...>* parser_;
     };
 
     template <typename... Ts>
@@ -2456,6 +2623,7 @@ public:
 
         template <typename Fun>
         auto on_error(Fun&& fun) {
+            assert_throw_on_error_not_defined<throw_on_error>();
             if (!parser_.valid()) {
                 if constexpr (std::is_invocable_v<Fun>) {
                     fun();
@@ -2505,7 +2673,7 @@ public:
             auto value =
                 parser_.reader_.converter_.template convert<U, Us...>();
             if (!parser_.reader_.converter_.valid()) {
-                parser_.set_error_invalid_conversion();
+                parser_.handle_error_invalid_conversion();
             }
             return value;
         }
@@ -2523,6 +2691,7 @@ public:
     template <typename... Ts, typename Fun = none>
     composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
         Fun&& fun = none{}) {
+        assert_throw_on_error_not_defined<throw_on_error>();
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
             std::optional<Ret>>(get_next<Ts...>(), std::forward<Fun>(fun));
@@ -2532,6 +2701,7 @@ public:
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
     composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+        assert_throw_on_error_not_defined<throw_on_error>();
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
     }
@@ -2550,7 +2720,7 @@ private:
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
                 if (!try_invoke_impl(arg, std::forward<Fun>(fun))) {
-                    set_error_failed_check();
+                    handle_error_failed_check();
                 }
             } else {
                 try_invoke_impl(arg, std::forward<Fun>(fun));
@@ -2591,6 +2761,15 @@ private:
     // header
     ////////////////
 
+    void split_header_data() {
+        ss::splitter<Options...> splitter;
+        std::string raw_header_copy = raw_header_;
+        splitter.split(raw_header_copy.data(), reader_.delim_);
+        for (const auto& [begin, end] : splitter.split_data_) {
+            header_.emplace_back(begin, end);
+        }
+    }
+
     std::optional<size_t> header_index(const std::string& field) {
         auto it = std::find(header_.begin(), header_.end(), field);
 
@@ -2613,72 +2792,107 @@ private:
         }
     }
 
-    void set_error_failed_check() {
+    void handle_error_failed_check() {
+        constexpr static auto error_msg = " failed check";
+
         if constexpr (string_error) {
-            error_.append(file_name_).append(" failed check.");
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_file_not_open() {
+    void handle_error_file_not_open() {
+        constexpr static auto error_msg = " could not be opened";
+
         if constexpr (string_error) {
-            error_.append(file_name_).append(" could not be opened.");
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_eof_reached() {
+    void handle_error_eof_reached() {
+        constexpr static auto error_msg = " read on end of file";
+
         if constexpr (string_error) {
-            error_.append(file_name_).append(" reached end of file.");
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_invalid_conversion() {
+    void handle_error_invalid_conversion() {
         if constexpr (string_error) {
+            error_.clear();
             error_.append(file_name_)
                 .append(" ")
                 .append(std::to_string(reader_.line_number_))
                 .append(": ")
-                .append(reader_.converter_.error_msg())
-                .append(": \"")
-                .append(reader_.buffer_)
-                .append("\"");
+                .append(reader_.converter_.error_msg());
+        } else if constexpr (!throw_on_error) {
+            error_ = true;
+        }
+    }
+
+    void handle_error_header_ignored() {
+        constexpr static auto error_msg =
+            ": the header row is ignored within the setup it cannot be used";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_header_ignored() {
+    void handle_error_invalid_field(const std::string& field) {
+        constexpr static auto error_msg =
+            ": header does not contain given field: ";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": \"")
-                .append("the header row is ignored within the setup, it cannot "
-                        "be used")
-                .append("\"");
+            error_.clear();
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_invalid_field(const std::string& field) {
+    void handle_error_field_used_multiple_times(const std::string& field) {
+        constexpr static auto error_msg = ": given field used multiple times: ";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": header does not contain given field: ")
-                .append(field);
+            error_.clear();
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_field_used_multiple_times(const std::string& field) {
+    void handle_error_empty_mapping() {
+        constexpr static auto error_msg = "received empty mapping";
+
         if constexpr (string_error) {
-            error_.append(file_name_)
-                .append(": given field used multiple times: ")
-                .append(field);
+            error_.clear();
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
@@ -2703,10 +2917,12 @@ private:
               helper_buffer_{other.helper_buffer_}, converter_{std::move(
                                                         other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
-              size_{other.size_}, next_line_size_{other.next_line_size_},
+              buffer_size_{other.buffer_size_},
+              next_line_buffer_size_{other.next_line_buffer_size_},
               helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
-              file_{other.file_}, crlf_{other.crlf_}, line_number_{
-                                                          other.line_number_} {
+              file_{other.file_}, crlf_{other.crlf_},
+              line_number_{other.line_number_}, next_line_size_{
+                                                    other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -2720,13 +2936,14 @@ private:
                 helper_buffer_ = other.helper_buffer_;
                 converter_ = std::move(other.converter_);
                 next_line_converter_ = std::move(other.next_line_converter_);
-                size_ = other.size_;
-                next_line_size_ = other.next_line_size_;
+                buffer_size_ = other.buffer_size_;
+                next_line_buffer_size_ = other.next_line_buffer_size_;
                 helper_size_ = other.helper_size_;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
+                next_line_size_ = other.next_line_size_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
@@ -2751,16 +2968,18 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
+        // read next line each time in order to set eof_
         bool read_next() {
-
-            ssize_t ssize;
+            next_line_converter_.clear_error();
+            ssize_t ssize = 0;
             size_t size = 0;
             while (size == 0) {
                 ++line_number_;
-                if (next_line_size_ > 0) {
+                if (next_line_buffer_size_ > 0) {
                     next_line_buffer_[0] = '\0';
                 }
-                ssize = get_line(&next_line_buffer_, &next_line_size_, file_);
+                ssize = get_line(&next_line_buffer_, &next_line_buffer_size_,
+                                 file_);
 
                 if (ssize == -1) {
                     return false;
@@ -2773,17 +2992,23 @@ private:
                 }
             }
 
+            next_line_size_ = size;
+            return true;
+        }
+
+        void parse() {
             size_t limit = 0;
 
             if constexpr (escaped_multiline_enabled) {
-                while (escaped_eol(size)) {
+                while (escaped_eol(next_line_size_)) {
                     if (multiline_limit_reached(limit)) {
-                        return true;
+                        return;
                     }
-                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        remove_eol(next_line_buffer_, ssize);
-                        next_line_converter_.set_error_unterminated_escape();
-                        return true;
+
+                    if (!append_next_line_to_buffer(next_line_buffer_,
+                                                    next_line_size_)) {
+                        next_line_converter_.handle_error_unterminated_escape();
+                        return;
                     }
                 }
             }
@@ -2792,49 +3017,49 @@ private:
 
             if constexpr (quoted_multiline_enabled) {
                 while (unterminated_quote()) {
-                    size -= next_line_converter_.size_shifted();
+                    next_line_size_ -= next_line_converter_.size_shifted();
 
                     if (multiline_limit_reached(limit)) {
-                        return true;
+                        return;
                     }
-                    if (!append_next_line_to_buffer(next_line_buffer_, size)) {
-                        remove_eol(next_line_buffer_, ssize);
-                        return true;
+
+                    if (!append_next_line_to_buffer(next_line_buffer_,
+                                                    next_line_size_)) {
+                        next_line_converter_.handle_error_unterminated_quote();
+                        return;
                     }
 
                     if constexpr (escaped_multiline_enabled) {
-                        while (escaped_eol(size)) {
+                        while (escaped_eol(next_line_size_)) {
                             if (multiline_limit_reached(limit)) {
-                                return true;
+                                return;
                             }
+
                             if (!append_next_line_to_buffer(next_line_buffer_,
-                                                            size)) {
-                                remove_eol(next_line_buffer_, ssize);
+                                                            next_line_size_)) {
                                 next_line_converter_
-                                    .set_error_unterminated_escape();
-                                return true;
+                                    .handle_error_unterminated_escape();
+                                return;
                             }
                         }
                     }
 
-                    next_line_converter_.resplit(next_line_buffer_, size,
-                                                 delim_);
+                    next_line_converter_.resplit(next_line_buffer_,
+                                                 next_line_size_, delim_);
                 }
             }
-
-            return true;
         }
 
         void update() {
             std::swap(buffer_, next_line_buffer_);
-            std::swap(size_, next_line_size_);
+            std::swap(buffer_size_, next_line_buffer_size_);
             std::swap(converter_, next_line_converter_);
         }
 
         bool multiline_limit_reached(size_t& limit) {
             if constexpr (multiline::size > 0) {
                 if (limit++ >= multiline::size) {
-                    next_line_converter_.set_error_multiline_limit_reached();
+                    next_line_converter_.handle_error_multiline_limit_reached();
                     return true;
                 }
             }
@@ -2845,17 +3070,14 @@ private:
             const char* curr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
-                 setup<Matchers...>::escape::match(*curr);
+                 setup<Options...>::escape::match(*curr);
                  --curr) {
             }
             return (next_line_buffer_ - curr + size) % 2 == 0;
         }
 
         bool unterminated_quote() {
-            if (next_line_converter_.unterminated_quote()) {
-                return true;
-            }
-            return false;
+            return next_line_converter_.unterminated_quote();
         }
 
         void undo_remove_eol(char* buffer, size_t& string_end) {
@@ -2868,24 +3090,30 @@ private:
             }
         }
 
-        size_t remove_eol(char*& buffer, size_t size) {
-            size_t new_size = size - 1;
-            if (size >= 2 && buffer[size - 2] == '\r') {
+        size_t remove_eol(char*& buffer, size_t ssize) {
+            size_t size = ssize - 1;
+            if (ssize >= 2 && buffer[ssize - 2] == '\r') {
                 crlf_ = true;
-                new_size--;
+                size--;
             } else {
                 crlf_ = false;
             }
 
-            buffer[new_size] = '\0';
-            return new_size;
+            buffer[size] = '\0';
+            return size;
         }
 
         void realloc_concat(char*& first, size_t& first_size,
                             const char* const second, size_t second_size) {
-            next_line_size_ = first_size + second_size + 3;
-            first = static_cast<char*>(
-                realloc(static_cast<void*>(first), next_line_size_));
+            // TODO make buffer_size an argument
+            next_line_buffer_size_ = first_size + second_size + 3;
+            auto new_first = static_cast<char*>(
+                realloc(static_cast<void*>(first), next_line_buffer_size_));
+            if (!first) {
+                throw std::bad_alloc{};
+            }
+
+            first = new_first;
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }
@@ -2905,13 +3133,8 @@ private:
             return true;
         }
 
-        std::vector<std::string> get_next_row() const {
-            std::vector<std::string> next_row;
-            auto& next_row_raw = next_line_converter_.splitter_.split_data_;
-            for (const auto& [begin, end] : next_row_raw) {
-                next_row.emplace_back(begin, end);
-            }
-            return next_row;
+        std::string get_buffer() {
+            return std::string{next_line_buffer_, next_line_buffer_size_};
         }
 
         ////////////////
@@ -2921,18 +3144,20 @@ private:
         char* next_line_buffer_{nullptr};
         char* helper_buffer_{nullptr};
 
-        converter<Matchers...> converter_;
-        converter<Matchers...> next_line_converter_;
+        converter<Options...> converter_;
+        converter<Options...> next_line_converter_;
 
-        size_t size_{0};
-        size_t next_line_size_{0};
+        size_t buffer_size_{0};
+        size_t next_line_buffer_size_{0};
         size_t helper_size_{0};
 
         std::string delim_;
         FILE* file_{nullptr};
 
-        bool crlf_;
+        bool crlf_{false};
         size_t line_number_{0};
+
+        size_t next_line_size_{0};
     };
 
     ////////////////
@@ -2943,6 +3168,7 @@ private:
     error_type error_{};
     reader reader_;
     std::vector<std::string> header_;
+    std::string raw_header_;
     bool eof_{false};
 };
 
