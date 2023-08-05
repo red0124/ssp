@@ -162,7 +162,6 @@ private:
         }
     }
 
-    // TODO handle this efficiently (if multiline is enabled)
     void handle_error_unterminated_quote() {
         constexpr static auto error_msg = "unterminated quote";
 

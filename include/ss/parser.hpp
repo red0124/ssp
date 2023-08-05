@@ -88,14 +88,26 @@ public:
         return to_object<T>(get_next<Ts...>());
     }
 
+    // TODO make the method work with if valid() returns false
     size_t line() const {
         return valid() ? reader_.line_number_ - 1 : 0;
     }
 
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
+        std::optional<std::string> error;
+
         if (!eof_) {
-            reader_.parse();
+            if constexpr (throw_on_error) {
+                try {
+                    reader_.parse();
+                } catch (...) {
+                    read_line();
+                    throw;
+                }
+            } else {
+                reader_.parse();
+            }
         }
 
         reader_.update();
@@ -110,6 +122,17 @@ public:
         if (eof_) {
             handle_error_eof_reached();
             return {};
+        }
+
+        if constexpr (throw_on_error) {
+            try {
+                auto value = reader_.converter_.template convert<T, Ts...>();
+                read_line();
+                return value;
+            } catch (...) {
+                read_line();
+                throw;
+            }
         }
 
         auto value = reader_.converter_.template convert<T, Ts...>();

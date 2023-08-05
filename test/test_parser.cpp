@@ -772,7 +772,8 @@ static inline std::string no_escape(std::string& s) {
     return s;
 }
 
-TEST_CASE("parser test csv on multiple lines with escapes") {
+template <typename... Ts>
+void test_escape_multiline() {
     unique_file_name f{"test_parser"};
     std::vector<X> data = {{1, 2, "x\\\nx\\\r\nx"},
                            {5, 6, "z\\\nz\\\nz"},
@@ -792,11 +793,11 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
         }
     }
 
-    ss::parser<ss::multiline, ss::escape<'\\'>> p{f.name, ","};
+    ss::parser<ss::multiline, ss::escape<'\\'>, Ts...> p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
-        auto a = p.get_next<int, double, std::string>();
+        auto a = p.template get_next<int, double, std::string>();
         i.emplace_back(ss::to_object<X>(a));
     }
 
@@ -805,14 +806,24 @@ TEST_CASE("parser test csv on multiple lines with escapes") {
     }
     CHECK_EQ(i, data);
 
-    ss::parser<ss::escape<'\\'>> p_no_multiline{f.name, ","};
+    ss::parser<ss::escape<'\\'>, Ts...> p_no_multiline{f.name, ","};
     while (!p.eof()) {
-        auto a = p_no_multiline.get_next<int, double, std::string>();
-        CHECK_FALSE(p.valid());
+        auto command = [&] {
+            auto a =
+                p_no_multiline.template get_next<int, double, std::string>();
+        };
+        expect_error_on_command(p_no_multiline, command);
     }
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
+TEST_CASE("parser test csv on multiple lines with escapes") {
+    test_escape_multiline();
+    test_escape_multiline<ss::string_error>();
+    test_escape_multiline<ss::throw_on_error>();
+}
+
+template <typename... Ts>
+void test_quote_escape_multiline() {
     unique_file_name f{"test_parser"};
     {
         std::ofstream out{f.name};
@@ -827,16 +838,27 @@ TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
         out << "7,8,\"just strings\"" << std::endl;
         out << "9,10,just strings" << std::endl;
     }
+    size_t bad_lines = 1;
+    auto num_errors = 0;
 
-    ss::parser<ss::multiline, ss::escape<'\\'>, ss::quote<'"'>> p{f.name};
+    ss::parser<ss::multiline, ss::escape<'\\'>, ss::quote<'"'>, Ts...> p{
+        f.name};
     std::vector<X> i;
 
     while (!p.eof()) {
-        auto a = p.get_next<int, double, std::string>();
-        if (p.valid()) {
-            i.emplace_back(ss::to_object<X>(a));
+        try {
+            auto a = p.template get_next<int, double, std::string>();
+            if (p.valid()) {
+                i.emplace_back(ss::to_object<X>(a));
+            } else {
+                ++num_errors;
+            }
+        } catch (const std::exception& e) {
+            ++num_errors;
         }
     }
+
+    CHECK(bad_lines == num_errors);
 
     std::vector<X> data = {{1, 2, "just\n\nstrings"},
 #ifndef _WIN32
@@ -852,7 +874,14 @@ TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
     CHECK_EQ(i, data);
 }
 
-TEST_CASE("parser test multiline restricted") {
+TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
+    test_quote_escape_multiline();
+    test_quote_escape_multiline<ss::string_error>();
+    test_quote_escape_multiline<ss::throw_on_error>();
+}
+
+template <typename... Ts>
+void test_multiline_restricted() {
     unique_file_name f{"test_parser"};
     {
         std::ofstream out{f.name};
@@ -871,17 +900,28 @@ TEST_CASE("parser test multiline restricted") {
         out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
         out << "19,20,just strings" << std::endl;
     }
+    auto bad_lines = 15;
+    auto num_errors = 0;
 
-    ss::parser<ss::multiline_restricted<2>, ss::quote<'"'>, ss::escape<'\\'>>
+    ss::parser<ss::multiline_restricted<2>, ss::quote<'"'>, ss::escape<'\\'>,
+               Ts...>
         p{f.name, ","};
     std::vector<X> i;
 
     while (!p.eof()) {
-        auto a = p.get_next<int, double, std::string>();
-        if (p.valid()) {
-            i.emplace_back(ss::to_object<X>(a));
+        try {
+            auto a = p.template get_next<int, double, std::string>();
+            if (p.valid()) {
+                i.emplace_back(ss::to_object<X>(a));
+            } else {
+                ++num_errors;
+            }
+        } catch (const std::exception& e) {
+            ++num_errors;
         }
     }
+
+    CHECK(bad_lines == num_errors);
 
     std::vector<X> data = {{1, 2, "just\n\nstrings"},
 #ifndef _WIN32
@@ -896,7 +936,17 @@ TEST_CASE("parser test multiline restricted") {
         update_if_crlf(s);
     }
 
+    if (i.size() != data.size()) {
+        CHECK_EQ(i.size(), data.size());
+    }
+
     CHECK_EQ(i, data);
+}
+
+TEST_CASE("parser test multiline restricted") {
+    test_multiline_restricted();
+    test_multiline_restricted<ss::string_error>();
+    test_multiline_restricted<ss::throw_on_error>();
 }
 
 template <typename... Ts>
