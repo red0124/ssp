@@ -25,7 +25,6 @@ private:
     constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
-    // TODO make error_type none if throw_on_error
     using error_type = std::conditional_t<string_error, std::string, bool>;
 
 public:
@@ -149,7 +148,6 @@ private:
         }
     }
 
-    // TODO rename with handle error
     void handle_error_unterminated_escape() {
         constexpr static auto error_msg =
             "unterminated escape at the end of the line";

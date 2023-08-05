@@ -574,7 +574,6 @@ private:
             : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
         }
 
-        // TODO test for next_line_size_
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
@@ -771,12 +770,13 @@ private:
                             const char* const second, size_t second_size) {
             // TODO make buffer_size an argument
             next_line_buffer_size_ = first_size + second_size + 3;
-            first = static_cast<char*>(
+            auto new_first = static_cast<char*>(
                 realloc(static_cast<void*>(first), next_line_buffer_size_));
             if (!first) {
-                // TODO restore first in order to prevent memory leak
                 throw std::bad_alloc{};
             }
+
+            first = new_first;
             std::copy_n(second, second_size + 1, first + first_size);
             first_size += second_size;
         }

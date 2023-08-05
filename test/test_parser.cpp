@@ -125,7 +125,14 @@ void test_various_cases() {
         ss::parser<ss::string_error> p2{f.name, ","};
         std::vector<X> i2;
 
+        auto move_rotate = [&] {
+            auto p1 = std::move(p);
+            p0 = std::move(p1);
+            p = std::move(p0);
+        };
+
         while (!p.eof()) {
+            move_rotate();
             auto a = p.template get_next<int, double, std::string>();
             i.emplace_back(ss::to_object<X>(a));
         }
