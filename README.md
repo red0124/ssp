@@ -53,7 +53,7 @@ Bill (Heath) Gates 65 3.3
 # Features
  * [Works on any type](#custom-conversions)
  * Easy to use
- * No exceptions
+ * Can work without exceptions
  * [Works with headers](#headers)
  * [Works with quotes, escapes and spacings](#setup)
  * [Works with values containing new lines](#multiline)
@@ -141,17 +141,20 @@ James Bailey 2.5
 ## Conversions
 An alternate loop to the example above would look like: 
 ```cpp
-    // ...
-    ss::parser<ss::throw_on_error> p{"students.csv"};
+// ...
+ss::parser p{"students.csv"};
 
-    while (!p.eof()) {
-        const auto& [id, age, grade] = p.get_next<std::string, int, float>();
+while (!p.eof()) {
+    const auto& [id, age, grade] = p.get_next<std::string, int, float>();
+
+    if (p.valid()) {
         std::cout << id << ' ' << age << ' ' << grade << std::endl;
     }
-    // ...
+}
+// ...
 ```
 
-The alternate example will be used to show some of the features of the library. The **`get_next`** method returns a tuple of objects specified inside the template type list.
+The alternate example with exceptions disabled will be used to show some of the features of the library. The **`get_next`** method returns a tuple of objects specified inside the template type list.
 
 If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **`valid`** method would return **`false`**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail.
 
