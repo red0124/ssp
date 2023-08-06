@@ -96,14 +96,14 @@ Brian S. Wolfe,40,1.9
 Bill (Heath) Gates,65,3.3
 ```
 ```cpp
-    // ...
-    ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
-    p.use_fields("Id", "Grade");
+// ...
+ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
+p.use_fields("Id", "Grade");
 
-    for(const auto& [id, grade] : p.iterate<std::string, float>()) {
-        std::cout << id << ' ' << grade << std::endl;
-    }
-    // ...
+for(const auto& [id, grade] : p.iterate<std::string, float>()) {
+    std::cout << id << ' ' << grade << std::endl;
+}
+// ...
 ```
 ```shell
 $ ./a.out
