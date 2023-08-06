@@ -19,6 +19,12 @@ inline void assert_string_error_defined() {
                   "'string_error' needs to be enabled to use 'error_msg'");
 }
 
+template <bool ThrowOnError>
+inline void assert_throw_on_error_not_defined() {
+    static_assert(!ThrowOnError, "cannot handle errors manually if "
+                                 "'throw_on_error' is enabled");
+}
+
 #if __unix__
 inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);

@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "exception.hpp"
 #include "setup.hpp"
 #include "type_traits.hpp"
 #include <algorithm>
@@ -11,16 +12,17 @@
 
 namespace ss {
 
-template <typename... Ts>
+template <typename... Options>
 class splitter {
 private:
-    using quote = typename setup<Ts...>::quote;
-    using trim_left = typename setup<Ts...>::trim_left;
-    using trim_right = typename setup<Ts...>::trim_right;
-    using escape = typename setup<Ts...>::escape;
-    using multiline = typename setup<Ts...>::multiline;
+    using quote = typename setup<Options...>::quote;
+    using trim_left = typename setup<Options...>::trim_left;
+    using trim_right = typename setup<Options...>::trim_right;
+    using escape = typename setup<Options...>::escape;
+    using multiline = typename setup<Options...>::multiline;
 
-    constexpr static auto string_error = setup<Ts...>::string_error;
+    constexpr static auto string_error = setup<Options...>::string_error;
+    constexpr static auto throw_on_error = setup<Options...>::throw_on_error;
     constexpr static auto is_const_line = !quote::enabled && !escape::enabled;
 
     using error_type = std::conditional_t<string_error, std::string, bool>;
@@ -31,6 +33,8 @@ public:
     bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
+        } else if constexpr (throw_on_error) {
+            return true;
         } else {
             return !error_;
         }
@@ -77,7 +81,7 @@ private:
         // resplitting, continue from last slice
         if (!quote::enabled || !multiline::enabled || split_data_.empty() ||
             !unterminated_quote()) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -86,7 +90,7 @@ private:
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
-            set_error_invalid_resplit();
+            handle_error_invalid_resplit();
             return split_data_;
         }
 
@@ -112,55 +116,75 @@ private:
     void clear_error() {
         if constexpr (string_error) {
             error_.clear();
-        } else {
+        } else if constexpr (!throw_on_error) {
             error_ = false;
         }
         unterminated_quote_ = false;
     }
 
-    void set_error_empty_delimiter() {
+    void handle_error_empty_delimiter() {
+        constexpr static auto error_msg = "empty delimiter";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("empt  delimiter");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_mismatched_quote(size_t n) {
+    void handle_error_mismatched_quote(size_t n) {
+        constexpr static auto error_msg = "mismatched quote at position: ";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("mismatched quote at position: " + std::to_string(n));
+            error_.append(error_msg + std::to_string(n));
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + std::to_string(n)};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_escape() {
+    void handle_error_unterminated_escape() {
+        constexpr static auto error_msg =
+            "unterminated escape at the end of the line";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated escape at the end of the line");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_unterminated_quote() {
-        unterminated_quote_ = true;
+    void handle_error_unterminated_quote() {
+        constexpr static auto error_msg = "unterminated quote";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("unterminated quote");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
     }
 
-    void set_error_invalid_resplit() {
-        unterminated_quote_ = false;
+    void handle_error_invalid_resplit() {
+        constexpr static auto error_msg =
+            "invalid resplit, new line must be longer"
+            "than the end of the last slice";
+
         if constexpr (string_error) {
             error_.clear();
-            error_.append("invalid resplit, new line must be longer"
-                          "than the end of the last slice");
+            error_.append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg};
         } else {
             error_ = true;
         }
@@ -235,7 +259,9 @@ private:
         if constexpr (escape::enabled) {
             if (escape::match(*curr)) {
                 if (curr[1] == '\0') {
-                    set_error_unterminated_escape();
+                    if constexpr (!multiline::enabled) {
+                        handle_error_unterminated_escape();
+                    }
                     done_ = true;
                     return;
                 }
@@ -282,7 +308,7 @@ private:
         clear_error();
         switch (delimiter.size()) {
         case 0:
-            set_error_empty_delimiter();
+            handle_error_empty_delimiter();
             return split_data_;
         case 1:
             return split_impl(delimiter[0]);
@@ -362,7 +388,9 @@ private:
                             if (end_[1] == '\0') {
                                 // eol, unterminated escape
                                 // eg: ... "hel\\0
-                                set_error_unterminated_escape();
+                                if constexpr (!multiline::enabled) {
+                                    handle_error_unterminated_escape();
+                                }
                                 done_ = true;
                                 break;
                             }
@@ -379,7 +407,10 @@ private:
                     // eg: ..."hell\0 -> quote not terminated
                     if (*end_ == '\0') {
                         shift_and_set_current();
-                        set_error_unterminated_quote();
+                        unterminated_quote_ = true;
+                        if constexpr (!multiline::enabled) {
+                            handle_error_unterminated_quote();
+                        }
                         split_data_.emplace_back(line_, begin_);
                         done_ = true;
                         break;
@@ -418,7 +449,7 @@ private:
                 } else {
                     // mismatched quote
                     // eg: ...,"hel"lo,... -> error
-                    set_error_mismatched_quote(end_ - line_);
+                    handle_error_mismatched_quote(end_ - line_);
                     split_data_.emplace_back(line_, begin_);
                 }
                 done_ = true;

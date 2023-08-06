@@ -2,6 +2,7 @@
 
 headers_dir = 'include/ss/'
 headers = ['type_traits.hpp',
+           'exception.hpp',
            'function_traits.hpp',
            'restrictions.hpp',
            'common.hpp',

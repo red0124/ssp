@@ -17,17 +17,16 @@
 
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#The-converter)
 
-Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .   
-Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .   
+Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) . \
+Function traits taken from *qt-creator* .
 
 # Example 
-Lets say we have a csv file containing students in a given format '$name,$age,$grade' and we want to parse and print all the valid values:
+Lets say we have a csv file containing students in a given format |Id,Age,Grade| and we want to parse and print all the valid values:
 
 ```shell
 $ cat students.csv
 James Bailey,65,2.5
 Brian S. Wolfe,40,1.9
-Nathan Fielder,37,Really good grades
 Bill (Heath) Gates,65,3.3
 ```
 ```cpp
@@ -35,12 +34,10 @@ Bill (Heath) Gates,65,3.3
 #include <ss/parser.hpp>
 
 int main() {
-    ss::parser p{"students.csv", ","};
+    ss::parser<ss::throw_on_error> p{"students.csv"};
 
-    for(const auto& [name, age, grade] : p.iterate<std::string, int, float>()) {
-        if (p.valid()) {
-            std::cout << name << ' ' << age << ' ' << grade << std::endl;
-        }
+    for (const auto& [id, age, grade] : p.iterate<std::string, int, float>()) {
+        std::cout << id << ' ' << age << ' ' << grade << std::endl;
     }
 
     return 0;
@@ -56,14 +53,14 @@ Bill (Heath) Gates 65 3.3
 # Features
  * [Works on any type](#custom-conversions)
  * Easy to use
- * No exceptions
+ * Can work without exceptions
  * [Works with headers](#headers)
  * [Works with quotes, escapes and spacings](#setup)
  * [Works with values containing new lines](#multiline)
  * [Columns and rows can be ignored](#special-types)
- * Works with any type of delimiter
+ * [Works with any type of delimiter](#delimiter)
  * Can return whole objects composed of converted values
- * [Descriptive error handling can be enabled](#error-handling)
+ * [Error handling can be configured](#error-handling)
  * [Restrictions can be added for each column](#restrictions)
  * [Works with `std::optional` and `std::variant`](#special-types)
  * Works with **`CRLF`** and **`LF`**
@@ -83,7 +80,7 @@ $ cmake --configure .
 $ sudo make install
 ```
 
-*Note, this will also install the fast_float library*
+*Note, this will also install the fast_float library.*\
 The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 
 # Usage
@@ -93,20 +90,20 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 The parser can be told to use only certain columns by parsing the header. This can be done by using the **`use_fields`** method. It accepts any number of string-like arguments or even an **`std::vector<std::string>`** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
 ```shell
 $ cat students_with_header.csv
-Name,Age,Grade
+Id,Age,Grade
 James Bailey,65,2.5
 Brian S. Wolfe,40,1.9
 Bill (Heath) Gates,65,3.3
 ```
 ```cpp
-    // ...
-    ss::parser p{"students.csv", ","};
-    p.use_fields("Name", "Grade");
+// ...
+ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
+p.use_fields("Id", "Grade");
 
-    for(const auto& [name, grade] : p.iterate<std::string, float>()) {
-        std::cout << name << ' ' << grade << std::endl;
-    }
-    // ...
+for(const auto& [id, grade] : p.iterate<std::string, float>()) {
+    std::cout << id << ' ' << grade << std::endl;
+}
+// ...
 ```
 ```shell
 $ ./a.out
@@ -121,17 +118,16 @@ ss::parser<ss::ignore_header> p{file_name};
 The fields with which the parser works with can be modified at any given time. The praser can also check if a field is present within the header by using the **`field_exists`** method.
 ```cpp
     // ...
-    ss::parser p{"students.csv", ","};
-    p.use_fields("Name", "Grade");
+    ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
+    p.use_fields("Id", "Grade");
 
-    const auto& [name, grade] = p.get_next<std::string, float>();
-    std::cout << name << ' ' << grade << std::endl;
+    const auto& [id, grade] = p.get_next<std::string, float>();
+    std::cout << id << ' ' << grade << std::endl;
 
-    if (p.field_exists("Age")) {
-        p.use_fields("Grade", "Name", "Age");
-        for (const auto& [grade, name, age] :
-             p.iterate<float, std::string, int>()) {
-            std::cout << grade << ' ' << name << ' ' << age << std::endl;
+    if (p.field_exists("Id")) {
+        p.use_fields("Grade", "Id");
+        for (const auto& [grade, id] : p.iterate<float, std::string>()) {
+            std::cout << grade << ' ' << id << std::endl;
         }
     }
     // ...
@@ -139,21 +135,26 @@ The fields with which the parser works with can be modified at any given time. T
 ```shell
 $ ./a.out
 James Bailey 2.5
-1.9 Brian S. Wolfe 40
-3.3 Bill (Heath) Gates 65
+40 Brian S. Wolfe
+65 Bill (Heath) Gates
 ```
 ## Conversions
 An alternate loop to the example above would look like: 
 ```cpp
-while(!p.eof()) {
-    auto [name, age, grade] = p.get_next<std::string, int, float>();
+// ...
+ss::parser p{"students.csv"};
+
+while (!p.eof()) {
+    const auto& [id, age, grade] = p.get_next<std::string, int, float>();
+
     if (p.valid()) {
-        std::cout << name << ' ' << age << ' ' << grade << std::endl;
+        std::cout << id << ' ' << age << ' ' << grade << std::endl;
     }
 }
+// ...
 ```
 
-The alternate example will be used to show some of the features of the library. The **`get_next`** method returns a tuple of objects specified inside the template type list.
+The alternate example with exceptions disabled will be used to show some of the features of the library. The **`get_next`** method returns a tuple of objects specified inside the template type list.
 
 If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **`valid`** method would return **`false`**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail.
 
@@ -162,14 +163,14 @@ If **`get_next`** is called with a **`tuple`** as template parameter it would be
 using student = std::tuple<std::string, int, float>;
 
 // returns std::tuple<std::string, int, float>
-auto [name, age, grade] = p.get_next<student>();
+auto [id, age, grade] = p.get_next<student>();
 ```
-*Note, it does not always return a student tuple since the returned tuples parameters may be altered as explained below (no void, no restrictions, ...)*
+*Note, it does not always return the specified tuple since the returned tuples parameters may be altered as explained below (no void, no restrictions, ...)*
 
 Whole objects can be returned using the **`get_object`** function which takes the tuple, created in a similar way as **`get_next`** does it, and creates an object out of it:
 ```cpp
 struct student {
-    std::string name;
+    std::string id;
     int age;
     float grade;
 };
@@ -180,24 +181,23 @@ auto student = p.get_object<student, std::string, int, float>();
 ```
 This works with any object if the constructor could be invoked using the template arguments given to **`get_object`**:
 ```cpp
-// returns std::vector<std::string> containing 3 elements
-auto vec = p.get_object<std::vector<std::string>, std::string, std::string, 
-                        std::string>();
+// returns std::vector<std::string> containing 2 elements
+auto vec = p.get_object<std::vector<std::string>, std::string, std::string>();
 ```
-An iteration loop as in the first example which returns objects would look like:
+An iterator loop as in the first example which returns objects would look like:
 ```cpp
-for(const auto& student : p.iterate_object<student, std::string, int, float>()) {
-// ...
+for (const student& s : p.iterate_object<student, std::string, int, float>()) {
+    // ...
 }
 ```
 And finally, using something I personally like to do, a struct (class) with a **`tied`** method which returns a tuple of references to to the members of the struct.
 ```cpp
 struct student {
-    std::string name;
+    std::string id;
     int age;
     float grade;
 
-    auto tied() { return std::tie(name, age, grade); }
+    auto tied() { return std::tie(id, age, grade); }
 };
 ```
 The method can be used to compare the object, serialize it, deserialize it, etc. Now **`get_next`** can accept such a struct and deduce the types to which to convert the csv.
@@ -225,7 +225,14 @@ using my_setup = ss::setup<ss::escape<'\\'>, ss::quote<'"'>>;
 ss::parser<my_setup> p2{file_name};
 ```
 Invalid setups will be met with **`static_asserts`**.
-*Note, each setup parameter defined comes with a slight performance loss, so use them only if needed.*
+*Note, most setup parameters defined come with a slight performance loss, so use them only if needed.*
+
+### Delimiter
+By default, **`,`** is used as the delimiter, a custom delimiter can be specified as the second constructor parameter.
+```cpp
+ss::parser p{file_name, "--"};
+```
+*Note, the delimiter can consist of multiple characters but the parser is slightliy faster when using single character delimiters.*
 
 ### Empty lines
 Empty lines can be ignored by defining **`ss::ignore_empty`** within the setup parameters:
@@ -307,14 +314,11 @@ ss::parser<ss::escape<'\\'>,
            ss::trim<' ', '\t'>,
            ss::multiline_restricted<5>> p{file_name};
 
-while(!p.eof()) {
-    auto [name, age, grade] = p.get_next<std::string, int, float>();
-    if(!p.valid()) {
-        continue;
+for (const auto& [id, age, grade] : p.iterate<std::string, int, float>()) {
+    if (p.valid()) {
+        std::cout << "'" << id << ' ' << age << ' ' << grade << "'\n";
     }
-    std::cout << "'" << name << ' ' << age << ' ' << grade << "'" << std::endl;
 }
-
 ```
 input:
 ```
@@ -335,22 +339,22 @@ Gates 65 3.3'
 ```
 ## Special types
 
-Passing **`void`** makes the parser ignore a column. In the given example **`void`** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
+Passing **`void`** makes the parser ignore a column. In the initial example **`void`** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
 ```cpp
 // returns std::tuple<std::string, float>
-auto [name, grade] = p.get_next<std::string, void, float>();
+auto [id, grade] = p.get_next<std::string, void, float>();
 ```
 Works with different types of conversions too:
 ```cpp
 using student = std::tuple<std::string, void, float>;
 
 // returns std::tuple<std::string, float>
-auto [name, grade] = p.get_next<student>();
+auto [id, grade] = p.get_next<student>();
 ```
 Values can also be converted to **`std::string_view`**. It is more efficient then converting values to **`std::string`** but one must be careful with the lifetime of it.
 ```cpp
-// string_view name stays valid until the next line is read
-auto [name, age, grade] = p.get_next<std::string_view, int, float>();
+// string_view id stays valid until the next line is read
+auto [id, age, grade] = p.get_next<std::string_view, int, float>();
 ```
 
 To ignore a whole row, **`ignore_next`** could be used, returns **`false`** if **`eof`**:
@@ -361,19 +365,19 @@ bool parser::ignore_next();
 
 ```cpp
 // returns std::tuple<std::string, int, std::optional<float>>
-auto [name, age, grade] = p.get_next<std::string, int, std::optional<float>();
-if(grade) {
-    // do something with grade
+auto [id, age, grade] = p.get_next<std::string, int, std::optional<float>>();
+if (grade) {
+    std::cout << grade.value() << std::endl;
 }
 ```
 Similar to **`std::optional`**, **`std::variant`** could be used to try other conversions if the previous failed _(Note, conversion to std::string will always pass)_:
 ```cpp
 // returns std::tuple<std::string, int, std::variant<float, char>>
-auto [name, age, grade] = 
-    p.get_next<std::string, int, std::variant<float, char>();
-if(std::holds_alternative<float>(grade)) {
+auto [id, age, grade] = 
+    p.get_next<std::string, int, std::variant<float, char>>();
+if (std::holds_alternative<float>(grade)) {
     // grade set as float
-} else if(std::holds_alternative<char>(grade)) {
+} else if (std::holds_alternative<char>(grade)) {
     // grade set as char
 }
 ```
@@ -381,10 +385,10 @@ if(std::holds_alternative<float>(grade)) {
 
 Custom **`restrictions`** can be used to narrow down the conversions of unwanted values. **`ss::ir`** (in range) and **`ss::ne`** (none empty) are some of those:
 ```cpp
-// ss::ne makes sure that the name is not empty
+// ss::ne makes sure that the id is not empty
 // ss::ir makes sure that the grade will be in range [0, 10]
 // returns std::tuple<std::string, int, float>
-auto [name, age, grade] = 
+auto [id, age, grade] = 
     p.get_next<ss::ne<std::string>, int, ss::ir<float, 0, 10>>();
 ```
 If the restrictions are not met, the conversion will fail. Other predefined restrictions are **`ss::ax`** (all except), **`ss::nx`** (none except) and **`ss::oor`** (out of range), **`ss::lt`** (less than), ...(see *restrictions.hpp*):
@@ -411,9 +415,11 @@ struct even {
 };
 ```
 ```cpp
-// only even numbers will pass
+// ...
+// only even numbers will pass without invoking error handling
 // returns std::tuple<std::string, int>
-auto [name, age] = p.get_next<std::string, even<int>, void>();
+const auto& [id, age] = p.get_next<std::string, even<int>, void>();
+// ...
 ```
 ## Custom conversions
 
@@ -440,21 +446,34 @@ The shape enum will be used in an example below. The **`inline`** is there just 
 
 ## Error handling
 
+By default, the parser handles errors only using the **`valid`** method which would return **`false`** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...).\
+The **`eof`** method can be used to detect if the end of the file was reached.
+
 Detailed error messages can be accessed via the **`error_msg`** method, and to enable them **`ss::string_error`** needs to be included in the setup. If **`ss::string_error`** is not defined, the **`error_msg`** method will not be defined either.
+
+The line number can be fetched using the **`line`** method.
 
 ```cpp
 const std::string& parser::error_msg();
 bool parser::valid();
 bool parser::eof();
+size_t parser::line();
 
 // ...
 ss::parser<ss::string_error> parser;
 ```
-An error can be detected using the **`valid`** method which would return **`false`** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...). The **`eof`** method can be used to detect if the end of the file was reached.
+
+The above two methods are preferable if invalid inputs are expected and allows for fast handling, but the parser can also be forced to throw an exception in case of an invalid input using the **`ss::throw_on_error`** setup option. Enabling exceptions also makes the **`valid`** method always return **`true`**.
+
+```cpp
+ss::parser<ss::throw_on_error> parser;
+```
+*Note, enabling this option will also make the parser throw if the constructor fails.*
 
 ## Substitute conversions
 
-The parser can also be used to effectively parse files whose rows are not always in the same format (not a classical csv but still csv-like). A more complicated example would be the best way to demonstrate such a scenario.
+The parser can also be used to effectively parse files whose rows are not always in the same format (not a classical csv but still csv-like). A more complicated example would be the best way to demonstrate such a scenario.\
+***Important, substitute conversions do not work when throw_on_error is enabled.***
 
 Supposing we have a file containing different shapes in given formats: 
  * circle RADIUS
@@ -483,10 +502,15 @@ while (!p.eof()) {
     using udbl = ss::gte<double, 0>;
 
     auto [circle_or_square, rectangle, triangle] =
-        p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>()
+          p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>()
             .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>()
             .or_else<ss::nx<shape, shape::triangle>, udbl, udbl, udbl>()
             .values();
+
+    if (!p.valid()) {
+        // handle error
+        continue;
+    }
 
     if (circle_or_square) {
         auto& [s, x] = circle_or_square.value();
@@ -531,31 +555,34 @@ Each of those **`composite`** conversions can accept a lambda (or anything calla
 // non negative double
 using udbl = ss::gte<double, 0>;
 
-p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
-     [&](const auto& data) {
-         const auto& [s, x] = data;
-         double area = (s == shape::circle) ? x * x * M_PI : x * x;
-         shapes.emplace_back(s, area);
-     })
-    .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>(
-        [&](const shape s, const double a, const double b) {
-            shapes.emplace_back(s, a * b);
-        })
-    .or_else<ss::nx<shape, shape::triangle>, udbl, udbl, udbl>(
-        [&](auto&& s, auto& a, const double& b, double& c) {
-            double sh = (a + b + c) / 2;
-            if (sh >= a && sh >= b && sh >= c) {
-                double area = sqrt(sh * (sh - a) * (sh - b) * (sh - c));
-                shapes.emplace_back(s, area);
-            }
+while (!p.eof()) {
+    p.try_next<ss::nx<shape, shape::circle, shape::square>, udbl>(
+         [&](const auto& data) {
+             const auto& [s, x] = data;
+             double area = (s == shape::circle) ? x * x * M_PI : x * x;
+             shapes.emplace_back(s, area);
+         })
+        .or_else<ss::nx<shape, shape::rectangle>, udbl, udbl>(
+            [&](shape s, double a, double b) { shapes.emplace_back(s, a * b); })
+        .or_else<ss::nx<shape, shape::triangle>, udbl, udbl, udbl>(
+            [&](auto s, auto a, auto b, auto c) {
+                double sh = (a + b + c) / 2;
+                if (sh >= a && sh >= b && sh >= c) {
+                    double area = sqrt(sh * (sh - a) * (sh - b) * (sh - c));
+                    shapes.emplace_back(s, area);
+                }
+            })
+        .on_error([] {
+            // handle error
         });
+}
 ```
 It is a bit less readable, but it removes the need to check which conversion was invoked. The **`composite`** also has an **`on_error`** method which accepts a lambda which will be invoked if no previous conversions were successful. The lambda can take no arguments or just one argument, an **`std::string`**, in which the error message is stored if **`string_error`** is enabled:
 ```cpp
 p.try_next<int>()
     .on_error([](const std::string& e) { /* int conversion failed */ })
     .or_object<x, double>()
-    .on_error([] { /* int and x (all) conversions failed */ });
+    .on_error([] { /* int and x conversions failed (all previous failed) */ });
 ```
 *See unit tests for more examples.*
 
@@ -584,7 +611,7 @@ if (c.valid()) {
 All setup parameters, special types and restrictions work on the converter too.  
 Error handling is also identical to error handling of the parser.
 
-The converter has also the ability to just split the line, ~~tho it does not change it (kinda statically), hence the name of the library~~ and depending if either quoting or escaping are enabled it may change the line, rather than creating a copy, for performance reasons (the name of the library does not apply anymore, I may change it). It returns an **`std::vector`** of **`std::pair`**s of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **`convert`** method. This allows the reuse of the same line without splitting it on every conversion.
+The converter has also the ability to just split the line, and depending if either quoting or escaping are enabled it may change the line, rather than creating a copy, for performance reasons. It returns an **`std::vector`** of **`std::pair`**s of pointers, begin and end, each pair representing a split segment (column) of the whole string. The vector can then be used in a overloaded **`convert`** method. This allows the reuse of the same line without splitting it on every conversion.
 ```cpp
 ss::converter c;
 auto split_line = c.split("circle 10", " ");
