@@ -21,7 +21,7 @@ Conversion for floating point values invoked using [fast-float](https://github.c
 Function traits taken from *qt-creator* .
 
 # Example 
-Lets say we have a csv file containing students in a given format |Id,Age,Grade| and we want to parse and print all the valid values:
+Lets say we have a csv file containing students in a given format \<Id,Age,Grade\> and we want to parse and print all the valid values:
 
 ```shell
 $ cat students.csv
