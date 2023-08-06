@@ -35,11 +35,6 @@ jobs:
 
       options: -v /usr/local:/host_usr_local
 
-    env:
-      CC: clang-${{ matrix.version }}
-      CXX: clang++-${{ matrix.version }}
-      CXXFLAGS: -stdlib=libc++
-
     steps:
       - uses: actions/checkout@v1
 
