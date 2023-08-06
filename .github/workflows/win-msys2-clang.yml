@@ -51,12 +51,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - uses: msys2/setup-msys2@v2
 
         with:
           update: true
           msystem: ${{matrix.msystem}}
-          install: ${{ matrix.install}}
+          install: ${{matrix.install}}
 
       - name: Install dependencies
         run: script/ci_install_deps.sh

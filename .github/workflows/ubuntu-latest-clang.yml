@@ -25,13 +25,14 @@ jobs:
       matrix:
         version:
           ['latest', '16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
+        type: [Release, Debug]
 
     runs-on: ubuntu-latest
 
-    name: Clang ${{ matrix.version }}
+    name: Clang "${{matrix.version}}:${{matrix.type}}"
 
     container:
-      image: teeks99/clang-ubuntu:${{ matrix.version }}
+      image: teeks99/clang-ubuntu:${{matrix.version}}
 
       options: -v /usr/local:/host_usr_local
 
@@ -51,11 +52,13 @@ jobs:
           script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+        run: >-
+          cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build
+          -DCMAKE_BUILD_TYPE=${{matrix.type}}
 
       - name: Build
-        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
 
       - name: Run
         working-directory: build
-        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
+        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}

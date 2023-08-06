@@ -24,13 +24,14 @@ jobs:
     strategy:
       matrix:
         version: ['latest', '13', '12', '11', '10', '9', '8']
+        type: [Release, Debug]
 
     runs-on: ubuntu-latest
 
-    name: GCC ${{ matrix.version }}
+    name: GCC "${{matrix.version}}:${{matrix.type}}"
 
     container:
-      image: gcc:${{ matrix.version }}
+      image: gcc:${{matrix.version}}
 
       options: -v /usr/local:/host_usr_local
 
@@ -47,11 +48,11 @@ jobs:
         run: script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=${{matrix.type}}
 
       - name: Build
-        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
 
       - name: Run
         working-directory: build
-        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
+        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}

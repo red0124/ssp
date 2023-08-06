@@ -25,7 +25,7 @@ jobs:
       run:
         shell: bash
 
-    runs-on: ${{ matrix.config.os }}
+    runs-on: ${{matrix.config.os}}
 
     strategy:
       fail-fast: false
