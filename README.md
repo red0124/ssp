@@ -18,7 +18,7 @@
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#The-converter)
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) . \
-Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .
+Function traits taken from *qt-creator* .
 
 # Example 
 Lets say we have a csv file containing students in a given format |Id,Age,Grade| and we want to parse and print all the valid values:
