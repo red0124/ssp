@@ -28,7 +28,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    name: GCC ${{matrix.version}}: ${{matrix.type}}
+    name: "GCC ${{matrix.version}}: ${{matrix.type}}"
 
     container:
       image: gcc:${{matrix.version}}
