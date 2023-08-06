@@ -89,6 +89,7 @@ public:
         return valid() ? reader_.line_number_ - 1 : 0;
     }
 
+    // TODO append file_name and line number to exception
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
         std::optional<std::string> error;

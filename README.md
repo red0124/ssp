@@ -18,7 +18,7 @@
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#The-converter)
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) .\
-Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .\
+Function traits taken from [qt-creator](https://code.woboq.org/qt5/qt-creator/src/libs/utils/functiontraits.h.html) .
 
 # Example 
 Lets say we have a csv file containing students in a given format |Id,Age,Grade| and we want to parse and print all the valid values:
@@ -225,7 +225,7 @@ Invalid setups will be met with **`static_asserts`**.
 *Note, most setup parameters defined come with a slight performance loss, so use them only if needed.*
 
 ### Delimiter
-By default, **`,`** is used as the default delimiter, a custom delimiter can be specified as the second constructor parameter.
+By default, **`,`** is used as the delimiter, a custom delimiter can be specified as the second constructor parameter.
 ```cpp
 ss::parser p{file_name, "--"};
 ```
@@ -443,7 +443,8 @@ The shape enum will be used in an example below. The **`inline`** is there just 
 
 ## Error handling
 
-By default, the parser handles errors only using the **`valid`** method which would return **`false`** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...). The **`eof`** method can be used to detect if the end of the file was reached.
+By default, the parser handles errors only using the **`valid`** method which would return **`false`** if the file could not be opened, or if the conversion could not be made (invalid types, invalid number of columns, ...).\
+The **`eof`** method can be used to detect if the end of the file was reached.
 
 Detailed error messages can be accessed via the **`error_msg`** method, and to enable them **`ss::string_error`** needs to be included in the setup. If **`ss::string_error`** is not defined, the **`error_msg`** method will not be defined either.
 
@@ -456,17 +457,17 @@ bool parser::eof();
 ss::parser<ss::string_error> parser;
 ```
 
-The above two methods are prefferable if invalid inputs are expected and allows for fast handling, but the parser can also be forced to throw an exception in case of an invalid input using the **`ss::throw_on_error`** setup option.
+The above two methods are preferable if invalid inputs are expected and allows for fast handling, but the parser can also be forced to throw an exception in case of an invalid input using the **`ss::throw_on_error`** setup option. Enabling exceptions also makes the **`valid`** method always return **`true`**.
 
 ```cpp
 ss::parser<ss::throw_on_error> parser;
 ```
-*Note, enabling this option will also make the parser throw if the constructor fails.*\
+*Note, enabling this option will also make the parser throw if the constructor fails.*
 
 ## Substitute conversions
 
 The parser can also be used to effectively parse files whose rows are not always in the same format (not a classical csv but still csv-like). A more complicated example would be the best way to demonstrate such a scenario.\
-***Important, substitute conversions do not work when throw_on_error is enabled.***\
+***Important, substitute conversions do not work when throw_on_error is enabled.***
 
 Supposing we have a file containing different shapes in given formats: 
  * circle RADIUS
