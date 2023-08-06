@@ -21,9 +21,9 @@ jobs:
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
 
-    name: ${{ matrix.msystem }}
+    name: "${{matrix.os}}:${{matrix.msystem}}:${{matrix.type}}"
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{matrix.os}}
 
     defaults:
       run:
@@ -33,32 +33,18 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: ['windows-2019', 'windows-latest']
-
+        os: [windows-2019, windows-latest]
+        type: [Release, Debug]
         include:
           - msystem: "MINGW64"
             install: >-
               git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
               mingw-w64-x86_64-clang
-            type: Release
 
           - msystem: "MINGW32"
             install: >-
               git mingw-w64-i686-cmake mingw-w64-i686-ninja
               mingw-w64-i686-clang
-            type: Release
-
-          - msystem: "MINGW64"
-            install: >-
-              git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
-              mingw-w64-x86_64-clang
-            type: Debug
-
-          - msystem: "MINGW32"
-            install: >-
-              git mingw-w64-i686-cmake mingw-w64-i686-ninja
-              mingw-w64-i686-clang
-            type: Debug
 
     env:
       CMAKE_GENERATOR: Ninja
@@ -69,8 +55,8 @@ jobs:
 
         with:
           update: true
-          msystem: ${{ matrix.msystem }}
-          install: ${{ matrix.install }}
+          msystem: ${{matrix.msystem}}
+          install: ${{ matrix.install}}
 
       - name: Install dependencies
         run: script/ci_install_deps.sh
@@ -78,11 +64,11 @@ jobs:
       - name: Configure
         run: >-
           cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build
-          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_BUILD_TYPE=${{matrix.type}}
 
       - name: Build
-        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
 
       - name: Run
         working-directory: build
-        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
+        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}
