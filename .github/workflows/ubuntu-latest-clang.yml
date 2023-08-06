@@ -36,6 +36,9 @@ jobs:
 
       options: -v /usr/local:/host_usr_local
 
+    env:
+      CXXFLAGS: -stdlib=libc++
+
     steps:
       - uses: actions/checkout@v1
 

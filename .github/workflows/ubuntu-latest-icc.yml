@@ -17,8 +17,8 @@ on:
 
 env:
   URL_BASE: https://registrationcenter-download.intel.com/akdlm/irc_nas/17431
-  LINUX_BASEKIT_URL: ${{env.URL_BASE}}/l_BaseKit_p_2021.1.0.2659_offline.sh
-  LINUX_HPCKIT_URL: ${{env.URL_BASE}}/l_HPCKit_p_2021.1.0.2684_offline.sh
+  LINUX_BASEKIT_URL: ${{URL_BASE}}/l_BaseKit_p_2021.1.0.2659_offline.sh
+  LINUX_HPCKIT_URL: ${{URL_BASE}}/l_HPCKit_p_2021.1.0.2684_offline.sh
 
 jobs:
   icc_tests:

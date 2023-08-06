@@ -21,10 +21,6 @@ jobs:
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
 
-    name: "${{matrix.msystem}}: ${{matrix.os}}: ${{matrix.type}}"
-
-    runs-on: ${{matrix.os}}
-
     defaults:
       run:
         shell: msys2 {0}
@@ -45,6 +41,10 @@ jobs:
             install: >-
               git mingw-w64-i686-cmake mingw-w64-i686-ninja
               mingw-w64-i686-clang
+
+    runs-on: ${{matrix.os}}
+
+    name: "${{matrix.msystem}}: ${{matrix.os}}: ${{matrix.type}}"
 
     env:
       CMAKE_GENERATOR: Ninja
