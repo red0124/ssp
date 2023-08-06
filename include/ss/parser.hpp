@@ -98,9 +98,9 @@ public:
             if constexpr (throw_on_error) {
                 try {
                     reader_.parse();
-                } catch (...) {
+                } catch (const ss::exception& e) {
                     read_line();
-                    throw;
+                    decorate_rethrow(e);
                 }
             } else {
                 reader_.parse();
@@ -126,9 +126,9 @@ public:
                 auto value = reader_.converter_.template convert<T, Ts...>();
                 read_line();
                 return value;
-            } catch (...) {
+            } catch (const ss::exception& e) {
                 read_line();
-                throw;
+                decorate_rethrow(e);
             }
         }
 
@@ -595,6 +595,16 @@ private:
         } else {
             error_ = true;
         }
+    }
+
+    void decorate_rethrow(const ss::exception& e) const {
+        static_assert(throw_on_error,
+                      "throw_on_error needs to be enabled to use this method");
+        throw ss::exception{std::string{file_name_}
+                                .append(" ")
+                                .append(std::to_string(reader_.line_number_))
+                                .append(": ")
+                                .append(e.what())};
     }
 
     ////////////////
