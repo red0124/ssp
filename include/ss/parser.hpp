@@ -622,11 +622,13 @@ private:
     void decorate_rethrow(const ss::exception& e) const {
         static_assert(throw_on_error,
                       "throw_on_error needs to be enabled to use this method");
-        throw ss::exception{std::string{file_name_}
-                                .append(" ")
-                                .append(std::to_string(reader_.line_number_))
-                                .append(": ")
-                                .append(e.what())};
+        auto line = reader_.line_number_;
+        throw ss::exception{
+            std::string{file_name_}
+                .append(" ")
+                .append(std::to_string(line > 1 ? line - 1 : line))
+                .append(": ")
+                .append(e.what())};
     }
 
     ////////////////
