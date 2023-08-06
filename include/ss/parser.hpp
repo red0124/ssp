@@ -84,9 +84,9 @@ public:
         return to_object<T>(get_next<Ts...>());
     }
 
-    // TODO make the method work with if valid() returns false
     size_t line() const {
-        return valid() ? reader_.line_number_ - 1 : 0;
+        return reader_.line_number_ > 1 ? reader_.line_number_ - 1
+                                        : reader_.line_number_;
     }
 
     template <typename T, typename... Ts>
@@ -193,7 +193,7 @@ public:
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
 
-        if (line() == 0) {
+        if (line() == 1) {
             ignore_next();
         }
     }
@@ -622,13 +622,11 @@ private:
     void decorate_rethrow(const ss::exception& e) const {
         static_assert(throw_on_error,
                       "throw_on_error needs to be enabled to use this method");
-        auto line = reader_.line_number_;
-        throw ss::exception{
-            std::string{file_name_}
-                .append(" ")
-                .append(std::to_string(line > 1 ? line - 1 : line))
-                .append(": ")
-                .append(e.what())};
+        throw ss::exception{std::string{file_name_}
+                                .append(" ")
+                                .append(std::to_string(line()))
+                                .append(": ")
+                                .append(e.what())};
     }
 
     ////////////////
