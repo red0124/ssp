@@ -451,10 +451,13 @@ The **`eof`** method can be used to detect if the end of the file was reached.
 
 Detailed error messages can be accessed via the **`error_msg`** method, and to enable them **`ss::string_error`** needs to be included in the setup. If **`ss::string_error`** is not defined, the **`error_msg`** method will not be defined either.
 
+The line number can be fetched using the **`line`** method.
+
 ```cpp
 const std::string& parser::error_msg();
 bool parser::valid();
 bool parser::eof();
+size_t parser::line();
 
 // ...
 ss::parser<ss::string_error> parser;

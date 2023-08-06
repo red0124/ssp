@@ -2495,7 +2495,7 @@ public:
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
 
-        if (line() == 0) {
+        if (line() == 1) {
             ignore_next();
         }
     }
@@ -2924,12 +2924,11 @@ private:
     void decorate_rethrow(const ss::exception& e) const {
         static_assert(throw_on_error,
                       "throw_on_error needs to be enabled to use this method");
-        throw ss::exception{
-            std::string{file_name_}
-                .append(" ")
-                .append(std::to_string(line()))
-                .append(": ")
-                .append(e.what())};
+        throw ss::exception{std::string{file_name_}
+                                .append(" ")
+                                .append(std::to_string(line()))
+                                .append(": ")
+                                .append(e.what())};
     }
 
     ////////////////
