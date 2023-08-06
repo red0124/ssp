@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        version: [10, 9, 8]
+        version: ['latest', '13', '12', '11', '10', '9', '8']
 
     runs-on: ubuntu-latest
 
