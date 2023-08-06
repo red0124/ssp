@@ -40,7 +40,7 @@ jobs:
         build: [Debug, Release]
         platform: [Win32, x64]
 
-    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
+    name: ${{matrix.config.vs}}: ${{matrix.platform}}: ${{matrix.build}}
 
     steps:
       - name: checkout

@@ -21,7 +21,7 @@ jobs:
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
 
-    name: "${{matrix.os}}:${{matrix.msystem}}:${{matrix.type}}"
+    name: ${{matrix.msystem}}: ${{matrix.os}}: ${{matrix.type}}
 
     runs-on: ${{matrix.os}}
 

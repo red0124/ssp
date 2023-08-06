@@ -29,7 +29,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    name: Clang "${{matrix.version}}:${{matrix.type}}"
+    name: Clang ${{matrix.version}}: ${{matrix.type}}
 
     container:
       image: teeks99/clang-ubuntu:${{matrix.version}}
