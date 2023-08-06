@@ -965,6 +965,7 @@ void test_unterminated_line_impl(const std::vector<std::string>& lines,
             expect_error_on_command(p, command);
             break;
         } else {
+            command();
             CHECK(p.valid());
             ++line;
         }
@@ -979,8 +980,7 @@ void test_unterminated_line(const std::vector<std::string>& lines,
     test_unterminated_line_impl<Ts..., ss::throw_on_error>(lines, bad_line);
 }
 
-// TODO add more cases
-TEST_CASE("parser test csv on multiple with errors") {
+TEST_CASE("parser test csv on multiline with errors") {
     using multiline = ss::multiline_restricted<3>;
     using escape = ss::escape<'\\'>;
     using quote = ss::quote<'"'>;
@@ -992,6 +992,47 @@ TEST_CASE("parser test csv on multiple with errors") {
         test_unterminated_line<multiline, escape, quote>(lines, 0);
     }
 
+    {
+        const std::vector<std::string> lines{"1,2,just\\", "9,8,second"};
+        test_unterminated_line<multiline, escape>(lines, 0);
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,just\\"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,just\\",
+                                             "3,4,third"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first",
+                                             "1,2,just\\\nstrings\\",
+                                             "3,4,th\\\nird"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "3,4,second",
+                                             "1,2,just\\"};
+        test_unterminated_line<multiline, escape>(lines, 2);
+        test_unterminated_line<multiline, escape, quote>(lines, 2);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\\first", "3,4,second",
+                                             "1,2,jus\\t\\"};
+        test_unterminated_line<multiline, escape>(lines, 2);
+        test_unterminated_line<multiline, escape, quote>(lines, 2);
+    }
+
     // unterminated quote
     {
         const std::vector<std::string> lines{"1,2,\"just"};
@@ -999,9 +1040,44 @@ TEST_CASE("parser test csv on multiple with errors") {
         test_unterminated_line<multiline, quote>(lines, 0);
     }
 
+    {
+        const std::vector<std::string> lines{"1,2,\"just", "9,8,second"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<multiline, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,\"just"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<multiline, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,\"just",
+                                             "3,4,th\\,ird"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<multiline, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "3,4,second",
+                                             "1,2,\"just"};
+        test_unterminated_line<multiline, escape, quote>(lines, 2);
+        test_unterminated_line<multiline, quote>(lines, 2);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\"first\"",
+                                             "\"3\",4,\"sec,ond\"",
+                                             "1,2,\"ju\"\"st"};
+        test_unterminated_line<multiline, escape, quote>(lines, 2);
+        test_unterminated_line<multiline, quote>(lines, 2);
+    }
+
     // unterminated quote and escape
     {
         const std::vector<std::string> lines{"1,2,\"just\\"};
+        test_unterminated_line<multiline, escape, quote>(lines, 0);
         test_unterminated_line<multiline, escape, quote>(lines, 0);
     }
 
@@ -1015,11 +1091,56 @@ TEST_CASE("parser test csv on multiple with errors") {
         test_unterminated_line<multiline, escape, quote>(lines, 0);
     }
 
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,\"just\n\\"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first", "1,2,\"just\n\\",
+                                             "4,3,thrid"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,f\\\nirst", "1,2,\"just\n\\",
+                                             "4,3,thrid"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\"f\ni\nrst\"",
+                                             "1,2,\"just\n\\", "4,3,thrid"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
     // multiline limmit reached escape
     {
         const std::vector<std::string> lines{"1,2,\\\n\\\n\\\n\\\njust"};
         test_unterminated_line<multiline, escape>(lines, 0);
         test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first",
+                                             "1,2,\\\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,fi\\\nrs\\\nt",
+                                             "1,2,\\\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first",
+                                             "1,2,\\\n\\\n\\\n\\\njust",
+                                             "4,3,third"};
+        test_unterminated_line<multiline, escape>(lines, 1);
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
     }
 
     // multiline limmit reached quote
@@ -1029,10 +1150,48 @@ TEST_CASE("parser test csv on multiple with errors") {
         test_unterminated_line<multiline, quote>(lines, 0);
     }
 
+    {
+        const std::vector<std::string> lines{"9,8,first",
+                                             "1,2,\"\n\n\n\n\njust\""};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<multiline, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\"fir\nst\"",
+                                             "1,2,\"\n\n\n\n\njust\""};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<multiline, quote>(lines, 1);
+    }
+
     // multiline limmit reached quote and escape
     {
         const std::vector<std::string> lines{"1,2,\"\\\n\n\\\n\\\n\\\njust"};
         test_unterminated_line<multiline, escape, quote>(lines, 0);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,first",
+                                             "1,2,\"\\\n\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,fi\\\nrst",
+                                             "1,2,\"\\\n\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\"fi\nrst\"",
+                                             "1,2,\"\\\n\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
+    }
+
+    {
+        const std::vector<std::string> lines{"9,8,\"fi\nr\\\nst\"",
+                                             "1,2,\"\\\n\n\\\n\\\n\\\njust"};
+        test_unterminated_line<multiline, escape, quote>(lines, 1);
     }
 }
 
