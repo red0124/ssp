@@ -1286,6 +1286,9 @@ void test_invalid_fields(const std::vector<std::string>& lines,
 TEST_CASE("parser test invalid header fields usage") {
     test_invalid_fields({"Int,String,Double", "1,hi,2.34"},
                         {"Int", "String", "Double"});
+
+    test_invalid_fields({"Int,Int,Int", "1,2,3"},
+                        {"Int", "Int", "Int"});
 }
 
 template <typename... Ts>
