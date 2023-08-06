@@ -2399,9 +2399,9 @@ public:
             if constexpr (throw_on_error) {
                 try {
                     reader_.parse();
-                } catch (...) {
+                } catch (const ss::exception& e) {
                     read_line();
-                    throw;
+                    decorate_rethrow(e);
                 }
             } else {
                 reader_.parse();
@@ -2427,9 +2427,9 @@ public:
                 auto value = reader_.converter_.template convert<T, Ts...>();
                 read_line();
                 return value;
-            } catch (...) {
+            } catch (const ss::exception& e) {
                 read_line();
-                throw;
+                decorate_rethrow(e);
             }
         }
 
@@ -2510,11 +2510,14 @@ public:
             using value = std::conditional_t<get_object, T,
                                              no_void_validator_tup_t<T, Ts...>>;
 
-            iterator() : parser_{nullptr} {
+            iterator() : parser_{nullptr}, value_{} {
             }
 
-            iterator(parser<Options...>* parser) : parser_{parser} {
+            iterator(parser<Options...>* parser) : parser_{parser}, value_{} {
             }
+
+            iterator(const iterator& other) = default;
+            iterator(iterator&& other) = default;
 
             value& operator*() {
                 return value_;
@@ -2525,7 +2528,7 @@ public:
             }
 
             iterator& operator++() {
-                if (parser_->eof()) {
+                if (!parser_ || parser_->eof()) {
                     parser_ = nullptr;
                 } else {
                     if constexpr (get_object) {
@@ -2554,8 +2557,8 @@ public:
             }
 
         private:
-            value value_;
             parser<Options...>* parser_;
+            value value_;
         };
 
         iterable(parser<Options...>* parser) : parser_{parser} {
@@ -2766,7 +2769,14 @@ private:
         std::string raw_header_copy = raw_header_;
         splitter.split(raw_header_copy.data(), reader_.delim_);
         for (const auto& [begin, end] : splitter.split_data_) {
-            header_.emplace_back(begin, end);
+            std::string field{begin, end};
+            if (std::find(header_.begin(), header_.end(), field) !=
+                header_.end()) {
+                handle_error_invalid_header(field);
+                header_.clear();
+                return;
+            }
+            header_.push_back(std::move(field));
         }
     }
 
@@ -2896,6 +2906,29 @@ private:
         } else {
             error_ = true;
         }
+    }
+
+    void handle_error_invalid_header(const std::string& field) {
+        constexpr static auto error_msg = "header contains duplicates: ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(error_msg).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{error_msg + field};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void decorate_rethrow(const ss::exception& e) const {
+        static_assert(throw_on_error,
+                      "throw_on_error needs to be enabled to use this method");
+        throw ss::exception{std::string{file_name_}
+                                .append(" ")
+                                .append(std::to_string(reader_.line_number_))
+                                .append(": ")
+                                .append(e.what())};
     }
 
     ////////////////

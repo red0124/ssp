@@ -1259,18 +1259,44 @@ void test_invalid_fields_impl(const std::vector<std::string>& lines,
     {
         // Field used multiple times
         ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] { p.use_fields(fields[0], fields[0]); };
-        expect_error_on_command(p, command);
+        auto command = [&] { p.use_fields(fields.at(0), fields.at(0)); };
+        if (!fields.empty()) {
+            expect_error_on_command(p, command);
+        }
     }
 
     {
         // Mapping out of range
         ss::parser<Ts...> p{f.name, ","};
         auto command = [&] {
-            p.use_fields(fields[0]);
+            p.use_fields(fields.at(0));
             p.template get_next<std::string, std::string>();
         };
-        expect_error_on_command(p, command);
+        if (!fields.empty()) {
+            expect_error_on_command(p, command);
+        }
+    }
+
+    {
+        // Invalid header
+        ss::parser<Ts...> p{f.name, ","};
+        auto command = [&] { p.use_fields(fields); };
+
+        if (!fields.empty()) {
+            // Pass if there are no duplicates, fail otherwise
+            if (std::unordered_set<std::string>{fields.begin(), fields.end()}
+                    .size() != fields.size()) {
+                expect_error_on_command(p, command);
+            } else {
+                command();
+                CHECK(p.valid());
+                if (!p.valid()) {
+                    if constexpr (ss::setup<Ts...>::string_error) {
+                        std::cout << p.error_msg() << std::endl;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1282,13 +1308,28 @@ void test_invalid_fields(const std::vector<std::string>& lines,
     test_invalid_fields_impl<ss::throw_on_error>(lines, fields);
 }
 
-// TODO add more test cases
 TEST_CASE("parser test invalid header fields usage") {
+    test_invalid_fields({}, {});
+
+    test_invalid_fields({"Int"}, {"Int"});
+    test_invalid_fields({"Int", "1"}, {"Int"});
+    test_invalid_fields({"Int", "1", "2"}, {"Int"});
+
+    test_invalid_fields({"Int,String"}, {"Int", "String"});
+    test_invalid_fields({"Int,String", "1,hi"}, {"Int", "String"});
+    test_invalid_fields({"Int,String", "2,hello"}, {"Int", "String"});
+
+    test_invalid_fields({"Int,String,Double"}, {"Int", "String", "Double"});
     test_invalid_fields({"Int,String,Double", "1,hi,2.34"},
                         {"Int", "String", "Double"});
+    test_invalid_fields({"Int,String,Double", "1,hi,2.34", "2,hello,3.45"},
+                        {"Int", "String", "Double"});
 
-    test_invalid_fields({"Int,Int,Int", "1,2,3"},
-                        {"Int", "Int", "Int"});
+    test_invalid_fields({"Int,Int,Int"}, {"Int", "Int", "Int"});
+    test_invalid_fields({"Int,Int,Int", "1,2,3"}, {"Int", "Int", "Int"});
+
+    test_invalid_fields({"Int,String,Int"}, {"Int", "String", "Int"});
+    test_invalid_fields({"Int,String,Int", "1,hi,3"}, {"Int", "String", "Int"});
 }
 
 template <typename... Ts>
