@@ -23,8 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        version:
-          ['latest', '16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
+        version: ['16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
         type: [Release, Debug]
 
     runs-on: ubuntu-latest
@@ -37,6 +36,8 @@ jobs:
       options: -v /usr/local:/host_usr_local
 
     env:
+      CC: clang-${{ matrix.version }}
+      CXX: clang++-${{ matrix.version }}
       CXXFLAGS: -stdlib=libc++
 
     steps:
@@ -55,9 +56,7 @@ jobs:
           script/ci_install_deps.sh
 
       - name: Configure
-        run: >-
-          cmake -DCMAKE_CXX_COMPILER=clang++ -S test -B build
-          -DCMAKE_BUILD_TYPE=${{matrix.type}}
+        run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{matrix.type}}
 
       - name: Build
         run: cmake --build build -j ${{steps.cores.outputs.count}}
