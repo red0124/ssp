@@ -23,7 +23,8 @@ jobs:
 
     strategy:
       matrix:
-        version: ['16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
+        version:
+          ['latest', '16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
         type: [Release, Debug]
 
     runs-on: ubuntu-latest
@@ -31,13 +32,13 @@ jobs:
     name: "Clang ${{matrix.version}}: ${{matrix.type}}"
 
     container:
-      image: teeks99/clang-ubuntu:${{matrix.version}}
+      image: silkeh/clang:${{matrix.version}}
 
       options: -v /usr/local:/host_usr_local
 
     env:
-      CC: clang-${{ matrix.version }}
-      CXX: clang++-${{ matrix.version }}
+      CC: clang
+      CXX: clang++
       CXXFLAGS: -stdlib=libc++
 
     steps:

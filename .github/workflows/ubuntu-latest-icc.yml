@@ -16,9 +16,9 @@ on:
       - bugfix/**
 
 env:
-  URL_BASE: https://registrationcenter-download.intel.com/akdlm/irc_nas/17431
-  LINUX_BASEKIT_SCRIPT: l_BaseKit_p_2021.1.0.2659_offline.sh
-  LINUX_HPCKIT_SCRIPT: l_HPCKit_p_2021.1.0.2684_offline.sh
+  LINUX_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17431/l_BaseKit_p_2021.1.0.2659_offline.sh
+  LINUX_HPCKIT_URL:
+    https://registrationcenter-download.intel.com/akdlm/irc_nas/17427/l_HPCKit_p_2021.1.0.2684_offline.sh
 
 jobs:
   icc_tests:
@@ -46,14 +46,13 @@ jobs:
           path: |
             /opt/intel/oneapi/compiler
           key: >-
-            install-${{env.URL_BASE}}/${{env.LINUX_HPCKIT_SCRIPT}}-
+            install-${{env.LINUX_HPCKIT_URL}}-
             ${{env.LINUX_CPP_COMPONENTS_WEB}}-
             compiler-${{hashFiles('**/scripts/cache_exclude_linux.sh')}}
 
       - name: Install icc
         run: >-
-          script/ci_install_icc.sh ${URL_BASE}/${LINUX_HPCKIT_SCRIPT}
-          ${URL_BASE}/${LINUX_CPP_COMPONENTS_WEB}
+          script/ci_install_icc.sh $LINUX_HPCKIT_URL $LINUX_CPP_COMPONENTS_WEB
 
       - name: CMake
         run: echo "/host_usr_local/bin" >> $GITHUB_PATH
