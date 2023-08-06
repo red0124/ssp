@@ -187,7 +187,7 @@ auto vec = p.get_object<std::vector<std::string>, std::string, std::string>();
 An iterator loop as in the first example which returns objects would look like:
 ```cpp
 for (const student& s : p.iterate_object<student, std::string, int, float>()) {
-// ...
+    // ...
 }
 ```
 And finally, using something I personally like to do, a struct (class) with a **`tied`** method which returns a tuple of references to to the members of the struct.
