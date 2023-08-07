@@ -1,6 +1,8 @@
 name: ubuntu-latest-clang-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master
@@ -23,20 +25,22 @@ jobs:
 
     strategy:
       matrix:
-        version: [11, 10, 9, 8, 7]
+        # cmake clang12 is not able to compile a simple test program.
+        # /usr/bin/ld: cannot find -lunwind
+        version: ['latest', '15', '14', '13', '11', '10', '9', '8', '7']
+        type: [Release, Debug]
 
     runs-on: ubuntu-latest
 
-    name: Clang ${{ matrix.version }}
+    name: "Clang ${{matrix.version}}: ${{matrix.type}}"
 
     container:
-      image: teeks99/clang-ubuntu:${{ matrix.version }}
-
+      image: silkeh/clang:${{matrix.version}}
       options: -v /usr/local:/host_usr_local
 
     env:
-      CC: clang-${{ matrix.version }}
-      CXX: clang++-${{ matrix.version }}
+      CC: clang
+      CXX: clang++
       CXXFLAGS: -stdlib=libc++
 
     steps:
@@ -55,11 +59,11 @@ jobs:
           script/ci_install_deps.sh
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+        run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{matrix.type}}
 
       - name: Build
-        run: cmake --build build -j ${{ steps.cores.outputs.count }}
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
 
       - name: Run
         working-directory: build
-        run: ctest --output-on-failure -j ${{ steps.cores.outputs.count }}
+        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}

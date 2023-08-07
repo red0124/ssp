@@ -1,6 +1,8 @@
 name: win-msvc-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master
@@ -25,8 +27,6 @@ jobs:
       run:
         shell: bash
 
-    runs-on: ${{ matrix.config.os }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -40,7 +40,9 @@ jobs:
         build: [Debug, Release]
         platform: [Win32, x64]
 
-    name: "${{matrix.config.vs}}:${{matrix.platform}}:${{matrix.build}}"
+    runs-on: ${{matrix.config.os}}
+
+    name: "${{matrix.config.vs}}: ${{matrix.platform}}: ${{matrix.build}}"
 
     steps:
       - name: checkout
