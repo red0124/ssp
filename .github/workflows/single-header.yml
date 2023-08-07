@@ -1,7 +1,7 @@
 name: single-header-ci
 
 on:
-  workflow-dispatch
+  workflow-dispatch:
 
   push:
     branches:
