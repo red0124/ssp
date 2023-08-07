@@ -25,8 +25,7 @@ jobs:
       matrix:
         # cmake clang12 is not able to compile a simple test program.
         # /usr/bin/ld: cannot find -lunwind
-        version:
-          ['latest', '16', '15', '14', '13', '11', '10', '9', '8', '7']
+        version: ['latest', '15', '14', '13', '11', '10', '9', '8', '7']
         type: [Release, Debug]
 
     runs-on: ubuntu-latest
@@ -35,7 +34,6 @@ jobs:
 
     container:
       image: silkeh/clang:${{matrix.version}}
-
       options: -v /usr/local:/host_usr_local
 
     env:

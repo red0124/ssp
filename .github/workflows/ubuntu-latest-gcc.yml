@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        version: ['latest', '13', '12', '11', '10', '9', '8']
+        version: ['latest', '12', '11', '10', '9', '8']
         type: [Release, Debug]
 
     runs-on: ubuntu-latest
@@ -32,7 +32,6 @@ jobs:
 
     container:
       image: gcc:${{matrix.version}}
-
       options: -v /usr/local:/host_usr_local
 
     steps:

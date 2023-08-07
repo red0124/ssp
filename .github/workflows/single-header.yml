@@ -1,0 +1,45 @@
+name: single-header-ci
+
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  clang_tests:
+    #if: >-
+    #! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+    #! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    runs-on: ubuntu-latest
+
+    name: "Single Header Test"
+}
+    container:
+      image: gcc:latest
+      options: -v /usr/local:/host_usr_local
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git
+          script/ci_install_deps.sh
+
+      - name: Single header update check
+        run: script/single_header_generator.py
