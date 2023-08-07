@@ -31,7 +31,7 @@ jobs:
       matrix:
         os: [windows-2019, windows-latest]
         type: [Release, Debug]
-        include:
+        config:
           - msystem: "MINGW64"
             install: >-
               git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
@@ -44,7 +44,7 @@ jobs:
 
     runs-on: ${{matrix.os}}
 
-    name: "${{matrix.msystem}}: ${{matrix.os}}: ${{matrix.type}}"
+    name: "${{matrix.config.msystem}}: ${{matrix.os}}: ${{matrix.type}}"
 
     env:
       CMAKE_GENERATOR: Ninja
@@ -55,8 +55,8 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           update: true
-          msystem: ${{matrix.msystem}}
-          install: ${{matrix.install}}
+          msystem: ${{matrix.config.msystem}}
+          install: ${{matrix.config.install}}
 
       - name: Install dependencies
         run: script/ci_install_deps.sh
