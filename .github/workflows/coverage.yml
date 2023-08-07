@@ -68,3 +68,4 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
+          file: filtered.info
