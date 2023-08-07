@@ -1,0 +1,69 @@
+name: ubuntu-latest-gcc-ci
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  gcc_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    runs-on: ubuntu-latest
+
+    name: "Coverage"
+
+    container:
+      image: gcc:latest
+      options: -v /usr/local:/host_usr_local
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: CMake
+        run: echo "/host_usr_local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}
+
+      - name: Generate coverage report
+        run: |
+          lcov -d . -c -o out.info --rc lcov_branch_coverage=1 --no-external
+          lcov -e out.info '*include/ss*hpp' -o filtered_out.info
+          genhtml --t "SSP Coverage" --legend --demangle-cpp -o html -s --branch-coverage -p $PWD filtered_out.info
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: ${{github.workspace}}/html
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v2
