@@ -41,4 +41,9 @@ jobs:
           apt-get install -y git
 
       - name: Single header update check
-        run: script/single_header_generator.py
+        run: |
+          script/single_header_generator.py > tmp.hpp
+          diff spp.hpp tmp.hpp
+
+      - name: Single header compile check
+        run: ./test/test_single_header.sh
