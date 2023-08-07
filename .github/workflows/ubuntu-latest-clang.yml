@@ -1,6 +1,8 @@
 name: ubuntu-latest-clang-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master

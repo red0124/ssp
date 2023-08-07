@@ -1,6 +1,8 @@
 name: win-msvc-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master

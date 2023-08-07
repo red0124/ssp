@@ -1,6 +1,8 @@
 name: single-header-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master
@@ -14,8 +16,6 @@ on:
       - feature/**
       - improvement/**
       - bugfix/**
-
-  workflow_dispatch:
 
 jobs:
   single_header_tests:

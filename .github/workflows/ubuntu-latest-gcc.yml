@@ -1,6 +1,8 @@
 name: ubuntu-latest-gcc-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master

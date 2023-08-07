@@ -1,6 +1,8 @@
 name: win-msys2-gcc-ci
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - master
