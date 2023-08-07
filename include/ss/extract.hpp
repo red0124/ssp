@@ -3,11 +3,11 @@
 #include "type_traits.hpp"
 #include <cstring>
 #include <functional>
-#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
+#include <charconv>
 
 #ifndef SSP_DISABLE_FAST_FLOAT
 #include <fast_float/fast_float.h>
@@ -73,195 +73,16 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 
 #endif
 
-inline std::optional<short> from_char(char c) {
-    if (c >= '0' && c <= '9') {
-        return c - '0';
-    }
-    return std::nullopt;
-}
-
-#if defined(__clang__) && defined(__MINGW32__) && !defined(__MINGW64__)
-#define MINGW32_CLANG
-#endif
-
-// mingw32 clang does not support some of the builtin functions
-#if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
-    !defined(MINGW32_CLANG)
-////////////////
-// mul overflow detection
-////////////////
-template <typename T>
-bool mul_overflow(T& result, T operand) {
-    return __builtin_mul_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(int& result, int operand) {
-    return __builtin_smul_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(long& result, long operand) {
-    return __builtin_smull_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(long long& result, long long operand) {
-    return __builtin_smulll_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(unsigned int& result, unsigned int operand) {
-    return __builtin_umul_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(unsigned long& result, unsigned long operand) {
-    return __builtin_umull_overflow(result, operand, &result);
-}
-
-template <>
-inline bool mul_overflow(unsigned long long& result,
-                         unsigned long long operand) {
-    return __builtin_umulll_overflow(result, operand, &result);
-}
-
-////////////////
-// addition overflow detection
-////////////////
-
-template <typename T>
-inline bool add_overflow(T& result, T operand) {
-    return __builtin_add_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(int& result, int operand) {
-    return __builtin_sadd_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(long& result, long operand) {
-    return __builtin_saddl_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(long long& result, long long operand) {
-    return __builtin_saddll_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(unsigned int& result, unsigned int operand) {
-    return __builtin_uadd_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(unsigned long& result, unsigned long operand) {
-    return __builtin_uaddl_overflow(result, operand, &result);
-}
-
-template <>
-inline bool add_overflow(unsigned long long& result,
-                         unsigned long long operand) {
-    return __builtin_uaddll_overflow(result, operand, &result);
-}
-
-////////////////
-// substraction overflow detection
-////////////////
-template <typename T>
-inline bool sub_overflow(T& result, T operand) {
-    return __builtin_sub_overflow(result, operand, &result);
-}
-
-template <>
-inline bool sub_overflow(int& result, int operand) {
-    return __builtin_ssub_overflow(result, operand, &result);
-}
-
-template <>
-inline bool sub_overflow(long& result, long operand) {
-    return __builtin_ssubl_overflow(result, operand, &result);
-}
-
-template <>
-inline bool sub_overflow(long long& result, long long operand) {
-    return __builtin_ssubll_overflow(result, operand, &result);
-}
-
-// Note: sub_overflow function should be unreachable for unsigned values
-template <>
-inline bool sub_overflow(unsigned int& result, unsigned int operand) {
-    return __builtin_usub_overflow(result, operand, &result);
-}
-
-template <>
-inline bool sub_overflow(unsigned long& result, unsigned long operand) {
-    return __builtin_usubl_overflow(result, operand, &result);
-}
-
-template <>
-inline bool sub_overflow(unsigned long long& result,
-                         unsigned long long operand) {
-    return __builtin_usubll_overflow(result, operand, &result);
-}
-
-template <typename T, typename F>
-bool shift_and_add_overflow(T& value, T digit, F add_last_digit_overflow) {
-    if (mul_overflow<T>(value, 10) || add_last_digit_overflow(value, digit)) {
-        return true;
-    }
-    return false;
-}
-#else
-
-template <typename T, typename U>
-bool shift_and_add_overflow(T& value, T digit, U is_negative) {
-    digit = (is_negative) ? -digit : digit;
-    T old_value = value;
-    value = 10 * value + digit;
-
-    T expected_old_value = (value - digit) / 10;
-    if (old_value != expected_old_value) {
-        return true;
-    }
-    return false;
-}
-
-#endif
-
 template <typename T>
 std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
-    const char* begin, const char* end) {
-    if (begin == end) {
+    const char* const begin, const char* const end) {
+    T ret;
+    auto [ptr, ec] = std::from_chars(begin, end, ret);
+
+    if (ec != std::errc() || ptr != end) {
         return std::nullopt;
     }
-    bool is_negative = false;
-    if constexpr (std::is_signed_v<T>) {
-        is_negative = *begin == '-';
-        if (is_negative) {
-            ++begin;
-        }
-    }
-
-#if (defined(__clang__) || defined(__GNUC__) || defined(__GUNG__)) &&          \
-    !defined(MINGW32_CLANG)
-    auto add_last_digit_overflow =
-        (is_negative) ? sub_overflow<T> : add_overflow<T>;
-#else
-    auto add_last_digit_overflow = is_negative;
-#endif
-
-    T value = 0;
-    for (auto i = begin; i != end; ++i) {
-        if (auto digit = from_char(*i);
-            !digit || shift_and_add_overflow<T>(value, digit.value(),
-                                                add_last_digit_overflow)) {
-            return std::nullopt;
-        }
-    }
-
-    return value;
+    return ret;
 }
 
 ////////////////
