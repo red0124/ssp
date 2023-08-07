@@ -43,7 +43,7 @@ jobs:
       - name: Single header update check
         run: |
           script/single_header_generator.py > tmp.hpp
-          diff spp.hpp tmp.hpp
+          diff ssp.hpp tmp.hpp
 
       - name: Single header compile check
         run: ./test/test_single_header.sh
