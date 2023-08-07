@@ -15,7 +15,7 @@ on:
       - improvement/**
       - bugfix/**
 
-  workflow-dispatch:
+  workflow_dispatch:
 
 jobs:
   single_header_tests:
