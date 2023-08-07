@@ -70,8 +70,8 @@ jobs:
           name: code-coverage-report
           path: ${{github.workspace}}/html
 
-      - name: Coveralls GitHub Action
+      - name: Invoke coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
-          path-to-lcov: ${{github.workspace}}.filtered.info
+          path-to-lcov: ${{github.workspace}}/filtered.info
