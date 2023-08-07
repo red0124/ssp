@@ -6,7 +6,7 @@
 #include <vector>
 #include <filesystem>
 
-#ifdef CMAKE_GITHUB_CI
+#ifdef _CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
 #else
 #include <doctest.h>

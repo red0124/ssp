@@ -1,4 +1,4 @@
-name: ubuntu-latest-gcc-ci
+name: coverage-ci
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
       - bugfix/**
 
 jobs:
-  gcc_tests:
+  test_coverage:
     if: >-
       ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
       ! contains(toJSON(github.event.commits.*.message), '[skip github]')
@@ -42,6 +42,11 @@ jobs:
 
       - name: Install dependencies
         run: script/ci_install_deps.sh
+
+      - name: Install test coverage tools
+        run: |
+          apt update
+          apt install -y gcovr lcov
 
       - name: Configure
         run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug
