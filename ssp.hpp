@@ -13,6 +13,9 @@
 #include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <variant>
+#include <vector>
+#define SSP_DISABLE_FAST_FLOAT
 
 
 namespace ss {
