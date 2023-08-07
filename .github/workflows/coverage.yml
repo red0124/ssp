@@ -63,18 +63,9 @@ jobs:
           lcov -d . -c -o out.info --rc lcov_branch_coverage=1 --no-external
           lcov -e out.info '*include/ss*hpp' -o filtered.info
           genhtml --t "SSP Coverage" --legend --demangle-cpp -o html -s --branch-coverage -p $PWD filtered.info
-          pwd
-          ls
-          cat $${github.workspace}}
-
-      - name: Archive coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: ${{github.workspace}}/html
 
       - name: Invoke coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
-          path-to-lcov: ${{github.workspace}}/filtered.info
+          path-to-lcov: filtered.info
