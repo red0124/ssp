@@ -23,8 +23,10 @@ jobs:
 
     strategy:
       matrix:
+        # cmake clang12 is not able to compile a simple test program.
+        # /usr/bin/ld: cannot find -lunwind
         version:
-          ['latest', '16', '15', '14', '13', '12', '11', '10', '9', '8', '7']
+          ['latest', '16', '15', '14', '13', '11', '10', '9', '8', '7']
         type: [Release, Debug]
 
     runs-on: ubuntu-latest
