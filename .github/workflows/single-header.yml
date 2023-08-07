@@ -17,9 +17,9 @@ on:
 
 jobs:
   single_header_tests:
-    #if: >-
-    #  ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
-    #  ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
 
     runs-on: ubuntu-latest
 
