@@ -9,11 +9,11 @@ TEST_CASE(
     CHECK_FLOATING_CONVERSION(123.456, float);
     CHECK_FLOATING_CONVERSION(123.456, double);
 
-    CHECK_FLOATING_CONVERSION(69, float);
-    CHECK_FLOATING_CONVERSION(69, double);
+    CHECK_FLOATING_CONVERSION(59, float);
+    CHECK_FLOATING_CONVERSION(59, double);
 
-    CHECK_FLOATING_CONVERSION(420., float);
-    CHECK_FLOATING_CONVERSION(420., double);
+    CHECK_FLOATING_CONVERSION(4210., float);
+    CHECK_FLOATING_CONVERSION(4210., double);
 
     CHECK_FLOATING_CONVERSION(0.123, float);
     CHECK_FLOATING_CONVERSION(0.123, double);
@@ -29,6 +29,11 @@ TEST_CASE("extract test functions for numbers with invalid inputs without fast "
 
     // random input for float
     CHECK_INVALID_CONVERSION("xxx1", float);
+
+    // number too big
+    CHECK_INVALID_CONVERSION((std::string{20, '1'} + "." +
+                              std::string{20, '2'}),
+                             double);
 }
 
 TEST_CASE("extract test functions for std::variant without fast float") {
