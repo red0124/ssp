@@ -64,8 +64,8 @@ TEST_CASE("extract test functions for numbers with invalid inputs") {
     CHECK_INVALID_CONVERSION("xxx1", float);
 
     // number too big
-    CHECK_INVALID_CONVERSION((std::string{20, '1'} + "." +
-                              std::string{20, '2'}),
+    CHECK_INVALID_CONVERSION((std::string{40, '1'} + "." +
+                              std::string{40, '2'}),
                              double);
 
     // random input for int

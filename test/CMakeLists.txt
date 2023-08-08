@@ -12,8 +12,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ssp INTERFACE -Wall -Wextra)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -fprofile-arcs -ftest-coverage --coverage")
-
 if (MSVC)
   add_compile_options(/bigobj)
 elseif (MINGW)
