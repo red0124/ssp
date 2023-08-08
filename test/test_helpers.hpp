@@ -1,10 +1,10 @@
 #pragma once
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <filesystem>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -73,6 +73,18 @@ struct unique_file_name {
         auto t = ss::to_num<type>(s.c_str(), s.c_str() + s.size());            \
         REQUIRE(t.has_value());                                                \
         CHECK_LT(std::abs(t.value() - type(-input)), eps);                     \
+    }
+
+#define CHECK_FLOATING_CONVERSION_LONG_NUMBER(STRING_NUMBER, TYPE, CONVERTER)  \
+    {                                                                          \
+        auto begin = STRING_NUMBER.c_str();                                    \
+        auto end = begin + STRING_NUMBER.size();                               \
+                                                                               \
+        auto number = ss::to_num<TYPE>(begin, end);                            \
+        REQUIRE(number.has_value());                                           \
+                                                                               \
+        auto expected_number = CONVERTER(STRING_NUMBER);                       \
+        CHECK_EQ(number.value(), expected_number);                             \
     }
 
 #define CHECK_INVALID_CONVERSION(input, type)                                  \

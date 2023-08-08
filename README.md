@@ -15,6 +15,7 @@
 [![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
 [![win-msvc-ci](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
 [![single-header-ci](https://github.com/red0124/ssp/workflows/single-header-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
+[![coverage](https://coveralls.io/repos/github/red0124/ssp/badge.svg?branch=master/coverage_ci)](https://coveralls.io/github/red0124/ssp?branch=master/coverage_ci)
 
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#the-converter)
 

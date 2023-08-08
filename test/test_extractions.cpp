@@ -275,3 +275,20 @@ TEST_CASE("extract test functions for std::variant") {
         }
     }
 }
+
+TEST_CASE("extract test with long number string") {
+    {
+        std::string string_num =
+            std::string(20, '1') + "." + std::string(20, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, float, stof);
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
+    }
+
+    {
+        std::string string_num =
+            std::string(50, '1') + "." + std::string(50, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
+    }
+}

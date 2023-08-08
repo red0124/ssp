@@ -9,11 +9,11 @@ TEST_CASE(
     CHECK_FLOATING_CONVERSION(123.456, float);
     CHECK_FLOATING_CONVERSION(123.456, double);
 
-    CHECK_FLOATING_CONVERSION(69, float);
-    CHECK_FLOATING_CONVERSION(69, double);
+    CHECK_FLOATING_CONVERSION(59, float);
+    CHECK_FLOATING_CONVERSION(59, double);
 
-    CHECK_FLOATING_CONVERSION(420., float);
-    CHECK_FLOATING_CONVERSION(420., double);
+    CHECK_FLOATING_CONVERSION(4210., float);
+    CHECK_FLOATING_CONVERSION(4210., double);
 
     CHECK_FLOATING_CONVERSION(0.123, float);
     CHECK_FLOATING_CONVERSION(0.123, double);
@@ -128,5 +128,22 @@ TEST_CASE("extract test functions for std::variant without fast float") {
 
             REQUIRE_VARIANT(var, int{}, int);
         }
+    }
+}
+
+TEST_CASE("extract test with long number string without fast float") {
+    {
+        std::string string_num =
+            std::string(20, '1') + "." + std::string(20, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, float, stof);
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
+    }
+
+    {
+        std::string string_num =
+            std::string(50, '1') + "." + std::string(50, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
     }
 }

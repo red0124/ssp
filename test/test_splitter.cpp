@@ -775,6 +775,23 @@ TEST_CASE("splitter test resplit unterminated quote") {
             CHECK_EQ(words(vec), expected);
         }
     }
+
+    {
+        ss::converter<ss::quote<'"'>, ss::escape<'\\'>, ss::multiline> c;
+        auto& s = c.splitter;
+        auto vec = expect_unterminated_quote(s, R"("just\"some","ra)");
+        std::vector<std::string> expected{"just\"some"};
+        auto w = words(vec);
+        w.pop_back();
+        CHECK_EQ(w, expected);
+        REQUIRE(s.unterminated_quote());
+        {
+            auto new_line = buff.append(R"(n,dom",str\"ings)");
+            // invalid resplit size
+            vec = c.resplit(new_line, 4);
+            CHECK(!s.valid());
+        }
+    }
 }
 
 TEST_CASE("splitter test resplit unterminated quote with exceptions") {
@@ -1040,47 +1057,57 @@ TEST_CASE("splitter test resplit unterminated quote with exceptions") {
     }
 }
 
-TEST_CASE("splitter test invalid splits") {
-    ss::converter<ss::string_error, ss::quote<'"'>, ss::trim<' '>,
-                  ss::escape<'\\'>>
-        c;
+template <typename... Ts>
+void test_invalid_splits() {
+    ss::converter<ss::quote<'"'>, ss::trim<' '>, ss::escape<'\\'>, Ts...> c;
     auto& s = c.splitter;
+
+    auto check_error_msg = [&] {
+        if constexpr (ss::setup<Ts...>::string_error) {
+            CHECK_FALSE(s.error_msg().empty());
+        }
+    };
 
     // empty delimiter
     s.split(buff("some,random,strings"), "");
     CHECK_FALSE(s.valid());
     CHECK_FALSE(s.unterminated_quote());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
 
     // mismatched delimiter
     s.split(buff(R"(some,"random,"strings")"));
     CHECK_FALSE(s.valid());
     CHECK_FALSE(s.unterminated_quote());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
 
     // unterminated escape
     s.split(buff(R"(some,random,strings\)"));
     CHECK_FALSE(s.valid());
     CHECK_FALSE(s.unterminated_quote());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
 
     // unterminated escape
     s.split(buff(R"(some,random,"strings\)"));
     CHECK_FALSE(s.valid());
     CHECK_FALSE(s.unterminated_quote());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
 
     // unterminated quote
     s.split(buff("some,random,\"strings"));
     CHECK_FALSE(s.valid());
     CHECK(s.unterminated_quote());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
 
     // invalid resplit
     char new_line[] = "some";
     c.resplit(new_line, strlen(new_line));
     CHECK_FALSE(s.valid());
-    CHECK_FALSE(s.error_msg().empty());
+    check_error_msg();
+}
+
+TEST_CASE("splitter test invalid splits") {
+    test_invalid_splits();
+    test_invalid_splits<ss::string_error>();
 }
 
 TEST_CASE("splitter test invalid splits with exceptions") {

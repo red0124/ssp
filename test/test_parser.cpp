@@ -1492,6 +1492,104 @@ TEST_CASE("parser test invalid header fields usage") {
 }
 
 template <typename... Ts>
+void test_invalid_rows_with_header() {
+    unique_file_name f{"test_parser"};
+    {
+        std::ofstream out{f.name};
+        out << "Int,String,Double" << std::endl;
+        out << "1,line1,2.34" << std::endl;
+        out << "2,line2" << std::endl;
+        out << "3,line3,67.8" << std::endl;
+        out << "4,line4,67.8,9" << std::endl;
+        out << "5,line5,9.10" << std::endl;
+        out << "six,line6,10.11" << std::endl;
+    }
+
+    {
+        ss::parser<Ts...> p{f.name};
+
+        p.use_fields("Int", "String", "Double");
+        using data = std::tuple<int, std::string, double>;
+        std::vector<data> i;
+
+        CHECK(p.valid());
+
+        while (!p.eof()) {
+            try {
+                const auto& t = p.template get_next<data>();
+                if (p.valid()) {
+                    i.push_back(t);
+                }
+            } catch (const ss::exception&) {
+                continue;
+            }
+        }
+
+        std::vector<data> expected = {{1, "line1", 2.34},
+                                      {3, "line3", 67.8},
+                                      {5, "line5", 9.10}};
+        CHECK_EQ(i, expected);
+    }
+
+    {
+        ss::parser<Ts...> p{f.name};
+
+        p.use_fields("Double", "Int");
+        using data = std::tuple<double, int>;
+        std::vector<data> i;
+
+        CHECK(p.valid());
+
+        while (!p.eof()) {
+            try {
+                const auto& t = p.template get_next<data>();
+                if (p.valid()) {
+                    i.push_back(t);
+                }
+            } catch (const ss::exception&) {
+                continue;
+            }
+        }
+
+        std::vector<data> expected = {{2.34, 1}, {67.8, 3}, {9.10, 5}};
+        CHECK_EQ(i, expected);
+    }
+
+    {
+        ss::parser<Ts...> p{f.name};
+
+        p.use_fields("String", "Double");
+        using data = std::tuple<std::string, double>;
+        std::vector<data> i;
+
+        CHECK(p.valid());
+
+        while (!p.eof()) {
+            try {
+                const auto& t = p.template get_next<data>();
+                if (p.valid()) {
+                    i.push_back(t);
+                }
+            } catch (const ss::exception&) {
+                continue;
+            }
+        }
+
+        std::vector<data> expected = {{"line1", 2.34},
+                                      {"line3", 67.8},
+                                      {"line5", 9.10},
+                                      {"line6", 10.11}};
+        CHECK_EQ(i, expected);
+    }
+}
+
+TEST_CASE("parser test invalid rows with header") {
+    test_invalid_rows_with_header();
+    test_invalid_rows_with_header<ss::string_error>();
+    test_invalid_rows_with_header<ss::throw_on_error>();
+}
+
+template <typename... Ts>
 void test_ignore_empty_impl(const std::vector<X>& data) {
     unique_file_name f{"test_parser"};
     make_and_write(f.name, data);
