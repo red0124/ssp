@@ -1,13 +1,13 @@
 #pragma once
 
 #include "type_traits.hpp"
+#include <charconv>
 #include <cstring>
 #include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
-#include <charconv>
 
 #ifndef SSP_DISABLE_FAST_FLOAT
 #include <fast_float/fast_float.h>
@@ -42,16 +42,23 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 template <typename T>
 std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
+    static_assert(!std::is_same_v<T, long double>,
+                  "Conversion to long double is disabled");
+
     constexpr static auto buff_max = 64;
-    char buff[buff_max];
+    char short_buff[buff_max];
     size_t string_range = std::distance(begin, end);
+    std::string long_buff;
 
+    char* buff;
     if (string_range > buff_max) {
-        return std::nullopt;
+        long_buff = std::string{begin, end};
+        buff = long_buff.data();
+    } else {
+        buff = short_buff;
+        buff[string_range] = '\0';
+        std::copy_n(begin, string_range, buff);
     }
-
-    std::copy_n(begin, string_range, buff);
-    buff[string_range] = '\0';
 
     T ret;
     char* parse_end = nullptr;
@@ -60,8 +67,6 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
         ret = std::strtof(buff, &parse_end);
     } else if constexpr (std::is_same_v<T, double>) {
         ret = std::strtod(buff, &parse_end);
-    } else if constexpr (std::is_same_v<T, long double>) {
-        ret = std::strtold(buff, &parse_end);
     }
 
     if (parse_end != buff + string_range) {

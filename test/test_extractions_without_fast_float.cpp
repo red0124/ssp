@@ -29,11 +29,6 @@ TEST_CASE("extract test functions for numbers with invalid inputs without fast "
 
     // random input for float
     CHECK_INVALID_CONVERSION("xxx1", float);
-
-    // number too big
-    CHECK_INVALID_CONVERSION((std::string(40, '1') + "." +
-                              std::string(40, '2')),
-                             double);
 }
 
 TEST_CASE("extract test functions for std::variant without fast float") {
@@ -133,5 +128,22 @@ TEST_CASE("extract test functions for std::variant without fast float") {
 
             REQUIRE_VARIANT(var, int{}, int);
         }
+    }
+}
+
+TEST_CASE("extract test with long number string without fast float") {
+    {
+        std::string string_num =
+            std::string(20, '1') + "." + std::string(20, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, float, stof);
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
+    }
+
+    {
+        std::string string_num =
+            std::string(50, '1') + "." + std::string(50, '2');
+
+        CHECK_FLOATING_CONVERSION_LONG_NUMBER(string_num, double, stod);
     }
 }
