@@ -1,6 +1,5 @@
 #pragma once
 
-// TODO add single header tests
 #include "common.hpp"
 #include "converter.hpp"
 #include "exception.hpp"
