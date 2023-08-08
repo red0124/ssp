@@ -379,7 +379,6 @@ private:
         return extract_tuple<Ts...>(elems);
     }
 
-    // do not know how to specialize by return type :(
     template <typename... Ts>
     no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
         const split_data& elems, const std::tuple<Ts...>*) {
