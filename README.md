@@ -8,14 +8,14 @@
 ```
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![coverage](https://coveralls.io/repos/github/red0124/ssp/badge.svg?branch=master)](https://coveralls.io/github/red0124/ssp?branch=master)
+[![single-header](https://github.com/red0124/ssp/workflows/single-header-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
 [![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
 [![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
 [![ubuntu-latest-icc](https://github.com/red0124/ssp/workflows/ubuntu-latest-icc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-icc.yml)
 [![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
 [![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
-[![win-msvc-ci](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
-[![single-header-ci](https://github.com/red0124/ssp/workflows/single-header-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
-[![coverage](https://coveralls.io/repos/github/red0124/ssp/badge.svg?branch=master)](https://coveralls.io/github/red0124/ssp?branch=master)
+[![windows-msvc](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
 
 A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#the-converter)
 
