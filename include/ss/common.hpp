@@ -2,7 +2,6 @@
 #include <vector>
 
 namespace ss {
-
 struct none {};
 
 using string_range = std::pair<const char*, const char*>;
@@ -21,5 +20,4 @@ inline void assert_throw_on_error_not_defined() {
     static_assert(!ThrowOnError, "cannot handle errors manually if "
                                  "'throw_on_error' is enabled");
 }
-
 } /* ss */

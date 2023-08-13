@@ -792,7 +792,7 @@ private:
 
             // just spacing
             // TODO handle \r\n
-            if (*curr == '\n' || (*curr == '\r' && *(curr + 1) == '\n')) {
+            if (*curr == '\n' || *curr == '\r') {
                 return {0, false};
             }
 
@@ -812,6 +812,7 @@ private:
         void shift_if_escaped(line_ptr_type& curr) {
             if constexpr (escape::enabled) {
                 if (escape::match(*curr)) {
+                    // TODO handle differently
                     if (curr[1] == '\0') {
                         if constexpr (!multiline::enabled) {
                             // TODO handle
@@ -825,7 +826,7 @@ private:
             }
         }
 
-        void shift_and_set_current() {
+        void shift_and_set_shifted_current() {
             if constexpr (!is_const_line) {
                 if (escaped_ > 0) {
                     // shift by number of escapes
@@ -840,7 +841,18 @@ private:
         }
 
         void shift_and_jump_escape() {
-            shift_and_set_current();
+            if constexpr (!is_const_line && escape::enabled) {
+                if (curr_[1] == '\r' && curr_[2] == '\n') {
+                    shift_and_set_shifted_current();
+                    ++escaped_;
+                    ++curr_;
+                    shift_and_set_shifted_current();
+                    ++curr_;
+                    return;
+                }
+            }
+
+            shift_and_set_shifted_current();
             if constexpr (!is_const_line) {
                 ++escaped_;
             }
@@ -853,36 +865,40 @@ private:
         }
 
         void shift_and_push() {
-            shift_and_set_current();
+            shift_and_set_shifted_current();
             split_data_.emplace_back(begin_, shifted_curr_);
         }
 
-        void parse_next_line() {
-            escaped_ = 0;
+        // TODO check attribute
+        __attribute__((always_inline)) void check_buff_end() {
+            if (curr_ == end_) {
+                auto old_buff = buff_;
 
-            auto check_buff_end = [&] {
-                if (curr_ == end_) {
-                    auto old_buff = buff_;
-
-                    if (last_read_) {
-                        // TODO handle
-                        throw "no new line at eof";
-                    }
-
-                    handle_buffer_end_reached();
-                    end_ = buff_ + buff_filled_;
-
-                    for (auto& [begin, end] : split_data_) {
-                        begin = begin - old_buff + buff_;
-                        end = end - old_buff + buff_;
-                    }
-
-                    begin_ = begin_ - old_buff + buff_;
-                    curr_ = curr_ - old_buff + buff_;
+                if (last_read_) {
+                    // TODO handle
+                    throw "no new line at eof";
                 }
-            };
 
+                handle_buffer_end_reached();
+                end_ = buff_ + buff_filled_;
+
+                for (auto& [begin, end] : split_data_) {
+                    begin = begin - old_buff + buff_;
+                    end = end - old_buff + buff_;
+                }
+
+                begin_ = begin_ - old_buff + buff_;
+                curr_ = curr_ - old_buff + buff_;
+                shifted_curr_ = shifted_curr_ - old_buff + buff_;
+            }
+        }
+
+        void parse_next_line() {
             while (true) {
+                if constexpr (quote::enabled || escape::enabled) {
+                    escaped_ = 0;
+                }
+
                 // quoted string
                 if constexpr (quote::enabled) {
                     if (quote::match(*curr_)) {
@@ -906,18 +922,16 @@ private:
                                 continue;
                             }
 
-
-                            auto [width, valid] =
+                            auto [width, is_delim] =
                                 match_delimiter(curr_ + 1, delim_char_);
 
                             // delimiter
-                            if (valid) {
+                            if (is_delim) {
                                 shift_push_and_start_next(width + 1);
                                 curr_ += width + 1;
                                 check_buff_end();
                                 break;
                             }
-
 
                             // double quote
                             // eg: ...,"hel""lo",... -> hel"lo
@@ -927,7 +941,6 @@ private:
                                 check_buff_end();
                                 continue;
                             }
-
 
                             if (width == 0) {
                                 // eol
@@ -953,30 +966,37 @@ private:
                 }
 
                 // not quoted
+                begin_ = shifted_curr_ = curr_;
                 while (true) {
-                    if (*curr_ == '\n') {
-                        split_data_.emplace_back(begin_, curr_);
-                        return;
-                    }
+                    // std::cout << "* " << *curr_ << std::endl;
 
-                    if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
-                        split_data_.emplace_back(begin_, curr_);
-                        ++curr_;
-                        check_buff_end();
-                        return;
-                    }
+                    auto [width, is_delim] =
+                        match_delimiter(curr_, delim_char_);
 
-                    if (*curr_ == delim_char_) {
-                        split_data_.emplace_back(begin_, curr_);
-                        begin_ = curr_ + 1;
-                        ++curr_;
+                    if (!is_delim) {
+                        // not a delimiter
+
+                        if (width == 0) {
+                            // eol
+                            shift_and_push();
+                            // ++curr_;
+                            // TODO handle differently
+                            if (curr_[0] == '\r') {
+                                ++curr_;
+                            }
+                            return;
+                        } else {
+                            curr_ += width;
+                            check_buff_end();
+                            continue;
+                        }
+                    } else {
+                        // found delimiter
+                        shift_push_and_start_next(width);
+                        curr_ += width;
                         check_buff_end();
                         break;
                     }
-
-                    ++curr_;
-
-                    check_buff_end();
                 }
             }
         }
