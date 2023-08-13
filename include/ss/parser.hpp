@@ -355,8 +355,8 @@ public:
         template <typename U, typename... Us>
         no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
-            auto value =
-                parser_.reader_.converter_.template convert<U, Us...>();
+            auto value = parser_.reader_.converter_.template convert<U, Us...>(
+                parser_.reader_.split_data_);
             if (!parser_.reader_.converter_.valid()) {
                 parser_.handle_error_invalid_conversion();
             }
@@ -692,12 +692,13 @@ private:
             // TODO handle differently
             if (buff_filled_ == 0 || (buff_filled_ == 1 && buff_[0] == '\n') ||
                 (buff_filled_ == 2 && buff_[0] == '\r' && buff_[1] == '\n')) {
-                free(file_);
+                fclose(file_);
                 file_ = nullptr;
             }
 
             begin_ = buff_;
             curr_ = buff_;
+            shifted_curr_ = buff_;
             end_ = buff_ + buff_filled_;
         }
 
@@ -735,6 +736,251 @@ private:
             }
         };
 
+        // TODO move
+        using quote = typename setup<Options...>::quote;
+        using trim_left = typename setup<Options...>::trim_left;
+        using trim_right = typename setup<Options...>::trim_right;
+        using escape = typename setup<Options...>::escape;
+        using multiline = typename setup<Options...>::multiline;
+
+        constexpr static auto is_const_line =
+            !quote::enabled && !escape::enabled;
+        using line_ptr_type =
+            std::conditional_t<is_const_line, const char*, char*>;
+
+        bool match(const char* const curr, char delim) {
+            return *curr == delim;
+        };
+
+        // todo test for huge delimiters
+        bool match(const char* const curr, const std::string& delim) {
+            return strncmp(curr, delim.c_str(), delim.size()) == 0;
+        };
+
+        size_t delimiter_size(char) {
+            return 1;
+        }
+
+        size_t delimiter_size(const std::string& delim) {
+            return delim.size();
+        }
+
+        void trim_left_if_enabled(line_ptr_type& curr) {
+            if constexpr (trim_left::enabled) {
+                while (trim_left::match(*curr)) {
+                    ++curr;
+                }
+            }
+        }
+
+        void trim_right_if_enabled(line_ptr_type& curr) {
+            if constexpr (trim_right::enabled) {
+                while (trim_right::match(*curr)) {
+                    ++curr;
+                }
+            }
+        }
+
+        // matches delimiter taking spacing into account
+        // returns {spacing + delimiter size, is delimiter}
+        template <typename Delim>
+        std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
+                                                 const Delim& delim) {
+            line_ptr_type curr = begin;
+
+            trim_right_if_enabled(curr);
+
+            // just spacing
+            // TODO handle \r\n
+            if (*curr == '\n' || (*curr == '\r' && *(curr + 1) == '\n')) {
+                return {0, false};
+            }
+
+            // not a delimiter
+            if (!match(curr, delim)) {
+                shift_if_escaped(curr);
+                return {1 + curr - begin, false};
+            }
+
+            curr += delimiter_size(delim);
+            trim_left_if_enabled(curr);
+
+            // delimiter
+            return {curr - begin, true};
+        }
+
+        void shift_if_escaped(line_ptr_type& curr) {
+            if constexpr (escape::enabled) {
+                if (escape::match(*curr)) {
+                    if (curr[1] == '\0') {
+                        if constexpr (!multiline::enabled) {
+                            // TODO handle
+                            throw "unterminated escape";
+                            //  handle_error_unterminated_escape();
+                        }
+                        return;
+                    }
+                    shift_and_jump_escape();
+                }
+            }
+        }
+
+        void shift_and_set_current() {
+            if constexpr (!is_const_line) {
+                if (escaped_ > 0) {
+                    // shift by number of escapes
+                    std::copy_n(shifted_curr_ + escaped_,
+                                curr_ - shifted_curr_ - escaped_,
+                                shifted_curr_);
+                    shifted_curr_ = curr_ - escaped_;
+                    return;
+                }
+            }
+            shifted_curr_ = curr_;
+        }
+
+        void shift_and_jump_escape() {
+            shift_and_set_current();
+            if constexpr (!is_const_line) {
+                ++escaped_;
+            }
+            ++curr_;
+        }
+
+        void shift_push_and_start_next(size_t n) {
+            shift_and_push();
+            begin_ = curr_ + n;
+        }
+
+        void shift_and_push() {
+            shift_and_set_current();
+            split_data_.emplace_back(begin_, shifted_curr_);
+        }
+
+        void parse_next_line() {
+            escaped_ = 0;
+
+            auto check_buff_end = [&] {
+                if (curr_ == end_) {
+                    auto old_buff = buff_;
+
+                    if (last_read_) {
+                        // TODO handle
+                        throw "no new line at eof";
+                    }
+
+                    handle_buffer_end_reached();
+                    end_ = buff_ + buff_filled_;
+
+                    for (auto& [begin, end] : split_data_) {
+                        begin = begin - old_buff + buff_;
+                        end = end - old_buff + buff_;
+                    }
+
+                    begin_ = begin_ - old_buff + buff_;
+                    curr_ = curr_ - old_buff + buff_;
+                }
+            };
+
+            while (true) {
+                // quoted string
+                if constexpr (quote::enabled) {
+                    if (quote::match(*curr_)) {
+                        begin_ = shifted_curr_ = ++curr_;
+                        check_buff_end();
+
+                        while (true) {
+                            // quote not closed
+                            if (!quote::match(*curr_)) {
+                                // end of line
+                                if constexpr (!multiline::enabled) {
+                                    // TODO test \r\n
+                                    if (*curr_ == '\n' || *curr_ == '\r') {
+                                        throw "unterminated quote";
+                                    }
+                                }
+
+                                ++curr_;
+
+                                check_buff_end();
+                                continue;
+                            }
+
+
+                            auto [width, valid] =
+                                match_delimiter(curr_ + 1, delim_char_);
+
+                            // delimiter
+                            if (valid) {
+                                shift_push_and_start_next(width + 1);
+                                curr_ += width + 1;
+                                check_buff_end();
+                                break;
+                            }
+
+
+                            // double quote
+                            // eg: ...,"hel""lo",... -> hel"lo
+                            if (quote::match(*(curr_ + 1))) {
+                                shift_and_jump_escape();
+                                ++curr_;
+                                check_buff_end();
+                                continue;
+                            }
+
+
+                            if (width == 0) {
+                                // eol
+                                // eg: ...,"hello"   \n -> hello
+                                // eg no trim: ...,"hello"\n -> hello
+                                shift_and_push();
+                                ++curr_;
+                                // TODO handle differently
+                                if (curr_[0] == '\r') {
+                                    ++curr_;
+                                }
+                                check_buff_end();
+                                return;
+                            }
+
+                            // mismatched quote
+                            // eg: ...,"hel"lo,... -> error
+                            // handle_error_mismatched_quote(curr_ - buff_);
+                            throw "missmatched quote";
+                            // split_data_.emplace_back(buff_, begin_);
+                        }
+                    }
+                }
+
+                // not quoted
+                while (true) {
+                    if (*curr_ == '\n') {
+                        split_data_.emplace_back(begin_, curr_);
+                        return;
+                    }
+
+                    if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
+                        split_data_.emplace_back(begin_, curr_);
+                        ++curr_;
+                        check_buff_end();
+                        return;
+                    }
+
+                    if (*curr_ == delim_char_) {
+                        split_data_.emplace_back(begin_, curr_);
+                        begin_ = curr_ + 1;
+                        ++curr_;
+                        check_buff_end();
+                        break;
+                    }
+
+                    ++curr_;
+
+                    check_buff_end();
+                }
+            }
+        }
+
         // read next line each time in order to set eof_
         bool read_next() {
             // TODO update division value
@@ -754,45 +1000,7 @@ private:
             split_data_.clear();
             begin_ = curr_;
 
-            while (true) {
-                if (*curr_ == '\n') {
-                    split_data_.emplace_back(begin_, curr_);
-                    break;
-                }
-
-                if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
-                    split_data_.emplace_back(begin_, curr_);
-                    ++curr_;
-                    break;
-                }
-
-                if (*curr_ == delim_char_) {
-                    split_data_.emplace_back(begin_, curr_);
-                    begin_ = curr_ + 1;
-                }
-
-                ++curr_;
-
-                if (curr_ == end_) {
-                    auto old_buff = buff_;
-
-                    if (last_read_) {
-                        // TODO handle
-                        throw std::string{"no new line at eof"};
-                    }
-
-                    handle_buffer_end_reached();
-                    end_ = buff_ + buff_filled_;
-
-                    for (auto& [begin, end] : split_data_) {
-                        begin = begin - old_buff + buff_;
-                        end = end - old_buff + buff_;
-                    }
-
-                    begin_ = begin_ - old_buff + buff_;
-                    curr_ = curr_ - old_buff + buff_;
-                }
-            }
+            parse_next_line();
 
             ++curr_;
             buff_processed_ = curr_ - buff_;
@@ -824,12 +1032,18 @@ private:
 
         // TODO move to splitter
         char* begin_{nullptr};
+        char* shifted_curr_{nullptr};
         char* curr_{nullptr};
         char* end_{nullptr};
 
         bool last_read_{false};
 
         split_data split_data_;
+
+        // TODO add to constructors
+        size_t escaped_{0};
+        bool unterminated_quote_{true};
+        bool unterminated_escape_{true};
     };
 
     ////////////////
