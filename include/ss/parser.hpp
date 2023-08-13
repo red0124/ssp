@@ -14,6 +14,7 @@
 #include "restrictions.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
@@ -52,7 +53,8 @@ public:
             }
         } else {
             handle_error_file_not_open();
-            eof_ = true;
+            // TODO set within reader
+            reader_.eof_ = true;
         }
     }
 
@@ -79,11 +81,13 @@ public:
     }
 
     bool eof() const {
-        return eof_;
+        return reader_.eof_;
     }
 
+    // TODO update
     bool ignore_next() {
-        return reader_.read_next();
+        reader_.read_next();
+        return reader_.eof_;
     }
 
     template <typename T, typename... Ts>
@@ -101,7 +105,7 @@ public:
         // TODO update
         reader_.clear_error();
 
-        if (eof_) {
+        if (reader_.eof_) {
             handle_error_eof_reached();
             return {};
         }
@@ -638,7 +642,7 @@ private:
     ////////////////
 
     void read_line() {
-        eof_ = !reader_.read_next();
+        reader_.read_next();
     }
 
     ////////////////
@@ -852,6 +856,7 @@ private:
             // just spacing
             // TODO handle \r\n
             if (*curr == '\n' || *curr == '\r') {
+                ++line_number_;
                 return {0, false};
             }
 
@@ -880,6 +885,18 @@ private:
                         }
                         return;
                     }
+
+                    if (curr[1] == '\n') {
+                        // TODO update
+                        ++line_number_;
+                        if constexpr (multiline::size > 0) {
+                            handle_line_increment();
+                            if (multiline_limit_reached()) {
+                                return;
+                            }
+                        }
+                    }
+
                     shift_and_jump_escape();
                 }
             }
@@ -914,6 +931,7 @@ private:
             }
 
             shift_and_set_shifted_current();
+
             if constexpr (!is_const_line) {
                 ++escaped_;
             }
@@ -932,7 +950,7 @@ private:
 
         // TODO check attribute
         __attribute__((always_inline)) void check_buff_end() {
-            if (curr_ == end_) {
+            if (curr_ >= end_) {
                 auto old_buff = buff_;
 
                 if (last_read_) {
@@ -954,7 +972,78 @@ private:
             }
         }
 
+        void handle_error_empty_line() {
+            constexpr static auto error_msg = "line empty";
+
+            if constexpr (string_error) {
+                error_.clear();
+                error_.append(error_msg);
+            } else if constexpr (throw_on_error) {
+                throw ss::exception{error_msg};
+            } else {
+                error_ = true;
+            }
+        }
+
+        void handle_error_multiline_limit_reached() {
+            constexpr static auto error_msg = "multiline limit reached";
+
+            if constexpr (string_error) {
+                error_.clear();
+                error_.append(error_msg);
+            } else if constexpr (throw_on_error) {
+                throw ss::exception{error_msg};
+            } else {
+                error_ = true;
+            }
+        }
+
+        void go_to_next_line() {
+            while (*curr_ != '\n') {
+                ++curr_;
+            }
+        }
+
+        bool multiline_limit_reached() {
+            if constexpr (multiline::size > 0) {
+                if (new_lines_ > multiline::size) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // TODO update name
+        void handle_line_increment() {
+            if constexpr (multiline::size > 0) {
+                new_lines_++;
+                if (new_lines_ > multiline::size) {
+                    handle_error_multiline_limit_reached();
+                }
+            }
+        }
+
         void parse_next_line() {
+            if constexpr (multiline::size > 0) {
+                new_lines_ = 0;
+            }
+
+            // TODO handle
+            if (*curr_ == '\n') {
+                ++line_number_;
+                check_buff_end();
+                handle_error_empty_line();
+                return;
+            }
+
+            if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
+                ++line_number_;
+                ++curr_;
+                check_buff_end();
+                handle_error_empty_line();
+                return;
+            }
+
             while (true) {
                 if constexpr (quote::enabled || escape::enabled) {
                     escaped_ = 0;
@@ -971,9 +1060,19 @@ private:
                             if (!quote::match(*curr_)) {
                                 // end of line
                                 if constexpr (!multiline::enabled) {
-                                    // TODO test \r\n
+                                    // TODO update to \r\n
                                     if (*curr_ == '\n' || *curr_ == '\r') {
+                                        ++line_number_;
                                         throw "unterminated quote";
+                                    }
+                                } else if constexpr (multiline::size > 0) {
+                                    // TODO update to \r\n
+                                    if (*curr_ == '\n') {
+                                        ++line_number_;
+                                        handle_line_increment();
+                                        if (multiline_limit_reached()) {
+                                            return;
+                                        }
                                     }
                                 }
 
@@ -985,14 +1084,27 @@ private:
                                                 curr_[1] == '\r') {
                                                 // eol, unterminated escape
                                                 // eg: ... "hel\\n
+                                                ++line_number_;
                                                 break;
                                             }
                                             throw "unterminated escape";
+                                        } else if constexpr (multiline::size >
+                                                             0) {
+                                            if (curr_[1] == '\n' ||
+                                                (curr_[1] == '\r' &&
+                                                 curr_[2] == '\n')) {
+                                                ++line_number_;
+                                                handle_line_increment();
+                                                if (multiline_limit_reached()) {
+                                                    return;
+                                                }
+                                            }
                                         }
                                         // not eol
 
                                         shift_and_jump_escape();
                                         check_buff_end();
+                                        ++curr_;
                                         continue;
                                     }
                                 }
@@ -1005,6 +1117,9 @@ private:
 
                             auto [width, is_delim] =
                                 match_delimiter(curr_ + 1, delim_char_);
+                            if (multiline_limit_reached()) {
+                                return;
+                            }
 
                             // delimiter
                             if (is_delim) {
@@ -1039,29 +1154,25 @@ private:
 
                             // mismatched quote
                             // eg: ...,"hel"lo,... -> error
-
-                            // go to next line, TODO update
-                            while (*curr_ != '\n') {
-                                ++curr_;
-                            }
-
-                            if (throw_on_error) {
-                                ++curr_;
-                            }
+                            go_to_next_line();
 
                             handle_error_mismatched_quote();
                             return;
                         }
+                        continue;
                     }
                 }
 
                 // not quoted
                 begin_ = shifted_curr_ = curr_;
                 while (true) {
-                    // std::cout << "* " << *curr_ << std::endl;
 
                     auto [width, is_delim] =
                         match_delimiter(curr_, delim_char_);
+
+                    if (multiline_limit_reached()) {
+                        return;
+                    }
 
                     if (!is_delim) {
                         // not a delimiter
@@ -1071,7 +1182,7 @@ private:
                             shift_and_push();
                             // ++curr_;
                             // TODO handle differently
-                            if (curr_[0] == '\r') {
+                            if (*curr_ == '\r') {
                                 ++curr_;
                             }
                             return;
@@ -1092,7 +1203,7 @@ private:
         }
 
         // read next line each time in order to set eof_
-        bool read_next() {
+        void read_next() {
             // TODO update division value
             if (buff_processed_ > buff_filled_ / 2) {
                 if (!last_read_) {
@@ -1110,19 +1221,27 @@ private:
             split_data_.clear();
             begin_ = curr_;
 
-            parse_next_line();
+            try {
+                // TODO check where to put this
+                // ++line_number_;
+                parse_next_line();
+            } catch (...) {
+                // TODO remove duplicate
+                ++curr_;
+                buff_processed_ = curr_ - buff_;
+
+                if (last_read_ && curr_ >= end_) {
+                    eof_ = true;
+                }
+                throw;
+            }
 
             ++curr_;
             buff_processed_ = curr_ - buff_;
 
-            // TODO check where to put this
-            ++line_number_;
-
             if (last_read_ && curr_ >= end_) {
-                return false;
+                eof_ = true;
             }
-
-            return true;
         }
 
         std::string delim_{};
@@ -1155,6 +1274,8 @@ private:
         bool unterminated_quote_{true};
         bool unterminated_escape_{true};
         error_type error_;
+        size_t new_lines_{0};
+        bool eof_{false};
     };
 
     ////////////////
@@ -1166,7 +1287,6 @@ private:
     reader reader_;
     std::vector<std::string> header_;
     std::string raw_header_;
-    bool eof_{false};
 };
 
 } /* ss */

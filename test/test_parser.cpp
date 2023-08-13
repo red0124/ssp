@@ -897,7 +897,7 @@ void test_multiline_restricted() {
         out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
         out << "19,20,just strings" << std::endl;
     }
-    auto bad_lines = 15;
+    auto bad_lines = 19;
     auto num_errors = 0;
 
     ss::parser<ss::multiline_restricted<2>, ss::quote<'"'>, ss::escape<'\\'>,
