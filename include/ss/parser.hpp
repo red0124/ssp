@@ -98,6 +98,8 @@ public:
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
         clear_error();
+        // TODO update
+        reader_.clear_error();
 
         if (eof_) {
             handle_error_eof_reached();
@@ -115,7 +117,12 @@ public:
         }
 
         read_line();
-        // TODO check valid read
+
+        // TODO update
+        if (!reader_.valid()) {
+            handle_error_invalid_read();
+            return {};
+        }
 
         auto value =
             reader_.converter_.template convert<T, Ts...>(reader_.split_data_);
@@ -536,6 +543,19 @@ private:
         }
     }
 
+    void handle_error_invalid_read() {
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_)
+                .append(" ")
+                .append(std::to_string(reader_.line_number_))
+                .append(": ")
+                .append(reader_.error_msg());
+        } else if constexpr (!throw_on_error) {
+            error_ = true;
+        }
+    }
+
     void handle_error_header_ignored() {
         constexpr static auto error_msg =
             ": the header row is ignored within the setup it cannot be used";
@@ -748,6 +768,45 @@ private:
         using line_ptr_type =
             std::conditional_t<is_const_line, const char*, char*>;
 
+        using error_type = std::conditional_t<string_error, std::string, bool>;
+
+        bool valid() const {
+            if constexpr (string_error) {
+                return error_.empty();
+            } else if constexpr (throw_on_error) {
+                return true;
+            } else {
+                return !error_;
+            }
+        }
+
+        const std::string& error_msg() const {
+            assert_string_error_defined<string_error>();
+            return error_;
+        }
+
+        void clear_error() {
+            if constexpr (string_error) {
+                error_.clear();
+            } else if constexpr (!throw_on_error) {
+                error_ = false;
+            }
+            unterminated_quote_ = false;
+        }
+
+        void handle_error_mismatched_quote() {
+            constexpr static auto error_msg = "mismatched quote";
+
+            if constexpr (string_error) {
+                error_.clear();
+                error_.append(error_msg);
+            } else if constexpr (throw_on_error) {
+                throw ss::exception{error_msg};
+            } else {
+                error_ = true;
+            }
+        }
+
         bool match(const char* const curr, char delim) {
             return *curr == delim;
         };
@@ -846,8 +905,10 @@ private:
                     shift_and_set_shifted_current();
                     ++escaped_;
                     ++curr_;
+                    check_buff_end();
                     shift_and_set_shifted_current();
                     ++curr_;
+                    check_buff_end();
                     return;
                 }
             }
@@ -916,6 +977,26 @@ private:
                                     }
                                 }
 
+                                if constexpr (escape::enabled) {
+                                    if (escape::match(*curr_)) {
+                                        // TODO update
+                                        if constexpr (!multiline::enabled) {
+                                            if (curr_[1] == '\n' ||
+                                                curr_[1] == '\r') {
+                                                // eol, unterminated escape
+                                                // eg: ... "hel\\n
+                                                break;
+                                            }
+                                            throw "unterminated escape";
+                                        }
+                                        // not eol
+
+                                        shift_and_jump_escape();
+                                        check_buff_end();
+                                        continue;
+                                    }
+                                }
+
                                 ++curr_;
 
                                 check_buff_end();
@@ -958,9 +1039,18 @@ private:
 
                             // mismatched quote
                             // eg: ...,"hel"lo,... -> error
-                            // handle_error_mismatched_quote(curr_ - buff_);
-                            throw "missmatched quote";
-                            // split_data_.emplace_back(buff_, begin_);
+
+                            // go to next line, TODO update
+                            while (*curr_ != '\n') {
+                                ++curr_;
+                            }
+
+                            if (throw_on_error) {
+                                ++curr_;
+                            }
+
+                            handle_error_mismatched_quote();
+                            return;
                         }
                     }
                 }
@@ -1064,6 +1154,7 @@ private:
         size_t escaped_{0};
         bool unterminated_quote_{true};
         bool unterminated_escape_{true};
+        error_type error_;
     };
 
     ////////////////
