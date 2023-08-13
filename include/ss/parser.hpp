@@ -148,6 +148,7 @@ public:
 
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
+        // TODO make static assert
         if constexpr (ignore_header) {
             handle_error_header_ignored();
             return;
@@ -187,10 +188,6 @@ public:
         }
 
         reader_.converter_.set_column_mapping(column_mappings, header_.size());
-
-        if (line() == 1) {
-            ignore_next();
-        }
     }
 
     ////////////////
@@ -458,10 +455,8 @@ private:
     ////////////////
 
     void split_header_data() {
-        ss::splitter<Options...> splitter;
-        std::string raw_header_copy = raw_header_;
-        splitter.split(raw_header_copy.data(), reader_.delim_);
-        for (const auto& [begin, end] : splitter.split_data_) {
+        read_line();
+        for (const auto& [begin, end] : reader_.split_data_) {
             std::string field{begin, end};
             if (std::find(header_.begin(), header_.end(), field) !=
                 header_.end()) {
