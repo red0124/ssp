@@ -1,5 +1,7 @@
 #pragma once
 
+#define BUFF_TAIL 2
+
 // TODO remove or rename
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
@@ -699,26 +701,31 @@ private:
             }
 
             // TODO check buff_
-            buff_ = static_cast<char*>(std::malloc(buff_size_));
+            buff_ = static_cast<char*>(std::malloc(buff_size_ + BUFF_TAIL));
 
             // TODO check buff_filled
             buff_filled_ = std::fread(buff_, 1, buff_size_, file_);
 
             if (buff_filled_ != buff_size_) {
                 last_read_ = true;
-            }
 
-            // TODO handle differently
-            if (buff_filled_ == 0 || (buff_filled_ == 1 && buff_[0] == '\n') ||
-                (buff_filled_ == 2 && buff_[0] == '\r' && buff_[1] == '\n')) {
-                fclose(file_);
-                file_ = nullptr;
+                // TODO handle differently
+                if (buff_filled_ == 0 ||
+                    (buff_filled_ == 1 && buff_[0] == '\n') ||
+                    (buff_filled_ == 2 && buff_[0] == '\r' &&
+                     buff_[1] == '\n')) {
+                    eof_ = true;
+                }
             }
 
             begin_ = buff_;
             curr_ = buff_;
             shifted_curr_ = buff_;
             end_ = buff_ + buff_filled_;
+
+            if constexpr (ignore_empty) {
+                ignore_all_empty_lines();
+            }
         }
 
         ~reader() {
@@ -744,7 +751,8 @@ private:
             buff_size_ *= 8;
 
             // TODO handle NULL
-            buff_ = static_cast<char*>(std::realloc(buff_, buff_size_));
+            buff_ =
+                static_cast<char*>(std::realloc(buff_, buff_size_ + BUFF_TAIL));
 
             // fill the rest of the buffer
             buff_filled_ += fread(buff_ + buff_filled_, 1,
@@ -871,6 +879,9 @@ private:
         void shift_if_escaped(line_ptr_type& curr) {
             if constexpr (escape::enabled) {
                 if (escape::match(*curr)) {
+                    if (curr_ + 1 >= end_) {
+                        throw "out of range";
+                    }
                     // TODO handle differently
                     if (curr[1] == '\0') {
                         if constexpr (!multiline::enabled) {
@@ -895,6 +906,10 @@ private:
                     shift_and_jump_escape();
                 }
             }
+        }
+
+        bool reached_end() {
+            return curr_ >= end_ && last_read_;
         }
 
         void shift_and_set_shifted_current() {
@@ -930,7 +945,9 @@ private:
             if constexpr (!is_const_line) {
                 ++escaped_;
             }
+
             ++curr_;
+            check_buff_end();
         }
 
         void shift_push_and_start_next(size_t n) {
@@ -993,9 +1010,37 @@ private:
             }
         }
 
+        void handle_error_unterminated_escape() {
+            constexpr static auto error_msg =
+                "unterminated escape at the end of the line";
+
+            if constexpr (string_error) {
+                error_.clear();
+                error_.append(error_msg);
+            } else if constexpr (throw_on_error) {
+                throw ss::exception{error_msg};
+            } else {
+                error_ = true;
+            }
+        }
+
+        void handle_error_unterminated_quote() {
+            constexpr static auto error_msg = "unterminated quote";
+
+            if constexpr (string_error) {
+                error_.clear();
+                error_.append(error_msg);
+            } else if constexpr (throw_on_error) {
+                throw ss::exception{error_msg};
+            } else {
+                error_ = true;
+            }
+        }
+
         void go_to_next_line() {
             while (*curr_ != '\n') {
                 ++curr_;
+                check_buff_end();
             }
         }
 
@@ -1024,19 +1069,43 @@ private:
             }
 
             // TODO handle
-            if (*curr_ == '\n') {
-                ++line_number_;
-                check_buff_end();
-                handle_error_empty_line();
-                return;
-            }
+            while (true) {
+                if (*curr_ == '\n') {
+                    ++line_number_;
+                    if constexpr (!ignore_empty) {
+                        check_buff_end();
+                        handle_error_empty_line();
+                        return;
+                    } else {
+                        ++curr_;
+                        if (reached_end()) {
+                            eof_ = true;
+                            return;
+                        }
+                        check_buff_end();
+                        continue;
+                    }
+                }
 
-            if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
-                ++line_number_;
-                ++curr_;
-                check_buff_end();
-                handle_error_empty_line();
-                return;
+                if (*curr_ == '\r' && *(curr_ + 1) == '\n') {
+                    ++line_number_;
+                    if constexpr (!ignore_empty) {
+                        ++curr_;
+                        check_buff_end();
+                        handle_error_empty_line();
+                        return;
+                    } else {
+                        curr_ += 2;
+                        if (reached_end()) {
+                            eof_ = true;
+                            return;
+                        }
+                        check_buff_end();
+                        continue;
+                    }
+                }
+
+                break;
             }
 
             while (true) {
@@ -1098,13 +1167,24 @@ private:
                                         // not eol
 
                                         shift_and_jump_escape();
-                                        check_buff_end();
                                         ++curr_;
+
+                                        if (reached_end()) {
+                                            handle_error_unterminated_quote();
+                                            return;
+                                        }
+
+                                        check_buff_end();
                                         continue;
                                     }
                                 }
 
                                 ++curr_;
+
+                                if (reached_end()) {
+                                    handle_error_unterminated_quote();
+                                    return;
+                                }
 
                                 check_buff_end();
                                 continue;
@@ -1139,6 +1219,7 @@ private:
                                 // eg no trim: ...,"hello"\n -> hello
                                 shift_and_push();
                                 ++curr_;
+                                check_buff_end();
                                 // TODO handle differently
                                 if (curr_[0] == '\r') {
                                     ++curr_;
@@ -1179,10 +1260,16 @@ private:
                             // TODO handle differently
                             if (*curr_ == '\r') {
                                 ++curr_;
+                                check_buff_end();
                             }
                             return;
                         } else {
                             curr_ += width;
+                            // TODO check
+                            if (reached_end()) {
+                                handle_error_unterminated_escape();
+                                return;
+                            }
                             check_buff_end();
                             continue;
                         }
@@ -1197,9 +1284,10 @@ private:
             }
         }
 
-        // read next line each time in order to set eof_
-        void read_next() {
+        // TODO rename
+        void check_and_cycle_buffer() {
             // TODO update division value
+            buff_processed_ = curr_ - buff_;
             if (buff_processed_ > buff_filled_ / 2) {
                 if (!last_read_) {
                     shift_read_next();
@@ -1212,6 +1300,11 @@ private:
                     end_ = buff_ + buff_filled_;
                 }
             }
+        }
+
+        // read next line each time in order to set eof_
+        void read_next() {
+            check_and_cycle_buffer();
 
             split_data_.clear();
             begin_ = curr_;
@@ -1232,10 +1325,45 @@ private:
             }
 
             ++curr_;
-            buff_processed_ = curr_ - buff_;
+            if (last_read_) {
+                if (curr_ >= end_) {
+                    eof_ = true;
+                    return;
+                }
+            }
 
-            if (last_read_ && curr_ >= end_) {
-                eof_ = true;
+            if constexpr (ignore_empty) {
+                ignore_all_empty_lines();
+            }
+        }
+
+        void ignore_all_empty_lines() {
+            if constexpr (ignore_empty) {
+                while (curr_ < end_) {
+                    check_and_cycle_buffer();
+                    if (*curr_ == '\n') {
+                        ++line_number_;
+                        ++curr_;
+                        if (reached_end()) {
+                            eof_ = true;
+                            break;
+                        }
+                        check_buff_end();
+                        continue;
+                    }
+                    if (curr_[0] == '\r' && curr_[1] == '\n') {
+                        ++line_number_;
+                        curr_ += 2;
+                        if (reached_end()) {
+                            eof_ = true;
+                            break;
+                        }
+                        check_buff_end();
+                        continue;
+                    }
+                    eof_ = false;
+                    break;
+                }
             }
         }
 
@@ -1247,7 +1375,7 @@ private:
         size_t line_number_{0};
 
         // TODO set initial buffer size
-        size_t buff_size_{1};
+        size_t buff_size_{8};
         size_t buff_filled_{0};
         size_t buff_processed_{0};
 

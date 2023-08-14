@@ -1641,6 +1641,7 @@ void test_ignore_empty(const std::vector<X>& data) {
     test_ignore_empty_impl<ss::throw_on_error>(data);
 }
 
+// TODO test with different initial buffer sizes
 TEST_CASE("parser test various cases with empty lines") {
     test_ignore_empty({{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
 
@@ -1670,13 +1671,53 @@ TEST_CASE("parser test various cases with empty lines") {
                        {9, 10, X::empty},
                        {11, 12, X::empty}});
 
-    test_ignore_empty(
-        {{1, 2, "x"}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, X::empty}});
+    test_ignore_empty({{1, 2, X::empty},
+                       {3, 4, X::empty},
+                       {5, 6, X::empty},
+                       {7, 8, X::empty},
+                       {9, 10, X::empty},
+                       {11, 12, X::empty},
+                       {13, 14, X::empty},
+                       {15, 16, X::empty},
+                       {17, 18, X::empty}});
 
-    test_ignore_empty(
-        {{1, 2, X::empty}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, "w"}});
+    test_ignore_empty({{1, 2, X::empty},
+                       {3, 4, X::empty},
+                       {5, 6, X::empty},
+                       {7, 8, X::empty},
+                       {9, 10, X::empty},
+                       {11, 12, X::empty},
+                       {13, 14, X::empty},
+                       {15, 16, X::empty},
+                       {17, 18, "x"}});
 
-    test_ignore_empty({{11, 12, X::empty}});
+        test_ignore_empty({{1, 2, "x"},
+                           {3, 4, X::empty},
+                           {9, 10, X::empty},
+                           {11, 12, X::empty}});
 
-    test_ignore_empty({});
+        test_ignore_empty({{1, 2, "x"},
+                           {3, 4, X::empty},
+                           {3, 4, X::empty},
+                           {5, 6, X::empty},
+                           {7, 8, X::empty},
+                           {9, 10, X::empty},
+                           {11, 12, X::empty}});
+
+        test_ignore_empty({{1, 2, "x"},
+                           {3, 4, X::empty},
+                           {3, 4, X::empty},
+                           {5, 6, X::empty},
+                           {7, 8, X::empty},
+                           {9, 10, X::empty},
+                           {11, 12, "y"}});
+
+        test_ignore_empty({{1, 2, X::empty},
+                           {3, 4, X::empty},
+                           {9, 10, X::empty},
+                           {11, 12, "w"}});
+
+        test_ignore_empty({{11, 12, X::empty}});
+
+        test_ignore_empty({});
 }
