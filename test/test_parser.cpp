@@ -38,7 +38,7 @@ void expect_error_on_command(ss::parser<Ts...>& p,
     }
 }
 
-void update_if_crlf(std::string& s) {
+[[maybe_unused]] void update_if_crlf(std::string& s) {
 #ifdef _WIN32
     replace_all(s, "\r\n", "\n");
 #else
@@ -102,6 +102,31 @@ static void make_and_write(const std::string& file_name,
         out << data[i].to_string() << new_lines[i % new_lines.size()];
     }
 }
+
+std::string make_buffer(const std::string& file_name) {
+    std::ifstream in{file_name, std::ios::binary};
+    std::string tmp;
+    std::string out;
+    out.reserve(sizeof(out) + 1);
+    while (in >> tmp) {
+        out += tmp;
+        out.append("\n");
+    }
+    return out;
+}
+
+template <bool buffer_mode, typename... Ts>
+std::tuple<ss::parser<Ts...>, std::string> make_parser(
+    const std::string& file_name, const std::string& delim) {
+    if (buffer_mode) {
+        auto buffer = make_buffer(file_name);
+        return {ss::parser<Ts...>{buffer.data(), buffer.size(), delim},
+                std::move(buffer)};
+    } else {
+        return {ss::parser<Ts...>{file_name, delim}, std::string{}};
+    }
+}
+
 } /* namespace */
 
 TEST_CASE("test file not found") {
@@ -125,22 +150,23 @@ TEST_CASE("test file not found") {
     }
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_various_cases() {
     unique_file_name f{"test_parser"};
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
+    auto csv_data_buffer = make_buffer(f.name);
     {
-        ss::parser<Ts...> p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         ss::parser p0{std::move(p)};
         p = std::move(p0);
         std::vector<X> i;
 
-        ss::parser<ss::string_error> p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
-        auto move_rotate = [&] {
+        auto move_rotate = [&p = p, &p0 = p0] {
             auto p1 = std::move(p);
             p0 = std::move(p1);
             p = std::move(p0);
@@ -152,7 +178,7 @@ void test_various_cases() {
             i.emplace_back(ss::to_object<X>(a));
         }
 
-        for (const auto& a : p2.iterate<int, double, std::string>()) {
+        for (const auto& a : p2.template iterate<int, double, std::string>()) {
             i2.emplace_back(ss::to_object<X>(a));
         }
 
@@ -161,13 +187,13 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        ss::parser p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
-        ss::parser p3{f.name, ","};
+        auto [p3, ___] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i3;
 
         std::vector<X> expected = {std::begin(data) + 1, std::end(data)};
@@ -175,18 +201,18 @@ void test_various_cases() {
 
         p.ignore_next();
         while (!p.eof()) {
-            auto a = p.get_next<tup>();
+            auto a = p.template get_next<tup>();
             i.emplace_back(ss::to_object<X>(a));
         }
 
         p2.ignore_next();
-        for (const auto& a : p2.iterate<tup>()) {
+        for (const auto& a : p2.template iterate<tup>()) {
             i2.emplace_back(ss::to_object<X>(a));
         }
 
         p3.ignore_next();
-        for (auto it = p3.iterate<tup>().begin(); it != p3.iterate<tup>().end();
-             ++it) {
+        for (auto it = p3.template iterate<tup>().begin();
+             it != p3.template iterate<tup>().end(); ++it) {
             i3.emplace_back(ss::to_object<X>(*it));
         }
 
@@ -196,16 +222,17 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
-        ss::parser p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
-            i.push_back(p.get_object<X, int, double, std::string>());
+            i.push_back(p.template get_object<X, int, double, std::string>());
         }
 
-        for (auto&& a : p2.iterate_object<X, int, double, std::string>()) {
+        for (auto&& a :
+             p2.template iterate_object<X, int, double, std::string>()) {
             i2.push_back(std::move(a));
         }
 
@@ -214,10 +241,11 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        for (auto&& a : p.iterate_object<X, int, double, std::string>()) {
+        for (auto&& a :
+             p.template iterate_object<X, int, double, std::string>()) {
             i.push_back(std::move(a));
         }
 
@@ -225,19 +253,19 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        ss::parser p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
         using tup = std::tuple<int, double, std::string>;
         while (!p.eof()) {
-            i.push_back(p.get_object<X, tup>());
+            i.push_back(p.template get_object<X, tup>());
         }
 
-        for (auto it = p2.iterate_object<X, tup>().begin();
-             it != p2.iterate_object<X, tup>().end(); it++) {
+        for (auto it = p2.template iterate_object<X, tup>().begin();
+             it != p2.template iterate_object<X, tup>().end(); it++) {
             i2.push_back({it->i, it->d, it->s});
         }
 
@@ -246,11 +274,11 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
         using tup = std::tuple<int, double, std::string>;
-        for (auto&& a : p.iterate_object<X, tup>()) {
+        for (auto&& a : p.template iterate_object<X, tup>()) {
             i.push_back(std::move(a));
         }
 
@@ -258,21 +286,21 @@ void test_various_cases() {
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
         while (!p.eof()) {
-            i.push_back(p.get_next<X>());
+            i.push_back(p.template get_next<X>());
         }
 
         CHECK_EQ(i, data);
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        for (auto&& a : p.iterate<X>()) {
+        for (auto&& a : p.template iterate<X>()) {
             i.push_back(std::move(a));
         }
 
@@ -281,24 +309,30 @@ void test_various_cases() {
 
     {
         constexpr int excluded = 3;
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        ss::parser p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
-            auto a =
-                p.get_object<X, ss::ax<int, excluded>, double, std::string>();
-            if (p.valid()) {
-                i.push_back(a);
-            }
+            try {
+                auto a = p.template get_object<X, ss::ax<int, excluded>, double,
+                                               std::string>();
+                if (p.valid()) {
+                    i.push_back(a);
+                }
+            } catch (...) {
+                // ignore
+            };
         }
 
-        for (auto&& a : p2.iterate_object<X, ss::ax<int, excluded>, double,
-                                          std::string>()) {
-            if (p2.valid()) {
-                i2.push_back(std::move(a));
+        if (!ss::setup<Ts...>::throw_on_error) {
+            for (auto&& a : p2.template iterate_object<X, ss::ax<int, excluded>,
+                                                       double, std::string>()) {
+                if (p2.valid()) {
+                    i2.push_back(std::move(a));
+                }
             }
         }
 
@@ -312,33 +346,45 @@ void test_various_cases() {
         std::copy_if(data.begin(), data.end(), expected.begin(),
                      [&](const X& x) { return x.i != excluded; });
         CHECK_EQ(i, expected);
-        CHECK_EQ(i2, expected);
+
+        if (!ss::setup<Ts...>::throw_on_error) {
+            CHECK_EQ(i2, expected);
+        }
     }
 
     {
-        ss::parser p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
 
-        ss::parser p2{f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
-            auto a = p.get_object<X, ss::nx<int, 3>, double, std::string>();
-            if (p.valid()) {
-                i.push_back(a);
+            try {
+                auto a = p.template get_object<X, ss::nx<int, 3>, double,
+                                               std::string>();
+                if (p.valid()) {
+                    i.push_back(a);
+                }
+            } catch (...) {
+                // ignore
             }
         }
 
-        for (auto&& a :
-             p2.iterate_object<X, ss::nx<int, 3>, double, std::string>()) {
-            if (p2.valid()) {
-                i2.push_back(std::move(a));
+        if (!ss::setup<Ts...>::throw_on_error) {
+            for (auto&& a : p2.template iterate_object<X, ss::nx<int, 3>,
+                                                       double, std::string>()) {
+                if (p2.valid()) {
+                    i2.push_back(std::move(a));
+                }
             }
         }
 
         std::vector<X> expected = {{3, 4, "y"}};
         CHECK_EQ(i, expected);
-        CHECK_EQ(i2, expected);
+        if (!ss::setup<Ts...>::throw_on_error) {
+            CHECK_EQ(i2, expected);
+        }
     }
 
     {
@@ -347,17 +393,17 @@ void test_various_cases() {
 
         make_and_write(empty_f.name, empty_data);
 
-        ss::parser p{empty_f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(empty_f.name, ",");
         std::vector<X> i;
 
-        ss::parser p2{empty_f.name, ","};
+        auto [p2, __] = make_parser<buffer_mode, Ts...>(empty_f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
-            i.push_back(p.get_next<X>());
+            i.push_back(p.template get_next<X>());
         }
 
-        for (auto&& a : p2.iterate<X>()) {
+        for (auto&& a : p2.template iterate<X>()) {
             i2.push_back(std::move(a));
         }
 
@@ -367,9 +413,12 @@ void test_various_cases() {
 }
 
 TEST_CASE("parser test various cases") {
-    test_various_cases();
-    test_various_cases<ss::string_error>();
-    test_various_cases<ss::throw_on_error>();
+    test_various_cases<false>();
+    test_various_cases<false, ss::string_error>();
+    test_various_cases<false, ss::throw_on_error>();
+    test_various_cases<true>();
+    test_various_cases<true, ss::string_error>();
+    test_various_cases<true, ss::throw_on_error>();
 }
 
 using test_tuple = std::tuple<double, char, double>;
@@ -385,7 +434,7 @@ struct test_struct {
 static inline void expect_test_struct(const test_struct&) {
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_composite_conversion() {
     unique_file_name f{"test_parser"};
     {
@@ -397,7 +446,7 @@ void test_composite_conversion() {
         }
     }
 
-    ss::parser<Ts...> p{f.name, ","};
+    auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
     auto fail = [] { FAIL(""); };
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
     auto ignore_error = [] {};
@@ -609,7 +658,8 @@ void test_composite_conversion() {
 
 // various scenarios
 TEST_CASE("parser test composite conversion") {
-    test_composite_conversion<ss::string_error>();
+    test_composite_conversion<false, ss::string_error>();
+    test_composite_conversion<true, ss::string_error>();
 }
 
 struct my_string {
@@ -653,7 +703,7 @@ struct xyz {
     }
 };
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_moving_of_parsed_composite_values() {
     // to compile is enough
     return;
@@ -669,8 +719,10 @@ void test_moving_of_parsed_composite_values() {
 }
 
 TEST_CASE("parser test the moving of parsed composite values") {
-    test_moving_of_parsed_composite_values();
-    test_moving_of_parsed_composite_values<ss::string_error>();
+    test_moving_of_parsed_composite_values<false>();
+    test_moving_of_parsed_composite_values<false, ss::string_error>();
+    test_moving_of_parsed_composite_values<true>();
+    test_moving_of_parsed_composite_values<true, ss::string_error>();
 }
 
 TEST_CASE("parser test error mode") {
@@ -681,12 +733,23 @@ TEST_CASE("parser test error mode") {
         out << "junk" << std::endl;
     }
 
-    ss::parser<ss::string_error> p(f.name, ",");
+    {
+        auto [p, _] = make_parser<false, ss::string_error>(f.name, ",");
 
-    REQUIRE_FALSE(p.eof());
-    p.get_next<int>();
-    CHECK_FALSE(p.valid());
-    CHECK_FALSE(p.error_msg().empty());
+        REQUIRE_FALSE(p.eof());
+        p.get_next<int>();
+        CHECK_FALSE(p.valid());
+        CHECK_FALSE(p.error_msg().empty());
+    }
+
+    {
+        auto [p, _] = make_parser<true, ss::string_error>(f.name, ",");
+
+        REQUIRE_FALSE(p.eof());
+        p.get_next<int>();
+        CHECK_FALSE(p.valid());
+        CHECK_FALSE(p.error_msg().empty());
+    }
 }
 
 TEST_CASE("parser throw on error mode") {
@@ -1680,3 +1743,4 @@ TEST_CASE("parser test various cases with empty lines") {
 
     test_ignore_empty({});
 }
+

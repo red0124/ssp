@@ -48,6 +48,18 @@ public:
         }
     }
 
+    parser(const char* const csv_data_buffer, size_t csv_data_size,
+           const std::string& delim = ss::default_delimiter)
+        : file_name_{"buffer line"},
+          reader_{csv_data_buffer, csv_data_size, delim} {
+        read_line();
+        if constexpr (ignore_header) {
+            ignore_next();
+        } else {
+            raw_header_ = reader_.get_buffer();
+        }
+    }
+
     parser(parser&& other) = default;
     parser& operator=(parser&& other) = default;
 
@@ -641,18 +653,27 @@ private:
             : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
         }
 
+        reader(const char* const buffer, size_t csv_data_size,
+               const std::string& delim)
+            : delim_{delim}, csv_data_buffer_{buffer},
+              csv_data_size_{csv_data_size} {
+        }
+
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
-              helper_buffer_{other.helper_buffer_}, converter_{std::move(
-                                                        other.converter_)},
+              helper_buffer_{other.helper_buffer_},
+              converter_{std::move(other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
               buffer_size_{other.buffer_size_},
               next_line_buffer_size_{other.next_line_buffer_size_},
-              helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
-              file_{other.file_}, crlf_{other.crlf_},
-              line_number_{other.line_number_}, next_line_size_{
-                                                    other.next_line_size_} {
+              helper_buffer_size{other.helper_buffer_size},
+              delim_{std::move(other.delim_)}, file_{other.file_},
+              csv_data_buffer_{other.csv_data_buffer_},
+              csv_data_size_{other.csv_data_size_},
+              curr_char_{other.curr_char_}, crlf_{other.crlf_},
+              line_number_{other.line_number_},
+              next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -668,9 +689,12 @@ private:
                 next_line_converter_ = std::move(other.next_line_converter_);
                 buffer_size_ = other.buffer_size_;
                 next_line_buffer_size_ = other.next_line_buffer_size_;
-                helper_size_ = other.helper_size_;
+                helper_buffer_size = other.helper_buffer_size;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
+                csv_data_buffer_ = other.csv_data_buffer_;
+                csv_data_size_ = other.csv_data_size_;
+                curr_char_ = other.curr_char_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
                 next_line_size_ = other.next_line_size_;
@@ -698,6 +722,60 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
+        ssize_t get_line_buffer(char** lineptr, size_t* n,
+                                const char* const buffer, size_t csv_data_size,
+                                size_t& curr_char) {
+            size_t pos;
+            int c;
+
+            // TODO remove check
+            if (lineptr == nullptr || buffer == nullptr || n == nullptr) {
+                return -1;
+            }
+
+            c = buffer[curr_char++];
+            if (curr_char >= csv_data_size) {
+                return -1;
+            }
+
+            // TODO maybe remove this too
+            if (*lineptr == nullptr) {
+                *lineptr = static_cast<char*>(malloc(128));
+                if (*lineptr == nullptr) {
+                    return -1;
+                }
+                *n = 128;
+            }
+
+            pos = 0;
+            while (curr_char <= csv_data_size) {
+                if (pos + 1 >= *n) {
+                    size_t new_size = *n + (*n >> 2);
+                    // TODO maybe remove this too
+                    if (new_size < 128) {
+                        new_size = 128;
+                    }
+                    char* new_ptr = static_cast<char*>(
+                        realloc(static_cast<void*>(*lineptr), new_size));
+                    // TODO check for failed malloc in the callee
+                    if (new_ptr == nullptr) {
+                        return -1;
+                    }
+                    *n = new_size;
+                    *lineptr = new_ptr;
+                }
+
+                (*lineptr)[pos++] = c;
+                if (c == '\n') {
+                    break;
+                }
+                c = buffer[curr_char++];
+            }
+
+            (*lineptr)[pos] = '\0';
+            return pos;
+        }
+
         // read next line each time in order to set eof_
         bool read_next() {
             next_line_converter_.clear_error();
@@ -708,8 +786,16 @@ private:
                 if (next_line_buffer_size_ > 0) {
                     next_line_buffer_[0] = '\0';
                 }
-                ssize = get_line(&next_line_buffer_, &next_line_buffer_size_,
-                                 file_);
+
+                if (file_) {
+                    ssize = get_line_file(&next_line_buffer_,
+                                          &next_line_buffer_size_, file_);
+                } else {
+                    ssize = get_line_buffer(&next_line_buffer_,
+                                            &next_line_buffer_size_,
+                                            csv_data_buffer_, csv_data_size_,
+                                            curr_char_);
+                }
 
                 if (ssize == -1) {
                     return false;
@@ -821,6 +907,10 @@ private:
         }
 
         size_t remove_eol(char*& buffer, size_t ssize) {
+            if (buffer[ssize - 1] != '\n') {
+                return ssize;
+            }
+
             size_t size = ssize - 1;
             if (ssize >= 2 && buffer[ssize - 2] == '\r') {
                 crlf_ = true;
@@ -851,8 +941,17 @@ private:
         bool append_next_line_to_buffer(char*& buffer, size_t& size) {
             undo_remove_eol(buffer, size);
 
-            ssize_t next_ssize =
-                get_line(&helper_buffer_, &helper_size_, file_);
+            ssize_t next_ssize;
+            if (file_) {
+                next_ssize =
+                    get_line_file(&helper_buffer_, &helper_buffer_size, file_);
+            } else {
+                next_ssize =
+                    get_line_buffer(&helper_buffer_, &helper_buffer_size,
+                                    csv_data_buffer_, csv_data_size_,
+                                    curr_char_);
+            }
+
             if (next_ssize == -1) {
                 return false;
             }
@@ -879,10 +978,14 @@ private:
 
         size_t buffer_size_{0};
         size_t next_line_buffer_size_{0};
-        size_t helper_size_{0};
+        size_t helper_buffer_size{0};
 
         std::string delim_;
         FILE* file_{nullptr};
+
+        const char* csv_data_buffer_{nullptr};
+        size_t csv_data_size_{0};
+        size_t curr_char_{0};
 
         bool crlf_{false};
         size_t line_number_{0};
