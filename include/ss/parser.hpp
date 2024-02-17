@@ -155,7 +155,7 @@ public:
             return;
         }
 
-        if (header_.empty()) {
+        if (header_.empty() && !eof()) {
             split_header_data();
         }
 
