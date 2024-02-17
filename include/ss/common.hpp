@@ -31,7 +31,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
 }
 #else
 using ssize_t = int64_t;
-inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
+inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     size_t pos;
     int c;
 
