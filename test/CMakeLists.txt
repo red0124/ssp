@@ -33,7 +33,7 @@ set(DOCTEST "${FETCHCONTENT_BASE_DIR}/doctest-src")
 enable_testing()
 
 foreach(name IN ITEMS test_splitter test_parser1_1 test_parser1_2
-                      test_parser1_3 test_parser_1_4 test_converter
+                      test_parser1_3 test_parser1_4 test_converter
                       test_extractions test_parser2_1 test_parser2_2
                       test_parser2_3 test_parser2_4
                       test_extractions_without_fast_float)
