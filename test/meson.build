@@ -2,7 +2,10 @@ doctest_dep = dependency('doctest')
 add_project_arguments('-DDOCTEST_CONFIG_IMPLEMENT_WITH_MAIN', language: 'cpp')
 
 tests = [
-  'parser',
+  'parser1_1',
+  'parser1_2',
+  'parser1_3',
+  'parser1_4',
   'splitter',
   'converter',
   'extractions',
