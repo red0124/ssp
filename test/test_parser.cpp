@@ -110,7 +110,12 @@ std::string make_buffer(const std::string& file_name) {
     out.reserve(sizeof(out) + 1);
     while (in >> tmp) {
         out += tmp;
-        out.append("\n");
+        if (in.peek() == '\n') {
+            out += "\n";
+        }
+        if (in.peek() == '\r') {
+            out += "\r\n";
+        }
     }
     return out;
 }
@@ -760,14 +765,28 @@ TEST_CASE("parser throw on error mode") {
         out << "junk" << std::endl;
     }
 
-    ss::parser<ss::throw_on_error> p(f.name, ",");
+    {
+        auto [p, _] = make_parser<false, ss::throw_on_error>(f.name, ",");
 
-    REQUIRE_FALSE(p.eof());
-    try {
-        p.get_next<int>();
-        FAIL("Expected exception...");
-    } catch (const std::exception& e) {
-        CHECK_FALSE(std::string{e.what()}.empty());
+        REQUIRE_FALSE(p.eof());
+        try {
+            p.get_next<int>();
+            FAIL("Expected exception...");
+        } catch (const std::exception& e) {
+            CHECK_FALSE(std::string{e.what()}.empty());
+        }
+    }
+
+    {
+        auto [p, _] = make_parser<true, ss::throw_on_error>(f.name, ",");
+
+        REQUIRE_FALSE(p.eof());
+        try {
+            p.get_next<int>();
+            FAIL("Expected exception...");
+        } catch (const std::exception& e) {
+            CHECK_FALSE(std::string{e.what()}.empty());
+        }
     }
 }
 
@@ -778,7 +797,7 @@ static inline std::string no_quote(const std::string& s) {
     return s;
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_quote_multiline() {
     unique_file_name f{"test_parser"};
     std::vector<X> data = {{1, 2, "\"x\r\nx\nx\""},
@@ -799,7 +818,10 @@ void test_quote_multiline() {
         }
     }
 
-    ss::parser<ss::multiline, ss::quote<'"'>, Ts...> p{f.name, ","};
+    auto [p, buff] =
+        make_parser<buffer_mode, ss::multiline, ss::quote<'"'>, Ts...>(f.name,
+                                                                       ",");
+
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -812,9 +834,10 @@ void test_quote_multiline() {
     }
     CHECK_EQ(i, data);
 
-    ss::parser<ss::quote<'"'>, Ts...> p_no_multiline{f.name, ","};
+    auto [p_no_multiline, __] =
+        make_parser<buffer_mode, ss::quote<'"'>, Ts...>(f.name, ",");
     while (!p.eof()) {
-        auto command = [&] {
+        auto command = [&p_no_multiline = p_no_multiline] {
             p_no_multiline.template get_next<int, double, std::string>();
         };
         expect_error_on_command(p_no_multiline, command);
@@ -822,9 +845,12 @@ void test_quote_multiline() {
 }
 
 TEST_CASE("parser test csv on multiple lines with quotes") {
-    test_quote_multiline();
-    test_quote_multiline<ss::string_error>();
-    test_quote_multiline<ss::throw_on_error>();
+    test_quote_multiline<false>();
+    test_quote_multiline<false, ss::string_error>();
+    test_quote_multiline<false, ss::throw_on_error>();
+    test_quote_multiline<true>();
+    test_quote_multiline<true, ss::string_error>();
+    test_quote_multiline<true, ss::throw_on_error>();
 }
 
 static inline std::string no_escape(std::string& s) {
@@ -1743,4 +1769,3 @@ TEST_CASE("parser test various cases with empty lines") {
 
     test_ignore_empty({});
 }
-
