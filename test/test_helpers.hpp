@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <ss/parser.hpp>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -134,4 +135,55 @@ std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
     }
     return ret;
 }
+
+std::string make_buffer(const std::string& file_name) {
+    std::ifstream in{file_name, std::ios::binary};
+    std::string tmp;
+    std::string out;
+
+    auto copy_if_whitespaces = [&] {
+        std::string matches = "\n\r\t ";
+        while (std::any_of(matches.begin(), matches.end(),
+                           [&](auto c) { return in.peek() == c; })) {
+            if (in.peek() == '\r') {
+                out += "\r\n";
+                in.ignore(2);
+            } else {
+                out += std::string{static_cast<char>(in.peek())};
+                in.ignore(1);
+            }
+        }
+    };
+
+    out.reserve(sizeof(out) + 1);
+
+    copy_if_whitespaces();
+    while (in >> tmp) {
+        out += tmp;
+        copy_if_whitespaces();
+    }
+    return out;
+}
+
+template <bool buffer_mode, typename... Ts>
+std::tuple<ss::parser<Ts...>, std::string> make_parser(
+    const std::string& file_name, const std::string& delim = "") {
+    if (buffer_mode) {
+        auto buffer = make_buffer(file_name);
+        if (delim.empty()) {
+            return {ss::parser<Ts...>{buffer.data(), buffer.size()},
+                    std::move(buffer)};
+        } else {
+            return {ss::parser<Ts...>{buffer.data(), buffer.size(), delim},
+                    std::move(buffer)};
+        }
+    } else {
+        if (delim.empty()) {
+            return {ss::parser<Ts...>{file_name}, std::string{}};
+        } else {
+            return {ss::parser<Ts...>{file_name, delim}, std::string{}};
+        }
+    }
+}
+
 } /* namespace */

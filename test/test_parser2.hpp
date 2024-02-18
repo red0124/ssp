@@ -121,7 +121,7 @@ column make_column(const std::string& input_header,
 }
 
 [[maybe_unused]] void replace_all2(std::string& s, const std::string& old_value,
-                  const std::string& new_value) {
+                                   const std::string& new_value) {
     for (size_t i = 0; i < 999; ++i) {
         size_t pos = s.find(old_value);
         if (pos == std::string::npos) {
@@ -257,7 +257,8 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 }
 
 [[maybe_unused]] void write_to_file(const std::vector<std::string>& data,
-                   const std::string& delim, const std::string& file_name) {
+                                    const std::string& delim,
+                                    const std::string& file_name) {
     std::ofstream out{file_name, std::ios_base::app};
     std::string line;
     for (size_t i = 0; i < data.size(); ++i) {
@@ -299,7 +300,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
         CHECK(V1 == V2);                                                       \
     }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_data_combinations(const std::vector<column>& input_data,
                             const std::string& delim, bool include_header) {
     using setup = ss::setup<Ts...>;
@@ -388,7 +389,7 @@ void test_data_combinations(const std::vector<column>& input_data,
     }
 
     for (const auto& layout : unique_layout_combinations) {
-        ss::parser<setup> p{f.name, delim};
+        auto [p, _] = make_parser<buffer_mode, setup>(f.name, delim);
 
         if (include_header && !setup::ignore_header) {
             std::vector<std::string> fields;
@@ -409,7 +410,7 @@ void test_data_combinations(const std::vector<column>& input_data,
             REQUIRE(p.valid());
         }
 
-        auto check_error = [&p] {
+        auto check_error = [&p = p] {
             CHECK(p.valid());
             if (!p.valid()) {
                 if constexpr (setup::string_error) {
@@ -570,8 +571,14 @@ void test_option_combinations() {
                  {columns0, columns1, columns2, columns3, columns4, columns5,
                   columns6, columns7}) {
                 try {
-                    test_data_combinations<Ts...>(columns, delimiter, false);
-                    test_data_combinations<Ts...>(columns, delimiter, true);
+                    test_data_combinations<false, Ts...>(columns, delimiter,
+                                                         false);
+                    test_data_combinations<false, Ts...>(columns, delimiter,
+                                                         true);
+                    test_data_combinations<true, Ts...>(columns, delimiter,
+                                                        false);
+                    test_data_combinations<true, Ts...>(columns, delimiter,
+                                                        true);
                 } catch (std::exception& e) {
                     std::cout << typeid(ss::parser<Ts...>).name() << std::endl;
                     FAIL_CHECK(std::string{e.what()});
@@ -616,6 +623,7 @@ void test_option_combinations3() {
 
 } /* namespace */
 
+// Tests split into multiple compilation units
 #if 0
 
 TEST_CASE("parser test various cases version 2 segment 1") {
