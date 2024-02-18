@@ -13,6 +13,8 @@ tests = [
   'parser2_2',
   'parser2_3',
   'parser2_4',
+  'parser2_5',
+  'parser2_6',
   'extractions_without_fast_float',
 ]
 

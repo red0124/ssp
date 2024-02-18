@@ -635,25 +635,33 @@ TEST_CASE("parser test various cases version 2 segment 1") {
     using multiline_r = ss::multiline_restricted<10>;
     using trimr = ss::trim_right<' '>;
     using triml = ss::trim_left<' '>;
+    using trim = ss::trim<' '>;
 
     // segment 1
     test_option_combinations3<>();
     test_option_combinations3<escape>();
-    test_option_combinations3<quote>();
 
     // segment 2
+    test_option_combinations3<quote>();
     test_option_combinations3<escape, quote>();
+
+    // segment 3
     test_option_combinations3<escape, multiline>();
     test_option_combinations3<quote, multiline>();
 
-    // segment 3
+    // segment 4
     test_option_combinations3<escape, quote, multiline>();
     test_option_combinations3<escape, quote, multiline_r>();
 
-    // segment 4
+    // segment 5
     test_option_combinations<escape, quote, multiline, triml>();
     test_option_combinations<escape, quote, multiline, trimr>();
+
+    // segment 6
+    test_option_combinations3<escape, quote, multiline>();
+    test_option_combinations3<escape, quote, multiline, trim>();
 #else
+
     test_option_combinations3<escape, quote, multiline>();
 #endif
 }
