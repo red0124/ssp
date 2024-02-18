@@ -34,12 +34,25 @@ struct buffer {
 
 [[maybe_unused]] inline buffer buff;
 
+std::string time_now_rand() {
+    srand(time(nullptr));
+    std::stringstream ss;
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    ss << std::put_time(&tm, "%d%m%Y%H%M%S");
+    srand(time(nullptr));
+    return ss.str() + std::to_string(rand());
+}
+
 struct unique_file_name {
+    static inline int i = 0;
+
     std::string name;
 
     unique_file_name(const std::string& test) {
         do {
-            name = std::tmpnam(nullptr) + std::string{"_random_test_"} + test;
+            name = "random_" + test + "_" + std::to_string(i++) + "_" +
+                   time_now_rand() + "_file.csv";
         } while (std::filesystem::exists(name));
     }
 
