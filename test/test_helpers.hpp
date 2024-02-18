@@ -5,13 +5,17 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ss/parser.hpp>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
 #else
 #include <doctest.h>
 #endif
+
+namespace ss {
+template <typename... Ts>
+class parser;
+} /* ss */
 
 namespace {
 struct buffer {
@@ -185,5 +189,4 @@ std::tuple<ss::parser<Ts...>, std::string> make_parser(
         }
     }
 }
-
 } /* namespace */
