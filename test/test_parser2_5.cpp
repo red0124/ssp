@@ -1,7 +1,7 @@
-#define SEGMENT_NAME "segment3"
+#define SEGMENT_NAME "segment5"
 #include "test_parser2.hpp"
 
-TEST_CASE("parser test various cases version 2 segment 3") {
+TEST_CASE("parser test various cases version 2 segment 5") {
 #ifdef CMAKE_GITHUB_CI
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;

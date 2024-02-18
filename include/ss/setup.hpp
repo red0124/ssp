@@ -109,7 +109,7 @@ struct get_matcher<Matcher, T, Ts...> {
     struct is_matcher : is_instance_of_matcher<U, Matcher> {};
 
     static_assert(count_v<is_matcher, T, Ts...> <= 1,
-                  "the same matcher cannot"
+                  "the same matcher cannot "
                   "be defined multiple times");
     using type = std::conditional_t<is_matcher<T>::value, T,
                                     typename get_matcher<Matcher, Ts...>::type>;
