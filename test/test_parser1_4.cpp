@@ -7,17 +7,13 @@ template <typename T, typename... Us>
 struct has_type<T, std::tuple<Us...>>
     : std::disjunction<std::is_same<T, Us>...> {};
 
-static inline void check_size(size_t size1, size_t size2) {
-    CHECK_EQ(size1, size2);
-}
-
-template <typename Setup, typename... Ts>
+template <bool buffer_mode, typename Setup, typename... Ts>
 static void test_fields_impl(const std::string file_name,
                              const std::vector<X>& data,
                              const std::vector<std::string>& fields) {
     using CaseType = std::tuple<Ts...>;
 
-    ss::parser<Setup> p{file_name, ","};
+    auto [p, _] = make_parser<buffer_mode, Setup>(file_name, ",");
     CHECK_FALSE(p.field_exists("Unknown"));
     p.use_fields(fields);
     std::vector<CaseType> i;
@@ -26,7 +22,7 @@ static void test_fields_impl(const std::string file_name,
         i.push_back(a);
     }
 
-    check_size(i.size(), data.size());
+    CHECK_EQ(i.size(), data.size());
     for (size_t j = 0; j < i.size(); ++j) {
         if constexpr (has_type<int, CaseType>::value) {
             CHECK_EQ(std::get<int>(i[j]), data[j].i);
@@ -43,11 +39,16 @@ static void test_fields_impl(const std::string file_name,
 template <typename... Ts>
 static void test_fields(const std::string file_name, const std::vector<X>& data,
                         const std::vector<std::string>& fields) {
-    test_fields_impl<ss::setup<>, Ts...>(file_name, data, fields);
-    test_fields_impl<ss::setup<ss::string_error>, Ts...>(file_name, data,
-                                                         fields);
-    test_fields_impl<ss::setup<ss::throw_on_error>, Ts...>(file_name, data,
-                                                           fields);
+    test_fields_impl<false, ss::setup<>, Ts...>(file_name, data, fields);
+    test_fields_impl<false, ss::setup<ss::string_error>, Ts...>(file_name, data,
+                                                                fields);
+    test_fields_impl<false, ss::setup<ss::throw_on_error>, Ts...>(file_name,
+                                                                  data, fields);
+    test_fields_impl<true, ss::setup<>, Ts...>(file_name, data, fields);
+    test_fields_impl<true, ss::setup<ss::string_error>, Ts...>(file_name, data,
+                                                               fields);
+    test_fields_impl<true, ss::setup<ss::throw_on_error>, Ts...>(file_name,
+                                                                 data, fields);
 }
 
 TEST_CASE("parser test various cases with header") {
@@ -196,34 +197,37 @@ TEST_CASE("parser test various cases with header") {
     test_fields<double, int, str>(o, d, {Dbl, Int, Str});
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_invalid_fields_impl(const std::vector<std::string>& lines,
                               const std::vector<std::string>& fields) {
     unique_file_name f{"test_parser"};
-    std::ofstream out{f.name};
-    for (const auto& line : lines) {
-        out << line << std::endl;
+    {
+        std::ofstream out{f.name};
+        for (const auto& line : lines) {
+            out << line << std::endl;
+        }
     }
-    out.close();
 
     {
         // No fields specified
-        ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] { p.use_fields(); };
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto command = [&p = p] { p.use_fields(); };
         expect_error_on_command(p, command);
     }
 
     {
         // Unknown field
-        ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] { p.use_fields("Unknown"); };
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto command = [&p = p] { p.use_fields("Unknown"); };
         expect_error_on_command(p, command);
     }
 
     {
         // Field used multiple times
-        ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] { p.use_fields(fields.at(0), fields.at(0)); };
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto command = [&p = p, &fields = fields] {
+            p.use_fields(fields.at(0), fields.at(0));
+        };
         if (!fields.empty()) {
             expect_error_on_command(p, command);
         }
@@ -231,8 +235,8 @@ void test_invalid_fields_impl(const std::vector<std::string>& lines,
 
     {
         // Mapping out of range
-        ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] {
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto command = [&p = p, &fields = fields] {
             p.use_fields(fields.at(0));
             p.template get_next<std::string, std::string>();
         };
@@ -243,8 +247,8 @@ void test_invalid_fields_impl(const std::vector<std::string>& lines,
 
     {
         // Invalid header
-        ss::parser<Ts...> p{f.name, ","};
-        auto command = [&] { p.use_fields(fields); };
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto command = [&p = p, &fields = fields] { p.use_fields(fields); };
 
         if (!fields.empty()) {
             // Pass if there are no duplicates, fail otherwise
@@ -267,9 +271,12 @@ void test_invalid_fields_impl(const std::vector<std::string>& lines,
 template <typename... Ts>
 void test_invalid_fields(const std::vector<std::string>& lines,
                          const std::vector<std::string>& fields) {
-    test_invalid_fields_impl(lines, fields);
-    test_invalid_fields_impl<ss::string_error>(lines, fields);
-    test_invalid_fields_impl<ss::throw_on_error>(lines, fields);
+    test_invalid_fields_impl<false>(lines, fields);
+    test_invalid_fields_impl<false, ss::string_error>(lines, fields);
+    test_invalid_fields_impl<false, ss::throw_on_error>(lines, fields);
+    test_invalid_fields_impl<true>(lines, fields);
+    test_invalid_fields_impl<true, ss::string_error>(lines, fields);
+    test_invalid_fields_impl<true, ss::throw_on_error>(lines, fields);
 }
 
 TEST_CASE("parser test invalid header fields usage") {
@@ -296,7 +303,7 @@ TEST_CASE("parser test invalid header fields usage") {
     test_invalid_fields({"Int,String,Int", "1,hi,3"}, {"Int", "String", "Int"});
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_invalid_rows_with_header() {
     unique_file_name f{"test_parser"};
     {
@@ -311,7 +318,7 @@ void test_invalid_rows_with_header() {
     }
 
     {
-        ss::parser<Ts...> p{f.name};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name);
 
         p.use_fields("Int", "String", "Double");
         using data = std::tuple<int, std::string, double>;
@@ -337,7 +344,7 @@ void test_invalid_rows_with_header() {
     }
 
     {
-        ss::parser<Ts...> p{f.name};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name);
 
         p.use_fields("Double", "Int");
         using data = std::tuple<double, int>;
@@ -361,7 +368,7 @@ void test_invalid_rows_with_header() {
     }
 
     {
-        ss::parser<Ts...> p{f.name};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name);
 
         p.use_fields("String", "Double");
         using data = std::tuple<std::string, double>;
@@ -389,12 +396,15 @@ void test_invalid_rows_with_header() {
 }
 
 TEST_CASE("parser test invalid rows with header") {
-    test_invalid_rows_with_header();
-    test_invalid_rows_with_header<ss::string_error>();
-    test_invalid_rows_with_header<ss::throw_on_error>();
+    test_invalid_rows_with_header<false>();
+    test_invalid_rows_with_header<false, ss::string_error>();
+    test_invalid_rows_with_header<false, ss::throw_on_error>();
+    test_invalid_rows_with_header<true>();
+    test_invalid_rows_with_header<true, ss::string_error>();
+    test_invalid_rows_with_header<true, ss::throw_on_error>();
 }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_ignore_empty_impl(const std::vector<X>& data) {
     unique_file_name f{"test_parser"};
     make_and_write(f.name, data);
@@ -407,7 +417,8 @@ void test_ignore_empty_impl(const std::vector<X>& data) {
     }
 
     {
-        ss::parser<ss::ignore_empty, Ts...> p{f.name, ","};
+        auto [p, _] =
+            make_parser<buffer_mode, ss::ignore_empty, Ts...>(f.name, ",");
 
         std::vector<X> i;
         for (const auto& a : p.template iterate<X>()) {
@@ -418,7 +429,7 @@ void test_ignore_empty_impl(const std::vector<X>& data) {
     }
 
     {
-        ss::parser<Ts...> p{f.name, ","};
+        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
         std::vector<X> i;
         size_t n = 0;
         while (!p.eof()) {
@@ -441,9 +452,12 @@ void test_ignore_empty_impl(const std::vector<X>& data) {
 
 template <typename... Ts>
 void test_ignore_empty(const std::vector<X>& data) {
-    test_ignore_empty_impl(data);
-    test_ignore_empty_impl<ss::string_error>(data);
-    test_ignore_empty_impl<ss::throw_on_error>(data);
+    test_ignore_empty_impl<false>(data);
+    test_ignore_empty_impl<false, ss::string_error>(data);
+    test_ignore_empty_impl<false, ss::throw_on_error>(data);
+    test_ignore_empty_impl<true>(data);
+    test_ignore_empty_impl<true, ss::string_error>(data);
+    test_ignore_empty_impl<true, ss::throw_on_error>(data);
 }
 
 TEST_CASE("parser test various cases with empty lines") {

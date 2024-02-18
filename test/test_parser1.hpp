@@ -109,9 +109,8 @@ std::string make_buffer(const std::string& file_name) {
     std::ifstream in{file_name, std::ios::binary};
     std::string tmp;
     std::string out;
-    out.reserve(sizeof(out) + 1);
-    while (in >> tmp) {
-        out += tmp;
+
+    auto copy_if_whitespaces = [&] {
         std::string matches = "\n\r\t ";
         while (std::any_of(matches.begin(), matches.end(),
                            [&](auto c) { return in.peek() == c; })) {
@@ -123,6 +122,14 @@ std::string make_buffer(const std::string& file_name) {
                 in.ignore(1);
             }
         }
+    };
+
+    out.reserve(sizeof(out) + 1);
+
+    copy_if_whitespaces();
+    while (in >> tmp) {
+        out += tmp;
+        copy_if_whitespaces();
     }
     return out;
 }
