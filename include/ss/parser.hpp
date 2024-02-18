@@ -733,10 +733,10 @@ private:
                 return -1;
             }
 
-            c = buffer[curr_char++];
             if (curr_char >= csv_data_size) {
                 return -1;
             }
+            c = buffer[curr_char++];
 
             // TODO maybe remove this too
             if (*lineptr == nullptr) {
