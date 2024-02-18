@@ -15,7 +15,7 @@ endif()
 if (MSVC)
   add_compile_options(/bigobj)
 elseif (MINGW)
-  add_compile_options(-Wa,-mbig-obj -mcmodel=large)
+  add_compile_options(-Wa,-mbig-obj -mcmodel=medium)
 endif ()
 
 include(FetchContent)
