@@ -62,4 +62,4 @@ jobs:
       - name: Run
         working-directory: build
         run: >-
-          ctest -C Debug --output-on-failure -j ${{steps.cores.outputs.count}}
+          ctest -C Debug --output-on-failure

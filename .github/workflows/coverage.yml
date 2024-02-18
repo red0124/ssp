@@ -56,7 +56,7 @@ jobs:
 
       - name: Run
         working-directory: build
-        run: ctest --output-on-failure -j ${{steps.cores.outputs.count}}
+        run: ctest --output-on-failure
 
       - name: Generate coverage report
         run: |
