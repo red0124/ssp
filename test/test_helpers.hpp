@@ -39,7 +39,7 @@ struct buffer {
 
 [[maybe_unused]] inline buffer buff;
 
-std::string time_now_rand() {
+[[maybe_unused]] std::string time_now_rand() {
     srand(time(nullptr));
     std::stringstream ss;
     auto t = std::time(nullptr);
@@ -120,8 +120,8 @@ struct unique_file_name {
     }
 
 template <typename T>
-std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
-                                                size_t n) {
+[[maybe_unused]] std::vector<std::vector<T>> vector_combinations(
+    const std::vector<T>& v, size_t n) {
     std::vector<std::vector<T>> ret;
     if (n <= 1) {
         for (const auto& i : v) {
@@ -140,7 +140,7 @@ std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
     return ret;
 }
 
-std::string make_buffer(const std::string& file_name) {
+[[maybe_unused]] std::string make_buffer(const std::string& file_name) {
     std::ifstream in{file_name, std::ios::binary};
     std::string tmp;
     std::string out;
@@ -170,7 +170,7 @@ std::string make_buffer(const std::string& file_name) {
 }
 
 template <bool buffer_mode, typename... Ts>
-std::tuple<ss::parser<Ts...>, std::string> make_parser(
+[[maybe_unused]] std::tuple<ss::parser<Ts...>, std::string> make_parser(
     const std::string& file_name, const std::string& delim = "") {
     if (buffer_mode) {
         auto buffer = make_buffer(file_name);
