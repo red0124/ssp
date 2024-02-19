@@ -49,7 +49,7 @@ jobs:
           apt install -y gcovr lcov
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_FLAGS="-Wall -fprofile-arcs -ftest-coverage --coverage"
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_FLAGS="-Wall -fprofile-arcs -ftest-coverage --coverage -fno-elide-constructors -fno-default-inline"
 
       - name: Build
         run: cmake --build build -j ${{steps.cores.outputs.count}}
