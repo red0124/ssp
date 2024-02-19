@@ -21,6 +21,25 @@ TEST_CASE("test file not found") {
     }
 }
 
+TEST_CASE("test null buffer") {
+    {
+        ss::parser p{nullptr, 10, ","};
+        CHECK_FALSE(p.valid());
+    }
+
+    {
+        ss::parser<ss::string_error> p{nullptr, 10, ","};
+        CHECK_FALSE(p.valid());
+    }
+
+    try {
+        ss::parser<ss::throw_on_error> p{nullptr, 10, ","};
+        FAIL("Expected exception...");
+    } catch (const std::exception& e) {
+        CHECK_FALSE(std::string{e.what()}.empty());
+    }
+}
+
 template <bool buffer_mode, typename... Ts>
 void test_various_cases() {
     unique_file_name f{"test_parser"};

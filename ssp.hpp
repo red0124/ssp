@@ -803,7 +803,7 @@ struct get_matcher<Matcher, T, Ts...> {
     struct is_matcher : is_instance_of_matcher<U, Matcher> {};
 
     static_assert(count_v<is_matcher, T, Ts...> <= 1,
-                  "the same matcher cannot"
+                  "the same matcher cannot "
                   "be defined multiple times");
     using type = std::conditional_t<is_matcher<T>::value, T,
                                     typename get_matcher<Matcher, Ts...>::type>;
@@ -2178,11 +2178,16 @@ public:
            const std::string& delim = ss::default_delimiter)
         : file_name_{"buffer line"},
           reader_{csv_data_buffer, csv_data_size, delim} {
-        read_line();
-        if constexpr (ignore_header) {
-            ignore_next();
+        if (csv_data_buffer) {
+            read_line();
+            if constexpr (ignore_header) {
+                ignore_next();
+            } else {
+                raw_header_ = reader_.get_buffer();
+            }
         } else {
-            raw_header_ = reader_.get_buffer();
+            handle_error_null_buffer();
+            eof_ = true;
         }
     }
 
@@ -2650,6 +2655,19 @@ private:
         }
     }
 
+    void handle_error_null_buffer() {
+        constexpr static auto error_msg = " received null data buffer";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
+        } else {
+            error_ = true;
+        }
+    }
+
     void handle_error_file_not_open() {
         constexpr static auto error_msg = " could not be opened";
 
@@ -2854,17 +2872,11 @@ private:
             size_t pos;
             int c;
 
-            // TODO remove check
-            if (lineptr == nullptr || buffer == nullptr || n == nullptr) {
-                return -1;
-            }
-
             if (curr_char >= csv_data_size) {
                 return -1;
             }
             c = buffer[curr_char++];
 
-            // TODO maybe remove this too
             if (*lineptr == nullptr) {
                 *lineptr = static_cast<char*>(malloc(128));
                 if (*lineptr == nullptr) {
@@ -2877,13 +2889,11 @@ private:
             while (curr_char <= csv_data_size) {
                 if (pos + 1 >= *n) {
                     size_t new_size = *n + (*n >> 2);
-                    // TODO maybe remove this too
                     if (new_size < 128) {
                         new_size = 128;
                     }
                     char* new_ptr = static_cast<char*>(
                         realloc(static_cast<void*>(*lineptr), new_size));
-                    // TODO check for failed malloc in the callee
                     if (new_ptr == nullptr) {
                         return -1;
                     }
@@ -3050,11 +3060,11 @@ private:
         }
 
         void realloc_concat(char*& first, size_t& first_size,
-                            const char* const second, size_t second_size) {
-            // TODO make buffer_size an argument
-            next_line_buffer_size_ = first_size + second_size + 3;
+                            size_t& buffer_size, const char* const second,
+                            size_t second_size) {
+            buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
-                realloc(static_cast<void*>(first), next_line_buffer_size_));
+                realloc(static_cast<void*>(first), buffer_size));
             if (!first) {
                 throw std::bad_alloc{};
             }
@@ -3084,7 +3094,8 @@ private:
 
             ++line_number_;
             size_t next_size = remove_eol(helper_buffer_, next_ssize);
-            realloc_concat(buffer, size, helper_buffer_, next_size);
+            realloc_concat(buffer, size, next_line_buffer_size_, helper_buffer_,
+                           next_size);
             return true;
         }
 
