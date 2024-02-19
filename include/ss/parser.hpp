@@ -752,7 +752,8 @@ private:
             c = buffer[curr_char++];
 
             if (*lineptr == nullptr) {
-                *lineptr = static_cast<char*>(malloc(128));
+                *lineptr =
+                    static_cast<char*>(malloc(get_line_initial_buffer_size));
                 if (*lineptr == nullptr) {
                     return -1;
                 }
@@ -763,8 +764,8 @@ private:
             while (curr_char <= csv_data_size) {
                 if (pos + 1 >= *n) {
                     size_t new_size = *n + (*n >> 2);
-                    if (new_size < 128) {
-                        new_size = 128;
+                    if (new_size < get_line_initial_buffer_size) {
+                        new_size = get_line_initial_buffer_size;
                     }
                     char* new_ptr = static_cast<char*>(
                         realloc(static_cast<void*>(*lineptr), new_size));

@@ -625,6 +625,7 @@ using string_range = std::pair<const char*, const char*>;
 using split_data = std::vector<string_range>;
 
 constexpr inline auto default_delimiter = ",";
+constexpr static auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
 inline void assert_string_error_defined() {
@@ -659,7 +660,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     }
 
     if (*lineptr == nullptr) {
-        *lineptr = static_cast<char*>(malloc(128));
+        *lineptr = static_cast<char*>(malloc(get_line_initial_buffer_size));
         if (*lineptr == nullptr) {
             return -1;
         }
@@ -670,8 +671,8 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     while (c != EOF) {
         if (pos + 1 >= *n) {
             size_t new_size = *n + (*n >> 2);
-            if (new_size < 128) {
-                new_size = 128;
+            if (new_size < get_line_initial_buffer_size) {
+                new_size = get_line_initial_buffer_size;
             }
             char* new_ptr = static_cast<char*>(
                 realloc(static_cast<void*>(*lineptr), new_size));
@@ -2878,7 +2879,8 @@ private:
             c = buffer[curr_char++];
 
             if (*lineptr == nullptr) {
-                *lineptr = static_cast<char*>(malloc(128));
+                *lineptr =
+                    static_cast<char*>(malloc(get_line_initial_buffer_size));
                 if (*lineptr == nullptr) {
                     return -1;
                 }
@@ -2889,8 +2891,8 @@ private:
             while (curr_char <= csv_data_size) {
                 if (pos + 1 >= *n) {
                     size_t new_size = *n + (*n >> 2);
-                    if (new_size < 128) {
-                        new_size = 128;
+                    if (new_size < get_line_initial_buffer_size) {
+                        new_size = get_line_initial_buffer_size;
                     }
                     char* new_ptr = static_cast<char*>(
                         realloc(static_cast<void*>(*lineptr), new_size));
