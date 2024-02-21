@@ -46,7 +46,10 @@ jobs:
       - name: Install test coverage tools
         run: |
           apt update
-          apt install -y gcovr lcov
+          apt install -y gcovr
+
+      - name: Install lcov2.0
+        run: script/ci_install_lcov.sh
 
       - name: Configure
         run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_FLAGS="-Wall -fprofile-arcs -ftest-coverage --coverage -fno-elide-constructors -fno-default-inline"

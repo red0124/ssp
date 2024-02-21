@@ -31,6 +31,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
+// TODO set ERRNO ?
 using ssize_t = int64_t;
 inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     size_t pos;

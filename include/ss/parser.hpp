@@ -742,6 +742,7 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
+        // TODO set error numbers on error
         ssize_t get_line_buffer(char** lineptr, size_t* n,
                                 const char* const buffer, size_t csv_data_size,
                                 size_t& curr_char) {

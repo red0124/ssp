@@ -261,11 +261,14 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
                                     const std::string& file_name) {
     std::ofstream out{file_name, std::ios_base::app};
     std::string line;
+
+    // TODO remove new line at eof randomly
     for (size_t i = 0; i < data.size(); ++i) {
         line += data[i];
         if (i != data.size() - 1) {
             line += delim;
         }
+
     }
 
     out << line << std::endl;
