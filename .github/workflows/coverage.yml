@@ -63,7 +63,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          lcov -d . -c -o out.info --rc branch_coverage=1 --no-external --filter branch --filter line --ignore-erros mismatch
+          lcov -d . -c -o out.info --rc branch_coverage=1 --no-external --filter branch --filter line --ignore-errors mismatch
           lcov -e out.info '*include/ss*hpp' -o filtered.info
 
       - name: Invoke coveralls
