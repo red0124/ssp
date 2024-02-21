@@ -41,6 +41,6 @@ foreach(name IN ITEMS test_splitter test_parser1_1 test_parser1_2
     target_link_libraries("${name}" PRIVATE ssp::ssp fast_float
                                             doctest::doctest)
     target_compile_definitions(
-        "${name}" PRIVATE DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN _CMAKE_GITHUB_CI)
+        "${name}" PRIVATE DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN CMAKE_GITHUB_CI)
     add_test(NAME "${name}" COMMAND "${name}")
 endforeach()
