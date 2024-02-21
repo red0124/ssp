@@ -2,7 +2,7 @@
 #include "test_parser2.hpp"
 
 TEST_CASE("parser test various cases version 2 segment 4") {
-#ifdef CMAKE_GITHUB_CI_
+#ifdef CMAKE_GITHUB_CI
     using quote = ss::quote<'"'>;
     using escape = ss::escape<'\\'>;
     using multiline = ss::multiline;
