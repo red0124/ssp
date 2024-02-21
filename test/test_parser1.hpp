@@ -80,7 +80,8 @@ std::enable_if_t<ss::has_m_tied_t<T>, bool> operator==(const T& lhs,
 template <typename T>
 static void make_and_write(const std::string& file_name,
                            const std::vector<T>& data,
-                           const std::vector<std::string>& header = {}) {
+                           const std::vector<std::string>& header = {},
+                           bool new_line_eof = true) {
     std::ofstream out{file_name};
 
 #ifdef _WIN32
@@ -101,7 +102,10 @@ static void make_and_write(const std::string& file_name,
     }
 
     for (size_t i = 0; i < data.size(); ++i) {
-        out << data[i].to_string() << new_lines[i % new_lines.size()];
+        out << data[i].to_string();
+        if (new_line_eof || i + 1 < data.size()) {
+            out << new_lines[i % new_lines.size()];
+        }
     }
 }
 

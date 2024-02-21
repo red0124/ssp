@@ -920,7 +920,6 @@ private:
         }
 
         size_t remove_eol(char*& buffer, size_t ssize) {
-            // TODO write unit tests
             if (buffer[ssize - 1] != '\n') {
                 return ssize;
             }
@@ -943,7 +942,6 @@ private:
             buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
                 realloc(static_cast<void*>(first), buffer_size));
-            // TODO check
             if (!new_first) {
                 throw std::bad_alloc{};
             }

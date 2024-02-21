@@ -551,3 +551,32 @@ TEST_CASE("parser test composite conversion") {
     test_composite_conversion<false, ss::string_error>();
     test_composite_conversion<true, ss::string_error>();
 }
+
+template <bool buffer_mode>
+void test_no_new_line_at_eof_impl(const std::vector<X>& data) {
+    unique_file_name f{"test_parser"};
+    make_and_write(f.name, data, {}, false);
+
+    auto [p, _] = make_parser<buffer_mode>(f.name);
+    std::vector<X> parsed_data;
+
+    for (const auto& el : p.template iterate<X>()) {
+        parsed_data.push_back(el);
+    }
+
+    CHECK_EQ(data, parsed_data);
+}
+
+template <bool buffer_mode>
+void test_no_new_line_at_eof() {
+    test_no_new_line_at_eof_impl<buffer_mode>({});
+    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}});
+    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {3, 4, "YY"}});
+    test_no_new_line_at_eof_impl<buffer_mode>(
+        {{1, 2, "X"}, {3, 4, "YY"}, {5, 6, "ZZZ"}, {7, 8, "UUU"}});
+}
+
+TEST_CASE("test no new line at end of data") {
+    test_no_new_line_at_eof<false>();
+    test_no_new_line_at_eof<true>();
+}
