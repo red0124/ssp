@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <fstream>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -134,7 +136,7 @@ template <typename T>
     for (const auto& i : v) {
         for (auto j : inner_combinations) {
             j.insert(j.begin(), i);
-            ret.push_back(move(j));
+            ret.push_back(std::move(j));
         }
     }
     return ret;

@@ -368,20 +368,22 @@ public:
 
         template <typename U, typename... Us, typename Fun = none>
         void try_convert_and_invoke(std::optional<U>& value, Fun&& fun) {
-            if (!parser_.valid()) {
-                auto tuple_output = try_same<Us...>();
-                if (!parser_.valid()) {
-                    return;
-                }
-
-                if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
-                    value = to_object<U>(std::move(tuple_output));
-                } else {
-                    value = std::move(tuple_output);
-                }
-
-                parser_.try_invoke(*value, std::forward<Fun>(fun));
+            if (parser_.valid()) {
+                return;
             }
+
+            auto tuple_output = try_same<Us...>();
+            if (!parser_.valid()) {
+                return;
+            }
+
+            if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
+                value = to_object<U>(std::move(tuple_output));
+            } else {
+                value = std::move(tuple_output);
+            }
+
+            parser_.try_invoke(*value, std::forward<Fun>(fun));
         }
 
         template <typename U, typename... Us>
@@ -918,6 +920,7 @@ private:
         }
 
         size_t remove_eol(char*& buffer, size_t ssize) {
+            // TODO write unit tests
             if (buffer[ssize - 1] != '\n') {
                 return ssize;
             }
@@ -940,7 +943,8 @@ private:
             buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
                 realloc(static_cast<void*>(first), buffer_size));
-            if (!first) {
+            // TODO check
+            if (!new_first) {
                 throw std::bad_alloc{};
             }
 
