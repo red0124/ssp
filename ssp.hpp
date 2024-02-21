@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <charconv>
 #include <cstdint>
 #include <cstdio>
@@ -625,7 +626,7 @@ using string_range = std::pair<const char*, const char*>;
 using split_data = std::vector<string_range>;
 
 constexpr inline auto default_delimiter = ",";
-constexpr static auto get_line_initial_buffer_size = 128;
+constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
 inline void assert_string_error_defined() {
@@ -644,6 +645,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
+
 using ssize_t = int64_t;
 inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     size_t pos;
@@ -2495,20 +2497,22 @@ public:
 
         template <typename U, typename... Us, typename Fun = none>
         void try_convert_and_invoke(std::optional<U>& value, Fun&& fun) {
-            if (!parser_.valid()) {
-                auto tuple_output = try_same<Us...>();
-                if (!parser_.valid()) {
-                    return;
-                }
-
-                if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
-                    value = to_object<U>(std::move(tuple_output));
-                } else {
-                    value = std::move(tuple_output);
-                }
-
-                parser_.try_invoke(*value, std::forward<Fun>(fun));
+            if (parser_.valid()) {
+                return;
             }
+
+            auto tuple_output = try_same<Us...>();
+            if (!parser_.valid()) {
+                return;
+            }
+
+            if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
+                value = to_object<U>(std::move(tuple_output));
+            } else {
+                value = std::move(tuple_output);
+            }
+
+            parser_.try_invoke(*value, std::forward<Fun>(fun));
         }
 
         template <typename U, typename... Us>
@@ -2936,6 +2940,9 @@ private:
                 }
 
                 if (ssize == -1) {
+                    if (errno == ENOMEM) {
+                        throw std::bad_alloc{};
+                    }
                     return false;
                 }
 
@@ -3067,7 +3074,7 @@ private:
             buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
                 realloc(static_cast<void*>(first), buffer_size));
-            if (!first) {
+            if (!new_first) {
                 throw std::bad_alloc{};
             }
 

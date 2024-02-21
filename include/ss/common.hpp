@@ -12,7 +12,7 @@ using string_range = std::pair<const char*, const char*>;
 using split_data = std::vector<string_range>;
 
 constexpr inline auto default_delimiter = ",";
-constexpr static auto get_line_initial_buffer_size = 128;
+constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
 inline void assert_string_error_defined() {
@@ -31,7 +31,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
-// TODO set ERRNO ?
+
 using ssize_t = int64_t;
 inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     size_t pos;

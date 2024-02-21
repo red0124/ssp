@@ -258,20 +258,22 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 
 [[maybe_unused]] void write_to_file(const std::vector<std::string>& data,
                                     const std::string& delim,
-                                    const std::string& file_name) {
+                                    const std::string& file_name,
+                                    bool add_new_line = true) {
     std::ofstream out{file_name, std::ios_base::app};
     std::string line;
 
-    // TODO remove new line at eof randomly
     for (size_t i = 0; i < data.size(); ++i) {
         line += data[i];
         if (i != data.size() - 1) {
             line += delim;
         }
-
     }
 
-    out << line << std::endl;
+    out << line;
+    if (add_new_line) {
+        out << std::endl;
+    }
 }
 
 #define CHECK_EQ_CRLF(V1, V2)                                                  \
@@ -333,7 +335,11 @@ void test_data_combinations(const std::vector<column>& input_data,
 
     if (include_header) {
         auto header_data = generate_csv_data<Ts...>(field_header, delim);
-        write_to_file(header_data, delim, f.name);
+        if (input_data.size() == 0 && rand() % 10 == 0) {
+            write_to_file(header_data, delim, f.name, false);
+        } else {
+            write_to_file(header_data, delim, f.name);
+        }
     }
 
     std::vector<int> layout;
@@ -358,15 +364,12 @@ void test_data_combinations(const std::vector<column>& input_data,
 
         expected_data.push_back(raw_data);
         auto data = generate_csv_data<Ts...>(raw_data, delim);
-        write_to_file(data, delim, f.name);
 
-        /*
-        std::cout << "[.";
-        for (const auto& el : data) {
-            std::cout << el << '.';
+        if (i + 1 == n && rand() % 10 == 0) {
+            write_to_file(data, delim, f.name, false);
+        } else {
+            write_to_file(data, delim, f.name);
         }
-        std::cout << "]" << std::endl;
-        */
     }
 
     auto layout_combinations = include_header && !setup::ignore_header
@@ -430,7 +433,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                     auto s0 = p.template get_next<std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                     } else {
                         CHECK(p.eof());
@@ -443,7 +445,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                         p.template get_next<std::string, std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                     } else {
@@ -458,8 +459,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << ' ' << s2 <<
-                        // std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
@@ -475,10 +474,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string, std::string>();
                     if (i < n) {
                         check_error();
-                        /*
-                        std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
-                                  << std::endl;
-                                  */
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
@@ -496,9 +491,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' <<
-                        // s3
-                        //  << ' ' << s4 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);

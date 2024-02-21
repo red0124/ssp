@@ -5,6 +5,7 @@
 #include "exception.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -742,7 +743,6 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
-        // TODO set error numbers on error
         ssize_t get_line_buffer(char** lineptr, size_t* n,
                                 const char* const buffer, size_t csv_data_size,
                                 size_t& curr_char) {
@@ -812,6 +812,9 @@ private:
                 }
 
                 if (ssize == -1) {
+                    if (errno == ENOMEM) {
+                        throw std::bad_alloc{};
+                    }
                     return false;
                 }
 
