@@ -657,14 +657,15 @@ ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
     char buff[get_line_initial_buffer_size];
 
     if (*lineptr == nullptr || *n < sizeof(buff)) {
-        *n = sizeof(buff);
-        auto new_lineptr = static_cast<char*>(realloc(*lineptr, *n));
+        size_t new_n = sizeof(buff);
+        auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
         if (new_lineptr == nullptr) {
             errno = ENOMEM;
             return -1;
         }
 
         *lineptr = new_lineptr;
+        *n = new_n;
     }
 
     (*lineptr)[0] = '\0';
@@ -674,7 +675,7 @@ ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
         size_t buff_used = strlen(buff);
 
         if (*n < buff_used + line_used) {
-            *n *= 2;
+            size_t new_n = *n * 2;
 
             auto new_lineptr = static_cast<char*>(realloc(*lineptr, *n));
             if (new_lineptr == nullptr) {
@@ -683,6 +684,7 @@ ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
             }
 
             *lineptr = new_lineptr;
+            *n = new_n;
         }
 
         memcpy(*lineptr + line_used, buff, buff_used);
