@@ -571,9 +571,22 @@ template <bool buffer_mode>
 void test_no_new_line_at_eof() {
     test_no_new_line_at_eof_impl<buffer_mode>({});
     test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}});
+    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {}});
     test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {3, 4, "YY"}});
+    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {3, 4, "YY"}, {}});
     test_no_new_line_at_eof_impl<buffer_mode>(
         {{1, 2, "X"}, {3, 4, "YY"}, {5, 6, "ZZZ"}, {7, 8, "UUU"}});
+
+    for (size_t i = 0; i < 2 * ss::get_line_initial_buffer_size; ++i) {
+        test_no_new_line_at_eof_impl<buffer_mode>(
+            {{1, 2, std::string(i, 'X')}});
+
+        for (size_t j = 0; j < 2 * ss::get_line_initial_buffer_size; ++j) {
+
+            test_no_new_line_at_eof_impl<buffer_mode>(
+                {{1, 2, std::string(i, 'X')}, {3, 4, std::string(j, 'Y')}});
+        }
+    }
 }
 
 TEST_CASE("test no new line at end of data") {

@@ -744,50 +744,52 @@ private:
         reader& operator=(const reader& other) = delete;
 
         ssize_t get_line_buffer(char** lineptr, size_t* n,
-                                const char* const buffer, size_t csv_data_size,
-                                size_t& curr_char) {
-            size_t pos;
-            int c;
+                                const char* const csv_data_buffer,
+                                size_t csv_data_size, size_t& curr_char) {
+            if (lineptr == nullptr || n == nullptr ||
+                csv_data_buffer == nullptr) {
+                errno = EINVAL;
+                return -1;
+            }
 
             if (curr_char >= csv_data_size) {
                 return -1;
             }
-            c = buffer[curr_char++];
 
-            if (*lineptr == nullptr) {
-                *lineptr =
-                    static_cast<char*>(malloc(get_line_initial_buffer_size));
-                if (*lineptr == nullptr) {
+            if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
+                auto new_lineptr = static_cast<char*>(
+                    realloc(*lineptr, get_line_initial_buffer_size));
+                if (new_lineptr == nullptr) {
                     return -1;
                 }
-                *n = 128;
+                *lineptr = new_lineptr;
+                *n = get_line_initial_buffer_size;
             }
 
-            pos = 0;
+            size_t line_used = 0;
             while (curr_char <= csv_data_size) {
-                if (pos + 1 >= *n) {
-                    size_t new_size = *n + (*n >> 2);
-                    if (new_size < get_line_initial_buffer_size) {
-                        new_size = get_line_initial_buffer_size;
-                    }
-                    char* new_ptr = static_cast<char*>(
-                        realloc(static_cast<void*>(*lineptr), new_size));
-                    if (new_ptr == nullptr) {
+                if (line_used + 1 >= *n) {
+                    size_t new_n = *n * 2;
+
+                    char* new_lineptr =
+                        static_cast<char*>(realloc(*lineptr, new_n));
+                    if (new_lineptr == nullptr) {
+                        errno = ENOMEM;
                         return -1;
                     }
-                    *n = new_size;
-                    *lineptr = new_ptr;
+                    *n = new_n;
+                    *lineptr = new_lineptr;
                 }
 
-                (*lineptr)[pos++] = c;
+                auto c = csv_data_buffer[curr_char++];
+                (*lineptr)[line_used++] = c;
                 if (c == '\n') {
-                    break;
+                    (*lineptr)[line_used] = '\0';
+                    return line_used;
                 }
-                c = buffer[curr_char++];
             }
 
-            (*lineptr)[pos] = '\0';
-            return pos;
+            return (line_used != 0) ? line_used : -1;
         }
 
         // read next line each time in order to set eof_

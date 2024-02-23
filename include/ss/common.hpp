@@ -58,14 +58,15 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
     (*lineptr)[0] = '\0';
 
+    size_t line_used = 0;
     while (fgets(buff, sizeof(buff), fp) != nullptr) {
-        size_t line_used = strlen(*lineptr);
+        line_used = strlen(*lineptr);
         size_t buff_used = strlen(buff);
 
-        if (*n < buff_used + line_used) {
+        if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
 
-            auto new_lineptr = static_cast<char*>(realloc(*lineptr, *n));
+            auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
             if (new_lineptr == nullptr) {
                 errno = ENOMEM;
                 return -1;
@@ -84,7 +85,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
         }
     }
 
-    return -1;
+    return (line_used != 0) ? line_used : -1;
 }
 
 #endif
