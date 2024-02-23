@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <charconv>
 #include <cstdint>
 #include <cstdio>
@@ -625,6 +626,7 @@ using string_range = std::pair<const char*, const char*>;
 using split_data = std::vector<string_range>;
 
 constexpr inline auto default_delimiter = ",";
+constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
 inline void assert_string_error_defined() {
@@ -643,55 +645,60 @@ inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
-using ssize_t = int64_t;
-inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
-    size_t pos;
-    int c;
 
-    if (lineptr == nullptr || stream == nullptr || n == nullptr) {
+using ssize_t = int64_t;
+
+ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
+    if (lineptr == nullptr || n == nullptr || fp == nullptr) {
         errno = EINVAL;
         return -1;
     }
 
-    c = getc(stream);
-    if (c == EOF) {
-        return -1;
-    }
+    char buff[get_line_initial_buffer_size];
 
-    if (*lineptr == nullptr) {
-        *lineptr = static_cast<char*>(malloc(128));
-        if (*lineptr == nullptr) {
+    if (*lineptr == nullptr || *n < sizeof(buff)) {
+        size_t new_n = sizeof(buff);
+        auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
+        if (new_lineptr == nullptr) {
+            errno = ENOMEM;
             return -1;
         }
-        *n = 128;
+
+        *lineptr = new_lineptr;
+        *n = new_n;
     }
 
-    pos = 0;
-    while (c != EOF) {
-        if (pos + 1 >= *n) {
-            size_t new_size = *n + (*n >> 2);
-            if (new_size < 128) {
-                new_size = 128;
-            }
-            char* new_ptr = static_cast<char*>(
-                realloc(static_cast<void*>(*lineptr), new_size));
-            if (new_ptr == nullptr) {
+    (*lineptr)[0] = '\0';
+
+    while (fgets(buff, sizeof(buff), fp) != nullptr) {
+        size_t line_used = strlen(*lineptr);
+        size_t buff_used = strlen(buff);
+
+        if (*n < buff_used + line_used) {
+            size_t new_n = *n * 2;
+
+            auto new_lineptr = static_cast<char*>(realloc(*lineptr, *n));
+            if (new_lineptr == nullptr) {
+                errno = ENOMEM;
                 return -1;
             }
-            *n = new_size;
-            *lineptr = new_ptr;
+
+            *lineptr = new_lineptr;
+            *n = new_n;
         }
 
-        (*lineptr)[pos++] = c;
-        if (c == '\n') {
-            break;
+        memcpy(*lineptr + line_used, buff, buff_used);
+        line_used += buff_used;
+        (*lineptr)[line_used] = '\0';
+
+        if ((*lineptr)[line_used - 1] == '\n') {
+            return line_used;
         }
-        c = getc(stream);
     }
 
-    (*lineptr)[pos] = '\0';
-    return pos;
+    return -1;
 }
+
 #endif
 
 } /* ss */
