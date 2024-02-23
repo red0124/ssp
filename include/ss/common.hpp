@@ -28,7 +28,7 @@ inline void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
-#if __unix__XX
+#if __unix__
 inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
