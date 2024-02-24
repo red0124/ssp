@@ -590,6 +590,6 @@ void test_no_new_line_at_eof() {
 }
 
 TEST_CASE("test no new line at end of data") {
-    test_no_new_line_at_eof<false>();
-    // test_no_new_line_at_eof<true>();
+    // test_no_new_line_at_eof<false>();
+    test_no_new_line_at_eof<true>();
 }
