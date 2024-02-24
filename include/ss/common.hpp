@@ -34,7 +34,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
 }
 #else
 
-using ssize_t = int64_t;
+using ssize_t = intptr_t;
 
 ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
     if (lineptr == nullptr || n == nullptr || fp == nullptr) {
