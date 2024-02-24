@@ -581,15 +581,18 @@ void test_no_new_line_at_eof() {
         test_no_new_line_at_eof_impl<buffer_mode>(
             {{1, 2, std::string(i, 'X')}});
 
-        for (size_t j = 0; j < 2 * ss::get_line_initial_buffer_size; ++j) {
+        for (size_t j = 0; j < 2 * ss::get_line_initial_buffer_size; j += 13) {
 
             test_no_new_line_at_eof_impl<buffer_mode>(
                 {{1, 2, std::string(i, 'X')}, {3, 4, std::string(j, 'Y')}});
+
+            test_no_new_line_at_eof_impl<buffer_mode>(
+                {{1, 2, std::string(j, 'X')}, {3, 4, std::string(i, 'Y')}});
         }
     }
 }
 
 TEST_CASE("test no new line at end of data") {
-    // test_no_new_line_at_eof<false>();
+    test_no_new_line_at_eof<false>();
     test_no_new_line_at_eof<true>();
 }
