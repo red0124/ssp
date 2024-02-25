@@ -214,7 +214,7 @@ public:
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
 
-        if (line() == 1) {
+        if (line() == 0) {
             ignore_next();
         }
     }
