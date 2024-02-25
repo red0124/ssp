@@ -752,12 +752,6 @@ private:
         ssize_t get_line_buffer(char** lineptr, size_t* n,
                                 const char* const csv_data_buffer,
                                 size_t csv_data_size, size_t& curr_char) {
-            if (lineptr == nullptr || n == nullptr ||
-                csv_data_buffer == nullptr) {
-                errno = EINVAL;
-                return -1;
-            }
-
             if (curr_char >= csv_data_size) {
                 return -1;
             }
