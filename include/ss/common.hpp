@@ -29,7 +29,7 @@ inline void assert_throw_on_error_not_defined() {
 }
 
 inline void* strict_realloc(void* ptr, size_t size) {
-    ptr = realloc(ptr, size);
+    ptr = std::realloc(ptr, size);
     if (!ptr) {
         throw std::bad_alloc{};
     }
@@ -62,9 +62,9 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
     (*lineptr)[0] = '\0';
 
     size_t line_used = 0;
-    while (fgets(buff, sizeof(buff), fp) != nullptr) {
-        line_used = strlen(*lineptr);
-        size_t buff_used = strlen(buff);
+    while (std::fgets(buff, sizeof(buff), fp) != nullptr) {
+        line_used = std::strlen(*lineptr);
+        size_t buff_used = std::strlen(buff);
 
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
@@ -73,7 +73,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
             *n = new_n;
         }
 
-        memcpy(*lineptr + line_used, buff, buff_used);
+        std::memcpy(*lineptr + line_used, buff, buff_used);
         line_used += buff_used;
         (*lineptr)[line_used] = '\0';
 

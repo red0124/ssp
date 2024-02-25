@@ -77,9 +77,9 @@ TEST_CASE_TEMPLATE("test position method", T, ParserOptionCombinations) {
         if (!buff.empty()) {
             return buff[n];
         } else {
-            auto file = fopen(f.name.c_str(), "r");
-            fseek(file, n, SEEK_SET);
-            return static_cast<char>(fgetc(file));
+            auto file = std::fopen(f.name.c_str(), "r");
+            std::fseek(file, n, SEEK_SET);
+            return static_cast<char>(std::fgetc(file));
         }
     };
 

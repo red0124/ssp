@@ -169,9 +169,9 @@ inline bool extract(const char* begin, const char* end, bool& value) {
         }
     } else {
         size_t size = end - begin;
-        if (size == 4 && strncmp(begin, "true", size) == 0) {
+        if (size == 4 && std::strncmp(begin, "true", size) == 0) {
             value = true;
-        } else if (size == 5 && strncmp(begin, "false", size) == 0) {
+        } else if (size == 5 && std::strncmp(begin, "false", size) == 0) {
             value = false;
         } else {
             return false;

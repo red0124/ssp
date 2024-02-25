@@ -641,7 +641,7 @@ inline void assert_throw_on_error_not_defined() {
 }
 
 inline void* strict_realloc(void* ptr, size_t size) {
-    ptr = realloc(ptr, size);
+    ptr = std::realloc(ptr, size);
     if (!ptr) {
         throw std::bad_alloc{};
     }
@@ -674,9 +674,9 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
     (*lineptr)[0] = '\0';
 
     size_t line_used = 0;
-    while (fgets(buff, sizeof(buff), fp) != nullptr) {
-        line_used = strlen(*lineptr);
-        size_t buff_used = strlen(buff);
+    while (std::fgets(buff, sizeof(buff), fp) != nullptr) {
+        line_used = std::strlen(*lineptr);
+        size_t buff_used = std::strlen(buff);
 
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
@@ -685,7 +685,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
             *n = new_n;
         }
 
-        memcpy(*lineptr + line_used, buff, buff_used);
+        std::memcpy(*lineptr + line_used, buff, buff_used);
         line_used += buff_used;
         (*lineptr)[line_used] = '\0';
 
@@ -1183,7 +1183,7 @@ private:
     };
 
     bool match(const char* const curr, const std::string& delim) {
-        return strncmp(curr, delim.c_str(), delim.size()) == 0;
+        return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
     size_t delimiter_size(char) {
@@ -1623,9 +1623,9 @@ inline bool extract(const char* begin, const char* end, bool& value) {
         }
     } else {
         size_t size = end - begin;
-        if (size == 4 && strncmp(begin, "true", size) == 0) {
+        if (size == 4 && std::strncmp(begin, "true", size) == 0) {
             value = true;
-        } else if (size == 5 && strncmp(begin, "false", size) == 0) {
+        } else if (size == 5 && std::strncmp(begin, "false", size) == 0) {
             value = false;
         } else {
             return false;
@@ -2805,7 +2805,7 @@ private:
 
     struct reader {
         reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
+            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,
@@ -2866,12 +2866,12 @@ private:
         }
 
         ~reader() {
-            free(buffer_);
-            free(next_line_buffer_);
-            free(helper_buffer_);
+            std::free(buffer_);
+            std::free(next_line_buffer_);
+            std::free(helper_buffer_);
 
             if (file_) {
-                fclose(file_);
+                std::fclose(file_);
             }
         }
 
@@ -2930,7 +2930,7 @@ private:
                 if (file_) {
                     ssize = get_line_file(&next_line_buffer_,
                                           &next_line_buffer_size_, file_);
-                    curr_char_ = ftell(file_);
+                    curr_char_ = std::ftell(file_);
                 } else {
                     ssize = get_line_buffer(&next_line_buffer_,
                                             &next_line_buffer_size_,

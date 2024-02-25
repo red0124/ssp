@@ -675,7 +675,7 @@ private:
 
     struct reader {
         reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
+            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,
@@ -736,12 +736,12 @@ private:
         }
 
         ~reader() {
-            free(buffer_);
-            free(next_line_buffer_);
-            free(helper_buffer_);
+            std::free(buffer_);
+            std::free(next_line_buffer_);
+            std::free(helper_buffer_);
 
             if (file_) {
-                fclose(file_);
+                std::fclose(file_);
             }
         }
 
@@ -800,7 +800,7 @@ private:
                 if (file_) {
                     ssize = get_line_file(&next_line_buffer_,
                                           &next_line_buffer_size_, file_);
-                    curr_char_ = ftell(file_);
+                    curr_char_ = std::ftell(file_);
                 } else {
                     ssize = get_line_buffer(&next_line_buffer_,
                                             &next_line_buffer_size_,
