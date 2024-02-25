@@ -77,11 +77,55 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 
 #endif
 
+////////////////
+// numeric_wrapper
+////////////////
+
+template <typename T>
+struct numeric_wrapper {
+    using type = T;
+
+    numeric_wrapper() = default;
+    numeric_wrapper(numeric_wrapper&&) = default;
+    numeric_wrapper(const numeric_wrapper&) = default;
+
+    numeric_wrapper& operator=(numeric_wrapper&&) = default;
+    numeric_wrapper& operator=(const numeric_wrapper&) = default;
+
+    numeric_wrapper(T other) : value{other} {
+    }
+
+    operator T() {
+        return value;
+    }
+
+    operator T() const {
+        return value;
+    }
+
+    T value;
+};
+
+using int8 = numeric_wrapper<int8_t>;
+using uint8 = numeric_wrapper<uint8_t>;
+
 template <typename T>
 std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret);
+
+    if (ec != std::errc() || ptr != end) {
+        return std::nullopt;
+    }
+    return ret;
+}
+
+template <typename T>
+std::enable_if_t<is_instance_of_v<numeric_wrapper, T>, std::optional<T>> to_num(
+    const char* const begin, const char* const end) {
+    T ret;
+    auto [ptr, ec] = std::from_chars(begin, end, ret.value);
 
     if (ec != std::errc() || ptr != end) {
         return std::nullopt;
@@ -103,7 +147,8 @@ struct unsupported_type {
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
                      !is_instance_of_v<std::optional, T> &&
-                     !is_instance_of_v<std::variant, T>,
+                     !is_instance_of_v<std::variant, T> &&
+                     !is_instance_of_v<numeric_wrapper, T>,
                  bool>
 extract(const char*, const char*, T&) {
     static_assert(error::unsupported_type<T>::value,
@@ -112,7 +157,9 @@ extract(const char*, const char*, T&) {
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, bool>
+std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T> ||
+                     is_instance_of_v<numeric_wrapper, T>,
+                 bool>
 extract(const char* begin, const char* end, T& value) {
     auto optional_value = to_num<T>(begin, end);
     if (!optional_value) {
