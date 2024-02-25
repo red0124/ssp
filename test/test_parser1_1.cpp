@@ -99,17 +99,17 @@ TEST_CASE_TEMPLATE("test position method", T, ParserOptionCombinations) {
     }
 }
 
-// TODO uncomment
-/*
-TEST_CASE_TEMPLATE("test line method", BufferMode, std::true_type,
-                   std::false_type) {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("test line method", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"line_method"};
     std::vector<Y> data = {{"1", "21", "x"},   {"321", "4", "y"},
                            {"54", "6", "zz"},  {"7", "876", "uuuu"},
                            {"910", "10", "v"}, {"10", "321", "ww"}};
     make_and_write(f.name, data);
 
-    auto [p, buff] = make_parser<BufferMode::value>(f.name);
+    auto [p, buff] = make_parser<buffer_mode, ErrorMode>(f.name);
 
     auto expected_line = 0;
     CHECK_EQ(p.line(), expected_line);
@@ -122,7 +122,6 @@ TEST_CASE_TEMPLATE("test line method", BufferMode, std::true_type,
 
     CHECK_EQ(p.line(), data.size());
 }
-*/
 
 TEST_CASE_TEMPLATE("parser test various valid cases", T,
                    ParserOptionCombinations) {

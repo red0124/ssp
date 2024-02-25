@@ -78,8 +78,8 @@ struct unique_file_name {
 
     unique_file_name(const std::string& test) {
         do {
-            name = "random_" + test + "_" + std::to_string(i++) + "_" +
-                   time_now_rand() + "_file.csv";
+            name = "random_file_test_" + test + "_" + std::to_string(i++) +
+                   "_" + time_now_rand() + "_file.csv";
         } while (std::filesystem::exists(name));
     }
 

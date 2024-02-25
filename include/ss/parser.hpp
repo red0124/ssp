@@ -102,7 +102,7 @@ public:
     }
 
     size_t line() const {
-        return reader_.line_number_ > 1 ? reader_.line_number_ - 1
+        return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
     }
 
@@ -697,8 +697,7 @@ private:
               csv_data_buffer_{other.csv_data_buffer_},
               csv_data_size_{other.csv_data_size_},
               curr_char_{other.curr_char_}, crlf_{other.crlf_},
-              line_number_{other.line_number_},
-              chars_read_{other.chars_read_},
+              line_number_{other.line_number_}, chars_read_{other.chars_read_},
               next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
