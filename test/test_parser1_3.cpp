@@ -1,8 +1,10 @@
 #include "test_parser1.hpp"
 
-template <bool buffer_mode, typename... Ts>
-void test_multiline_restricted() {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("test multiline restricted", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"multiline_restricted"};
     {
         std::ofstream out{f.name};
         out << "1,2,\"just\n\nstrings\"" << std::endl;
@@ -24,8 +26,8 @@ void test_multiline_restricted() {
     auto num_errors = 0;
 
     auto [p, _] =
-        make_parser<buffer_mode, ss::multiline_restricted<2>, ss::quote<'"'>,
-                    ss::escape<'\\'>, Ts...>(f.name, ",");
+        make_parser<buffer_mode, ErrorMode, ss::multiline_restricted<2>,
+                    ss::quote<'"'>, ss::escape<'\\'>>(f.name, ",");
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -63,26 +65,20 @@ void test_multiline_restricted() {
     CHECK_EQ(i, data);
 }
 
-TEST_CASE("parser test multiline restricted") {
-    test_multiline_restricted<false>();
-    test_multiline_restricted<false, ss::string_error>();
-    test_multiline_restricted<false, ss::throw_on_error>();
-    test_multiline_restricted<true>();
-    test_multiline_restricted<true, ss::string_error>();
-    test_multiline_restricted<true, ss::throw_on_error>();
-}
+template <typename T, typename... Ts>
+void test_unterminated_line(const std::vector<std::string>& lines,
+                            size_t bad_line) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
 
-template <bool buffer_mode, typename... Ts>
-void test_unterminated_line_impl(const std::vector<std::string>& lines,
-                                 size_t bad_line) {
-    unique_file_name f{"test_parser"};
+    unique_file_name f{"unterminated_line"};
     std::ofstream out{f.name};
     for (const auto& line : lines) {
         out << line << std::endl;
     }
     out.close();
 
-    auto [p, _] = make_parser<buffer_mode, Ts...>(f.name);
+    auto [p, _] = make_parser<buffer_mode, ErrorMode, Ts...>(f.name);
     size_t line = 0;
     while (!p.eof()) {
         auto command = [&p = p] {
@@ -100,21 +96,8 @@ void test_unterminated_line_impl(const std::vector<std::string>& lines,
     }
 }
 
-template <typename... Ts>
-void test_unterminated_line(const std::vector<std::string>& lines,
-                            size_t bad_line) {
-    test_unterminated_line_impl<false, Ts...>(lines, bad_line);
-    test_unterminated_line_impl<false, Ts..., ss::string_error>(lines,
-                                                                bad_line);
-    test_unterminated_line_impl<false, Ts..., ss::throw_on_error>(lines,
-                                                                  bad_line);
-    test_unterminated_line_impl<true, Ts...>(lines, bad_line);
-    test_unterminated_line_impl<true, Ts..., ss::string_error>(lines, bad_line);
-    test_unterminated_line_impl<true, Ts..., ss::throw_on_error>(lines,
-                                                                 bad_line);
-}
-
-TEST_CASE("parser test csv on multiline with errors") {
+TEST_CASE_TEMPLATE("parser test csv on multiline with errors", T,
+                   ParserOptionCombinations) {
     using multiline = ss::multiline_restricted<3>;
     using escape = ss::escape<'\\'>;
     using quote = ss::quote<'"'>;
@@ -122,209 +105,209 @@ TEST_CASE("parser test csv on multiline with errors") {
     // unterminated escape
     {
         const std::vector<std::string> lines{"1,2,just\\"};
-        test_unterminated_line<multiline, escape>(lines, 0);
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"1,2,just\\", "9,8,second"};
-        test_unterminated_line<multiline, escape>(lines, 0);
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,just\\"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,just\\",
                                              "3,4,third"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first",
                                              "1,2,just\\\nstrings\\",
                                              "3,4,th\\\nird"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "3,4,second",
                                              "1,2,just\\"};
-        test_unterminated_line<multiline, escape>(lines, 2);
-        test_unterminated_line<multiline, escape, quote>(lines, 2);
+        test_unterminated_line<T, multiline, escape>(lines, 2);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 2);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\\first", "3,4,second",
                                              "1,2,jus\\t\\"};
-        test_unterminated_line<multiline, escape>(lines, 2);
-        test_unterminated_line<multiline, escape, quote>(lines, 2);
+        test_unterminated_line<T, multiline, escape>(lines, 2);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 2);
     }
 
     // unterminated quote
     {
         const std::vector<std::string> lines{"1,2,\"just"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
-        test_unterminated_line<multiline, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"1,2,\"just", "9,8,second"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
-        test_unterminated_line<multiline, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,\"just"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
-        test_unterminated_line<multiline, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,\"just",
                                              "3,4,th\\,ird"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
-        test_unterminated_line<multiline, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "3,4,second",
                                              "1,2,\"just"};
-        test_unterminated_line<multiline, escape, quote>(lines, 2);
-        test_unterminated_line<multiline, quote>(lines, 2);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 2);
+        test_unterminated_line<T, multiline, quote>(lines, 2);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\"first\"",
                                              "\"3\",4,\"sec,ond\"",
                                              "1,2,\"ju\"\"st"};
-        test_unterminated_line<multiline, escape, quote>(lines, 2);
-        test_unterminated_line<multiline, quote>(lines, 2);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 2);
+        test_unterminated_line<T, multiline, quote>(lines, 2);
     }
 
     // unterminated quote and escape
     {
         const std::vector<std::string> lines{"1,2,\"just\\"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"1,2,\"just\\\n\\"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"1,2,\"just\n\\"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,\"just\n\\"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first", "1,2,\"just\n\\",
                                              "4,3,thrid"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,f\\\nirst", "1,2,\"just\n\\",
                                              "4,3,thrid"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\"f\ni\nrst\"",
                                              "1,2,\"just\n\\", "4,3,thrid"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     // multiline limmit reached escape
     {
         const std::vector<std::string> lines{"1,2,\\\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape>(lines, 0);
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first",
                                              "1,2,\\\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,fi\\\nrs\\\nt",
                                              "1,2,\\\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first",
                                              "1,2,\\\n\\\n\\\n\\\njust",
                                              "4,3,third"};
-        test_unterminated_line<multiline, escape>(lines, 1);
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     // multiline limmit reached quote
     {
         const std::vector<std::string> lines{"1,2,\"\n\n\n\n\njust\""};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
-        test_unterminated_line<multiline, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first",
                                              "1,2,\"\n\n\n\n\njust\""};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
-        test_unterminated_line<multiline, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\"fir\nst\"",
                                              "1,2,\"\n\n\n\n\njust\""};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
-        test_unterminated_line<multiline, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, quote>(lines, 1);
     }
 
     // multiline limmit reached quote and escape
     {
         const std::vector<std::string> lines{"1,2,\"\\\n\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape, quote>(lines, 0);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 0);
     }
 
     {
         const std::vector<std::string> lines{"9,8,first",
                                              "1,2,\"\\\n\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,fi\\\nrst",
                                              "1,2,\"\\\n\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\"fi\nrst\"",
                                              "1,2,\"\\\n\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 
     {
         const std::vector<std::string> lines{"9,8,\"fi\nr\\\nst\"",
                                              "1,2,\"\\\n\n\\\n\\\n\\\njust"};
-        test_unterminated_line<multiline, escape, quote>(lines, 1);
+        test_unterminated_line<T, multiline, escape, quote>(lines, 1);
     }
 }

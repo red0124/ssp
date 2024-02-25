@@ -41,11 +41,16 @@ struct xyz {
     }
 };
 
-template <bool buffer_mode, typename... Ts>
-void test_moving_of_parsed_composite_values() {
+TEST_CASE_TEMPLATE("test moving of parsed composite values", T,
+                   config<std::true_type>, config<std::false_type>,
+                   config<std::true_type, ss::string_error>,
+                   config<std::false_type, ss::string_error>) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
     // to compile is enough
     return;
-    auto [p, _] = make_parser<buffer_mode, Ts...>("", "");
+    auto [p, _] = make_parser<buffer_mode, ErrorMode>("", "");
     p.template try_next<my_string, my_string, my_string>()
         .template or_else<my_string, my_string, my_string, my_string>(
             [](auto&&) {})
@@ -56,70 +61,41 @@ void test_moving_of_parsed_composite_values() {
             [](auto&, auto&, auto&) {});
 }
 
-TEST_CASE("parser test the moving of parsed composite values") {
-    test_moving_of_parsed_composite_values<false>();
-    test_moving_of_parsed_composite_values<false, ss::string_error>();
-    test_moving_of_parsed_composite_values<true>();
-    test_moving_of_parsed_composite_values<true, ss::string_error>();
-}
-
-TEST_CASE("parser test error mode") {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("parser test string error mode", BufferMode, std::true_type,
+                   std::false_type) {
+    unique_file_name f{"string_error"};
     {
         std::ofstream out{f.name};
         out << "junk" << std::endl;
         out << "junk" << std::endl;
     }
 
-    {
-        auto [p, _] = make_parser<false, ss::string_error>(f.name, ",");
+    auto [p, _] = make_parser<BufferMode::value, ss::string_error>(f.name, ",");
 
-        REQUIRE_FALSE(p.eof());
-        p.get_next<int>();
-        CHECK_FALSE(p.valid());
-        CHECK_FALSE(p.error_msg().empty());
-    }
-
-    {
-        auto [p, _] = make_parser<true, ss::string_error>(f.name, ",");
-
-        REQUIRE_FALSE(p.eof());
-        p.get_next<int>();
-        CHECK_FALSE(p.valid());
-        CHECK_FALSE(p.error_msg().empty());
-    }
+    REQUIRE_FALSE(p.eof());
+    p.template get_next<int>();
+    CHECK_FALSE(p.valid());
+    CHECK_FALSE(p.error_msg().empty());
 }
 
-TEST_CASE("parser throw on error mode") {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("parser throw on error mode", BufferMode, std::true_type,
+                   std::false_type) {
+    unique_file_name f{"throw_on_error"};
     {
         std::ofstream out{f.name};
         out << "junk" << std::endl;
         out << "junk" << std::endl;
     }
 
-    {
-        auto [p, _] = make_parser<false, ss::throw_on_error>(f.name, ",");
+    auto [p, _] =
+        make_parser<BufferMode::value, ss::throw_on_error>(f.name, ",");
 
-        REQUIRE_FALSE(p.eof());
-        try {
-            p.get_next<int>();
-            FAIL("Expected exception...");
-        } catch (const std::exception& e) {
-            CHECK_FALSE(std::string{e.what()}.empty());
-        }
-    }
-
-    {
-        auto [p, _] = make_parser<true, ss::throw_on_error>(f.name, ",");
-
-        REQUIRE_FALSE(p.eof());
-        try {
-            p.get_next<int>();
-            FAIL("Expected exception...");
-        } catch (const std::exception& e) {
-            CHECK_FALSE(std::string{e.what()}.empty());
-        }
+    REQUIRE_FALSE(p.eof());
+    try {
+        p.template get_next<int>();
+        FAIL("Expected exception...");
+    } catch (const std::exception& e) {
+        CHECK_FALSE(std::string{e.what()}.empty());
     }
 }
 
@@ -130,9 +106,11 @@ static inline std::string no_quote(const std::string& s) {
     return s;
 }
 
-template <bool buffer_mode, typename... Ts>
-void test_quote_multiline() {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("test quote multiline", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"quote_multiline"};
     std::vector<X> data = {{1, 2, "\"x\r\nx\nx\""},
                            {3, 4, "\"y\ny\r\ny\""},
                            {5, 6, "\"z\nz\""},
@@ -151,9 +129,8 @@ void test_quote_multiline() {
         }
     }
 
-    auto [p, _] =
-        make_parser<buffer_mode, ss::multiline, ss::quote<'"'>, Ts...>(f.name,
-                                                                       ",");
+    auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::multiline,
+                              ss::quote<'"'>>(f.name, ",");
 
     std::vector<X> i;
 
@@ -168,7 +145,7 @@ void test_quote_multiline() {
     CHECK_EQ(i, data);
 
     auto [p_no_multiline, __] =
-        make_parser<buffer_mode, ss::quote<'"'>, Ts...>(f.name, ",");
+        make_parser<buffer_mode, ErrorMode, ss::quote<'"'>>(f.name, ",");
     while (!p.eof()) {
         auto command = [&p_no_multiline = p_no_multiline] {
             p_no_multiline.template get_next<int, double, std::string>();
@@ -177,23 +154,16 @@ void test_quote_multiline() {
     }
 }
 
-TEST_CASE("parser test csv on multiple lines with quotes") {
-    test_quote_multiline<false>();
-    test_quote_multiline<false, ss::string_error>();
-    test_quote_multiline<false, ss::throw_on_error>();
-    test_quote_multiline<true>();
-    test_quote_multiline<true, ss::string_error>();
-    test_quote_multiline<true, ss::throw_on_error>();
-}
-
 static inline std::string no_escape(std::string& s) {
     s.erase(std::remove(begin(s), end(s), '\\'), end(s));
     return s;
 }
 
-template <bool buffer_mode, typename... Ts>
-void test_escape_multiline() {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("test escape multiline", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"escape_multiline"};
     std::vector<X> data = {{1, 2, "x\\\nx\\\r\nx"},
                            {5, 6, "z\\\nz\\\nz"},
                            {7, 8, "u"},
@@ -212,9 +182,8 @@ void test_escape_multiline() {
         }
     }
 
-    auto [p, _] =
-        make_parser<buffer_mode, ss::multiline, ss::escape<'\\'>, Ts...>(f.name,
-                                                                         ",");
+    auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::multiline,
+                              ss::escape<'\\'>>(f.name, ",");
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -228,7 +197,7 @@ void test_escape_multiline() {
     CHECK_EQ(i, data);
 
     auto [p_no_multiline, __] =
-        make_parser<buffer_mode, ss::escape<'\\'>, Ts...>(f.name, ",");
+        make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>>(f.name, ",");
     while (!p.eof()) {
         auto command = [&p_no_multiline = p_no_multiline] {
             auto a =
@@ -238,18 +207,11 @@ void test_escape_multiline() {
     }
 }
 
-TEST_CASE("parser test csv on multiple lines with escapes") {
-    test_escape_multiline<false>();
-    test_escape_multiline<false, ss::string_error>();
-    test_escape_multiline<false, ss::throw_on_error>();
-    test_escape_multiline<true>();
-    test_escape_multiline<true, ss::string_error>();
-    test_escape_multiline<true, ss::throw_on_error>();
-}
+TEST_CASE_TEMPLATE("test quote escape multiline", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
 
-template <bool buffer_mode, typename... Ts>
-void test_quote_escape_multiline() {
-    unique_file_name f{"test_parser"};
+    unique_file_name f{"quote_escape_multiline"};
     {
         std::ofstream out{f.name};
         out << "1,2,\"just\\\n\nstrings\"" << std::endl;
@@ -266,8 +228,8 @@ void test_quote_escape_multiline() {
     size_t bad_lines = 1;
     auto num_errors = 0;
 
-    auto [p, _] = make_parser<buffer_mode, ss::multiline, ss::escape<'\\'>,
-                              ss::quote<'"'>, Ts...>(f.name);
+    auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::multiline,
+                              ss::escape<'\\'>, ss::quote<'"'>>(f.name);
     std::vector<X> i;
 
     while (!p.eof()) {
@@ -297,13 +259,4 @@ void test_quote_escape_multiline() {
         update_if_crlf(s);
     }
     CHECK_EQ(i, data);
-}
-
-TEST_CASE("parser test csv on multiple lines with quotes and escapes") {
-    test_quote_escape_multiline<false>();
-    test_quote_escape_multiline<false, ss::string_error>();
-    test_quote_escape_multiline<false, ss::throw_on_error>();
-    test_quote_escape_multiline<true>();
-    test_quote_escape_multiline<true, ss::string_error>();
-    test_quote_escape_multiline<true, ss::throw_on_error>();
 }

@@ -1,7 +1,7 @@
 #include "test_parser1.hpp"
 
 TEST_CASE("test file not found") {
-    unique_file_name f{"test_parser"};
+    unique_file_name f{"file_not_found"};
 
     {
         ss::parser p{f.name, ","};
@@ -11,6 +11,7 @@ TEST_CASE("test file not found") {
     {
         ss::parser<ss::string_error> p{f.name, ","};
         CHECK_FALSE(p.valid());
+        CHECK_FALSE(p.error_msg().empty());
     }
 
     try {
@@ -30,6 +31,7 @@ TEST_CASE("test null buffer") {
     {
         ss::parser<ss::string_error> p{nullptr, 10, ","};
         CHECK_FALSE(p.valid());
+        CHECK_FALSE(p.error_msg().empty());
     }
 
     try {
@@ -40,20 +42,105 @@ TEST_CASE("test null buffer") {
     }
 }
 
-template <bool buffer_mode, typename... Ts>
-void test_various_cases() {
+struct Y {
+    constexpr static auto delim = ",";
+    std::string s1;
+    std::string s2;
+    std::string s3;
+
+    std::string to_string() const {
+        return std::string{}
+            .append(s1)
+            .append(delim)
+            .append(s2)
+            .append(delim)
+            .append(s3);
+    }
+
+    auto tied() const {
+        return std::tie(s1, s2, s3);
+    }
+};
+
+TEST_CASE_TEMPLATE("test position method", T, ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"position_method"};
+    std::vector<Y> data = {{"1", "21", "x"},   {"321", "4", "y"},
+                           {"54", "6", "zz"},  {"7", "876", "uuuu"},
+                           {"910", "10", "v"}, {"10", "321", "ww"}};
+    make_and_write(f.name, data);
+
+    auto [p, buff] = make_parser<buffer_mode, ErrorMode>(f.name);
+    auto data_at = [&buff = buff, &f = f](auto n) {
+        if (!buff.empty()) {
+            return buff[n];
+        } else {
+            auto file = fopen(f.name.c_str(), "r");
+            fseek(file, n, SEEK_SET);
+            return static_cast<char>(fgetc(file));
+        }
+    };
+
+    while (!p.eof()) {
+        auto curr_char = p.position();
+        const auto& [s1, s2, s3] =
+            p.template get_next<std::string, std::string, std::string>();
+
+        auto s = s1 + "," + s2 + "," + s3;
+
+        for (size_t i = 0; i < s1.size(); ++i) {
+            CHECK_EQ(data_at(curr_char + i), s[i]);
+        }
+
+        auto last_char = data_at(curr_char + s.size());
+        CHECK((last_char == '\n' || last_char == '\r'));
+    }
+}
+
+// TODO uncomment
+/*
+TEST_CASE_TEMPLATE("test line method", BufferMode, std::true_type,
+                   std::false_type) {
     unique_file_name f{"test_parser"};
+    std::vector<Y> data = {{"1", "21", "x"},   {"321", "4", "y"},
+                           {"54", "6", "zz"},  {"7", "876", "uuuu"},
+                           {"910", "10", "v"}, {"10", "321", "ww"}};
+    make_and_write(f.name, data);
+
+    auto [p, buff] = make_parser<BufferMode::value>(f.name);
+
+    auto expected_line = 0;
+    CHECK_EQ(p.line(), expected_line);
+
+    while (!p.eof()) {
+        auto _ = p.template get_next<std::string, std::string, std::string>();
+        ++expected_line;
+        CHECK_EQ(p.line(), expected_line);
+    }
+
+    CHECK_EQ(p.line(), data.size());
+}
+*/
+
+TEST_CASE_TEMPLATE("parser test various valid cases", T,
+                   ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"various_valid_cases"};
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
     make_and_write(f.name, data);
     auto csv_data_buffer = make_buffer(f.name);
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         ss::parser p0{std::move(p)};
         p = std::move(p0);
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
         auto move_rotate = [&p = p, &p0 = p0] {
@@ -77,13 +164,13 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
-        auto [p3, ___] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p3, ___] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i3;
 
         std::vector<X> expected = {std::begin(data) + 1, std::end(data)};
@@ -112,9 +199,9 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
@@ -131,7 +218,7 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
         for (auto&& a :
@@ -143,10 +230,10 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
         using tup = std::tuple<int, double, std::string>;
@@ -164,7 +251,7 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
         using tup = std::tuple<int, double, std::string>;
@@ -176,7 +263,7 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
         while (!p.eof()) {
@@ -187,7 +274,7 @@ void test_various_cases() {
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
         for (auto&& a : p.template iterate<X>()) {
@@ -199,10 +286,10 @@ void test_various_cases() {
 
     {
         constexpr int excluded = 3;
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
@@ -217,7 +304,7 @@ void test_various_cases() {
             };
         }
 
-        if (!ss::setup<Ts...>::throw_on_error) {
+        if (!T::ThrowOnError) {
             for (auto&& a : p2.template iterate_object<X, ss::ax<int, excluded>,
                                                        double, std::string>()) {
                 if (p2.valid()) {
@@ -237,16 +324,16 @@ void test_various_cases() {
                      [&](const X& x) { return x.i != excluded; });
         CHECK_EQ(i, expected);
 
-        if (!ss::setup<Ts...>::throw_on_error) {
+        if (!T::ThrowOnError) {
             CHECK_EQ(i2, expected);
         }
     }
 
     {
-        auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
@@ -261,7 +348,7 @@ void test_various_cases() {
             }
         }
 
-        if (!ss::setup<Ts...>::throw_on_error) {
+        if (!T::ThrowOnError) {
             for (auto&& a : p2.template iterate_object<X, ss::nx<int, 3>,
                                                        double, std::string>()) {
                 if (p2.valid()) {
@@ -272,21 +359,21 @@ void test_various_cases() {
 
         std::vector<X> expected = {{3, 4, "y"}};
         CHECK_EQ(i, expected);
-        if (!ss::setup<Ts...>::throw_on_error) {
+        if (!T::ThrowOnError) {
             CHECK_EQ(i2, expected);
         }
     }
 
     {
-        unique_file_name empty_f{"test_parser"};
+        unique_file_name empty_f{"various_valid_cases"};
         std::vector<X> empty_data = {};
 
         make_and_write(empty_f.name, empty_data);
 
-        auto [p, _] = make_parser<buffer_mode, Ts...>(empty_f.name, ",");
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(empty_f.name, ",");
         std::vector<X> i;
 
-        auto [p2, __] = make_parser<buffer_mode, Ts...>(empty_f.name, ",");
+        auto [p2, __] = make_parser<buffer_mode, ErrorMode>(empty_f.name, ",");
         std::vector<X> i2;
 
         while (!p.eof()) {
@@ -302,15 +389,6 @@ void test_various_cases() {
     }
 }
 
-TEST_CASE("parser test various cases") {
-    test_various_cases<false>();
-    test_various_cases<false, ss::string_error>();
-    test_various_cases<false, ss::throw_on_error>();
-    test_various_cases<true>();
-    test_various_cases<true, ss::string_error>();
-    test_various_cases<true, ss::throw_on_error>();
-}
-
 using test_tuple = std::tuple<double, char, double>;
 struct test_struct {
     int i;
@@ -324,9 +402,10 @@ struct test_struct {
 static inline void expect_test_struct(const test_struct&) {
 }
 
-template <bool buffer_mode, typename... Ts>
-void test_composite_conversion() {
-    unique_file_name f{"test_parser"};
+TEST_CASE_TEMPLATE("parser test composite conversion", BufferMode,
+                   std::true_type, std::false_type) {
+    constexpr auto buffer_mode = BufferMode::value;
+    unique_file_name f{"composite_conversion"};
     {
         std::ofstream out{f.name};
         for (auto& i :
@@ -336,7 +415,7 @@ void test_composite_conversion() {
         }
     }
 
-    auto [p, _] = make_parser<buffer_mode, Ts...>(f.name, ",");
+    auto [p, _] = make_parser<buffer_mode, ss::string_error>(f.name, ",");
     auto fail = [] { FAIL(""); };
     auto expect_error = [](auto error) { CHECK(!error.empty()); };
     auto ignore_error = [] {};
@@ -546,18 +625,12 @@ void test_composite_conversion() {
     CHECK(p.eof());
 }
 
-// various scenarios
-TEST_CASE("parser test composite conversion") {
-    test_composite_conversion<false, ss::string_error>();
-    test_composite_conversion<true, ss::string_error>();
-}
-
-template <bool buffer_mode>
+template <bool buffer_mode, typename... Ts>
 void test_no_new_line_at_eof_impl(const std::vector<X>& data) {
-    unique_file_name f{"test_parser"};
+    unique_file_name f{"no_new_line_at_eof"};
     make_and_write(f.name, data, {}, false);
 
-    auto [p, _] = make_parser<buffer_mode>(f.name);
+    auto [p, _] = make_parser<buffer_mode, Ts...>(f.name);
     std::vector<X> parsed_data;
 
     for (const auto& el : p.template iterate<X>()) {
@@ -567,32 +640,36 @@ void test_no_new_line_at_eof_impl(const std::vector<X>& data) {
     CHECK_EQ(data, parsed_data);
 }
 
-template <bool buffer_mode>
+template <bool buffer_mode, typename... Ts>
 void test_no_new_line_at_eof() {
-    test_no_new_line_at_eof_impl<buffer_mode>({});
-    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}});
-    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {}});
-    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {3, 4, "YY"}});
-    test_no_new_line_at_eof_impl<buffer_mode>({{1, 2, "X"}, {3, 4, "YY"}, {}});
-    test_no_new_line_at_eof_impl<buffer_mode>(
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>({});
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>({{1, 2, "X"}});
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>({{1, 2, "X"}, {}});
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
+        {{1, 2, "X"}, {3, 4, "YY"}});
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
+        {{1, 2, "X"}, {3, 4, "YY"}, {}});
+    test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
         {{1, 2, "X"}, {3, 4, "YY"}, {5, 6, "ZZZ"}, {7, 8, "UUU"}});
 
     for (size_t i = 0; i < 2 * ss::get_line_initial_buffer_size; ++i) {
-        test_no_new_line_at_eof_impl<buffer_mode>(
+        test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
             {{1, 2, std::string(i, 'X')}});
 
         for (size_t j = 0; j < 2 * ss::get_line_initial_buffer_size; j += 13) {
 
-            test_no_new_line_at_eof_impl<buffer_mode>(
+            test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
                 {{1, 2, std::string(i, 'X')}, {3, 4, std::string(j, 'Y')}});
 
-            test_no_new_line_at_eof_impl<buffer_mode>(
+            test_no_new_line_at_eof_impl<buffer_mode, Ts...>(
                 {{1, 2, std::string(j, 'X')}, {3, 4, std::string(i, 'Y')}});
         }
     }
 }
 
-TEST_CASE("test no new line at end of data") {
-    test_no_new_line_at_eof<false>();
-    test_no_new_line_at_eof<true>();
+TEST_CASE_TEMPLATE("test no new line at end of data", T,
+                   ParserOptionCombinations) {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+    test_no_new_line_at_eof<buffer_mode, ErrorMode>();
 }

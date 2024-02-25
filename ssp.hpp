@@ -646,7 +646,7 @@ inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
 }
 #else
 
-using ssize_t = int64_t;
+using ssize_t = intptr_t;
 
 ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
     if (lineptr == nullptr || n == nullptr || fp == nullptr) {
@@ -670,14 +670,15 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
     (*lineptr)[0] = '\0';
 
+    size_t line_used = 0;
     while (fgets(buff, sizeof(buff), fp) != nullptr) {
-        size_t line_used = strlen(*lineptr);
+        line_used = strlen(*lineptr);
         size_t buff_used = strlen(buff);
 
-        if (*n < buff_used + line_used) {
+        if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
 
-            auto new_lineptr = static_cast<char*>(realloc(*lineptr, *n));
+            auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
             if (new_lineptr == nullptr) {
                 errno = ENOMEM;
                 return -1;
@@ -696,7 +697,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
         }
     }
 
-    return -1;
+    return (line_used != 0) ? line_used : -1;
 }
 
 #endif
@@ -866,25 +867,25 @@ using get_multiline_t = typename get_multiline<Ts...>::type;
 // string_error
 ////////////////
 
-class string_error;
+class string_error {};
 
 ////////////////
 // ignore_header
 ////////////////
 
-class ignore_header;
+class ignore_header {};
 
 ////////////////
 // ignore_empty
 ////////////////
 
-class ignore_empty;
+class ignore_empty {};
 
 ////////////////
 // throw_on_error
 ////////////////
 
-class throw_on_error;
+class throw_on_error {};
 
 ////////////////
 // setup implementation
@@ -2238,6 +2239,10 @@ public:
                                         : reader_.line_number_;
     }
 
+    size_t position() const {
+        return reader_.chars_read_;
+    }
+
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
         std::optional<std::string> error;
@@ -2826,6 +2831,7 @@ private:
               csv_data_size_{other.csv_data_size_},
               curr_char_{other.curr_char_}, crlf_{other.crlf_},
               line_number_{other.line_number_},
+              chars_read_{other.chars_read_},
               next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
@@ -2850,12 +2856,14 @@ private:
                 curr_char_ = other.curr_char_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
+                chars_read_ = other.chars_read_;
                 next_line_size_ = other.next_line_size_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
                 other.helper_buffer_ = nullptr;
                 other.file_ = nullptr;
+                other.csv_data_buffer_ = nullptr;
             }
 
             return *this;
@@ -2876,50 +2884,52 @@ private:
         reader& operator=(const reader& other) = delete;
 
         ssize_t get_line_buffer(char** lineptr, size_t* n,
-                                const char* const buffer, size_t csv_data_size,
-                                size_t& curr_char) {
-            size_t pos;
-            int c;
+                                const char* const csv_data_buffer,
+                                size_t csv_data_size, size_t& curr_char) {
+            if (lineptr == nullptr || n == nullptr ||
+                csv_data_buffer == nullptr) {
+                errno = EINVAL;
+                return -1;
+            }
 
             if (curr_char >= csv_data_size) {
                 return -1;
             }
-            c = buffer[curr_char++];
 
-            if (*lineptr == nullptr) {
-                *lineptr =
-                    static_cast<char*>(malloc(get_line_initial_buffer_size));
-                if (*lineptr == nullptr) {
+            if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
+                auto new_lineptr = static_cast<char*>(
+                    realloc(*lineptr, get_line_initial_buffer_size));
+                if (new_lineptr == nullptr) {
                     return -1;
                 }
-                *n = 128;
+                *lineptr = new_lineptr;
+                *n = get_line_initial_buffer_size;
             }
 
-            pos = 0;
+            size_t line_used = 0;
             while (curr_char <= csv_data_size) {
-                if (pos + 1 >= *n) {
-                    size_t new_size = *n + (*n >> 2);
-                    if (new_size < get_line_initial_buffer_size) {
-                        new_size = get_line_initial_buffer_size;
-                    }
-                    char* new_ptr = static_cast<char*>(
-                        realloc(static_cast<void*>(*lineptr), new_size));
-                    if (new_ptr == nullptr) {
+                if (line_used + 1 >= *n) {
+                    size_t new_n = *n * 2;
+
+                    char* new_lineptr =
+                        static_cast<char*>(realloc(*lineptr, new_n));
+                    if (new_lineptr == nullptr) {
+                        errno = ENOMEM;
                         return -1;
                     }
-                    *n = new_size;
-                    *lineptr = new_ptr;
+                    *n = new_n;
+                    *lineptr = new_lineptr;
                 }
 
-                (*lineptr)[pos++] = c;
+                auto c = csv_data_buffer[curr_char++];
+                (*lineptr)[line_used++] = c;
                 if (c == '\n') {
-                    break;
+                    (*lineptr)[line_used] = '\0';
+                    return line_used;
                 }
-                c = buffer[curr_char++];
             }
 
-            (*lineptr)[pos] = '\0';
-            return pos;
+            return (line_used != 0) ? line_used : -1;
         }
 
         // read next line each time in order to set eof_
@@ -2933,9 +2943,11 @@ private:
                     next_line_buffer_[0] = '\0';
                 }
 
+                chars_read_ = curr_char_;
                 if (file_) {
                     ssize = get_line_file(&next_line_buffer_,
                                           &next_line_buffer_size_, file_);
+                    curr_char_ = ftell(file_);
                 } else {
                     ssize = get_line_buffer(&next_line_buffer_,
                                             &next_line_buffer_size_,
@@ -3139,6 +3151,7 @@ private:
 
         bool crlf_{false};
         size_t line_number_{0};
+        size_t chars_read_{0};
 
         size_t next_line_size_{0};
     };

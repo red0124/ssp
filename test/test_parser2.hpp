@@ -314,7 +314,7 @@ void test_data_combinations(const std::vector<column>& input_data,
         return;
     }
 
-    unique_file_name f{"test_parser2" + std::string{SEGMENT_NAME}};
+    unique_file_name f{"parser_data_combinations" + std::string{SEGMENT_NAME}};
     std::vector<std::vector<field>> expected_data;
     std::vector<std::string> header;
     std::vector<field> field_header;

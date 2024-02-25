@@ -1,12 +1,14 @@
 #pragma once
+#include <algorithm>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <ss/common.hpp>
+#include <ss/setup.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <fstream>
 
 #ifdef CMAKE_GITHUB_CI
 #include <doctest/doctest.h>
@@ -20,6 +22,24 @@ class parser;
 } /* ss */
 
 namespace {
+
+struct bool_error {};
+
+template <typename T, typename U = bool_error>
+struct config {
+    using BufferMode = T;
+    using ErrorMode = U;
+
+    constexpr static auto ThrowOnError = std::is_same_v<U, ss::throw_on_error>;
+    constexpr static auto StringError = std::is_same_v<U, ss::string_error>;
+};
+
+#define ParserOptionCombinations                                               \
+    config<std::true_type>, config<std::true_type, ss::string_error>,          \
+        config<std::true_type, ss::throw_on_error>, config<std::false_type>,   \
+        config<std::false_type, ss::string_error>,                             \
+        config<std::false_type, ss::throw_on_error>
+
 struct buffer {
     std::string data_;
 
@@ -172,23 +192,32 @@ template <typename T>
 }
 
 template <bool buffer_mode, typename... Ts>
-[[maybe_unused]] std::tuple<ss::parser<Ts...>, std::string> make_parser(
-    const std::string& file_name, const std::string& delim = "") {
+std::tuple<ss::parser<Ts...>, std::string> make_parser_impl(
+    const std::string& file_name, std::string delim = ss::default_delimiter) {
     if (buffer_mode) {
         auto buffer = make_buffer(file_name);
-        if (delim.empty()) {
-            return {ss::parser<Ts...>{buffer.data(), buffer.size()},
-                    std::move(buffer)};
-        } else {
-            return {ss::parser<Ts...>{buffer.data(), buffer.size(), delim},
-                    std::move(buffer)};
-        }
+        return {ss::parser<Ts...>{buffer.data(), buffer.size(), delim},
+                std::move(buffer)};
     } else {
-        if (delim.empty()) {
-            return {ss::parser<Ts...>{file_name}, std::string{}};
-        } else {
-            return {ss::parser<Ts...>{file_name, delim}, std::string{}};
-        }
+        return {ss::parser<Ts...>{file_name, delim}, std::string{}};
     }
 }
+
+template <bool buffer_mode, typename ErrorMode, typename... Ts>
+[[maybe_unused]] std::enable_if_t<
+    !std::is_same_v<ErrorMode, bool_error>,
+    std::tuple<ss::parser<ErrorMode, Ts...>, std::string>>
+make_parser(const std::string& file_name,
+            std::string delim = ss::default_delimiter) {
+    return make_parser_impl<buffer_mode, ErrorMode, Ts...>(file_name, delim);
+}
+
+template <bool buffer_mode, typename ErrorMode, typename... Ts>
+[[maybe_unused]] std::enable_if_t<std::is_same_v<ErrorMode, bool_error>,
+                                  std::tuple<ss::parser<Ts...>, std::string>>
+make_parser(const std::string& file_name,
+            std::string delim = ss::default_delimiter) {
+    return make_parser_impl<buffer_mode, Ts...>(file_name, delim);
+}
+
 } /* namespace */

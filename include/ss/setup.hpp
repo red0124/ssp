@@ -165,25 +165,25 @@ using get_multiline_t = typename get_multiline<Ts...>::type;
 // string_error
 ////////////////
 
-class string_error;
+class string_error {};
 
 ////////////////
 // ignore_header
 ////////////////
 
-class ignore_header;
+class ignore_header {};
 
 ////////////////
 // ignore_empty
 ////////////////
 
-class ignore_empty;
+class ignore_empty {};
 
 ////////////////
 // throw_on_error
 ////////////////
 
-class throw_on_error;
+class throw_on_error {};
 
 ////////////////
 // setup implementation

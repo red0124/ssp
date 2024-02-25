@@ -106,6 +106,10 @@ public:
                                         : reader_.line_number_;
     }
 
+    size_t position() const {
+        return reader_.chars_read_;
+    }
+
     template <typename T, typename... Ts>
     no_void_validator_tup_t<T, Ts...> get_next() {
         std::optional<std::string> error;
@@ -694,6 +698,7 @@ private:
               csv_data_size_{other.csv_data_size_},
               curr_char_{other.curr_char_}, crlf_{other.crlf_},
               line_number_{other.line_number_},
+              chars_read_{other.chars_read_},
               next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
@@ -718,12 +723,14 @@ private:
                 curr_char_ = other.curr_char_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
+                chars_read_ = other.chars_read_;
                 next_line_size_ = other.next_line_size_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
                 other.helper_buffer_ = nullptr;
                 other.file_ = nullptr;
+                other.csv_data_buffer_ = nullptr;
             }
 
             return *this;
@@ -803,9 +810,11 @@ private:
                     next_line_buffer_[0] = '\0';
                 }
 
+                chars_read_ = curr_char_;
                 if (file_) {
                     ssize = get_line_file(&next_line_buffer_,
                                           &next_line_buffer_size_, file_);
+                    curr_char_ = ftell(file_);
                 } else {
                     ssize = get_line_buffer(&next_line_buffer_,
                                             &next_line_buffer_size_,
@@ -1009,6 +1018,7 @@ private:
 
         bool crlf_{false};
         size_t line_number_{0};
+        size_t chars_read_{0};
 
         size_t next_line_size_{0};
     };
