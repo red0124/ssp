@@ -667,7 +667,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
     if (*lineptr == nullptr || *n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
-        lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
+        *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
         *n = new_n;
     }
 
@@ -680,7 +680,8 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
-            lineptr = static_cast<char*>(realloc(*lineptr, new_n));
+
+            *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
             *n = new_n;
         }
 
