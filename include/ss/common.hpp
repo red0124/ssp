@@ -28,6 +28,15 @@ inline void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
+inline void* strict_realloc(void* ptr, size_t size) {
+    ptr = realloc(ptr, size);
+    if (!ptr) {
+        throw std::bad_alloc{};
+    }
+
+    return ptr;
+}
+
 #if __unix__
 inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
@@ -46,13 +55,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
     if (*lineptr == nullptr || *n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
-        auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-        if (new_lineptr == nullptr) {
-            errno = ENOMEM;
-            return -1;
-        }
-
-        *lineptr = new_lineptr;
+        lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
         *n = new_n;
     }
 
@@ -66,13 +69,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
 
-            auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-            if (new_lineptr == nullptr) {
-                errno = ENOMEM;
-                return -1;
-            }
-
-            *lineptr = new_lineptr;
+            lineptr = static_cast<char*>(realloc(*lineptr, new_n));
             *n = new_n;
         }
 

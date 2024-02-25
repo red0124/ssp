@@ -764,10 +764,7 @@ private:
 
             if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
                 auto new_lineptr = static_cast<char*>(
-                    realloc(*lineptr, get_line_initial_buffer_size));
-                if (new_lineptr == nullptr) {
-                    return -1;
-                }
+                    strict_realloc(*lineptr, get_line_initial_buffer_size));
                 *lineptr = new_lineptr;
                 *n = get_line_initial_buffer_size;
             }
@@ -778,11 +775,7 @@ private:
                     size_t new_n = *n * 2;
 
                     char* new_lineptr =
-                        static_cast<char*>(realloc(*lineptr, new_n));
-                    if (new_lineptr == nullptr) {
-                        errno = ENOMEM;
-                        return -1;
-                    }
+                        static_cast<char*>(strict_realloc(*lineptr, new_n));
                     *n = new_n;
                     *lineptr = new_lineptr;
                 }
@@ -955,10 +948,7 @@ private:
                             size_t second_size) {
             buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
-                realloc(static_cast<void*>(first), buffer_size));
-            if (!new_first) {
-                throw std::bad_alloc{};
-            }
+                strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;
             std::copy_n(second, second_size + 1, first + first_size);

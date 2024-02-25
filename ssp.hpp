@@ -640,6 +640,15 @@ inline void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
+inline void* strict_realloc(void* ptr, size_t size) {
+    ptr = realloc(ptr, size);
+    if (!ptr) {
+        throw std::bad_alloc{};
+    }
+
+    return ptr;
+}
+
 #if __unix__
 inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
@@ -658,13 +667,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
     if (*lineptr == nullptr || *n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
-        auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-        if (new_lineptr == nullptr) {
-            errno = ENOMEM;
-            return -1;
-        }
-
-        *lineptr = new_lineptr;
+        lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
         *n = new_n;
     }
 
@@ -677,14 +680,7 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
-
-            auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-            if (new_lineptr == nullptr) {
-                errno = ENOMEM;
-                return -1;
-            }
-
-            *lineptr = new_lineptr;
+            lineptr = static_cast<char*>(realloc(*lineptr, new_n));
             *n = new_n;
         }
 
@@ -2235,7 +2231,7 @@ public:
     }
 
     size_t line() const {
-        return reader_.line_number_ > 1 ? reader_.line_number_ - 1
+        return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
     }
 
@@ -2347,7 +2343,7 @@ public:
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
 
-        if (line() == 1) {
+        if (line() == 0) {
             ignore_next();
         }
     }
@@ -2830,8 +2826,7 @@ private:
               csv_data_buffer_{other.csv_data_buffer_},
               csv_data_size_{other.csv_data_size_},
               curr_char_{other.curr_char_}, crlf_{other.crlf_},
-              line_number_{other.line_number_},
-              chars_read_{other.chars_read_},
+              line_number_{other.line_number_}, chars_read_{other.chars_read_},
               next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
@@ -2898,10 +2893,7 @@ private:
 
             if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
                 auto new_lineptr = static_cast<char*>(
-                    realloc(*lineptr, get_line_initial_buffer_size));
-                if (new_lineptr == nullptr) {
-                    return -1;
-                }
+                    strict_realloc(*lineptr, get_line_initial_buffer_size));
                 *lineptr = new_lineptr;
                 *n = get_line_initial_buffer_size;
             }
@@ -2912,11 +2904,7 @@ private:
                     size_t new_n = *n * 2;
 
                     char* new_lineptr =
-                        static_cast<char*>(realloc(*lineptr, new_n));
-                    if (new_lineptr == nullptr) {
-                        errno = ENOMEM;
-                        return -1;
-                    }
+                        static_cast<char*>(strict_realloc(*lineptr, new_n));
                     *n = new_n;
                     *lineptr = new_lineptr;
                 }
@@ -3089,10 +3077,7 @@ private:
                             size_t second_size) {
             buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
-                realloc(static_cast<void*>(first), buffer_size));
-            if (!new_first) {
-                throw std::bad_alloc{};
-            }
+                strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;
             std::copy_n(second, second_size + 1, first + first_size);
