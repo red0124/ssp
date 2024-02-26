@@ -2,15 +2,31 @@
 #include <algorithm>
 #include <ss/extract.hpp>
 
-template <typename T>
-struct std::numeric_limits<ss::numeric_wrapper<T>>
-    : public std::numeric_limits<T> {};
+namespace {
 
 template <typename T>
-struct std::is_signed<ss::numeric_wrapper<T>> : public std::is_signed<T> {};
+struct numeric_limits : public std::numeric_limits<T> {};
 
 template <typename T>
-struct std::is_unsigned<ss::numeric_wrapper<T>> : public std::is_unsigned<T> {};
+struct numeric_limits<ss::numeric_wrapper<T>> : public std::numeric_limits<T> {
+};
+
+template <typename T>
+struct is_signed : public std::is_signed<T> {};
+
+template <>
+struct is_signed<ss::int8> : public std::true_type {};
+
+template <typename T>
+struct is_unsigned : public std::is_unsigned<T> {};
+
+template <>
+struct is_unsigned<ss::uint8> : public std::true_type {};
+
+} /* namespace */
+
+static_assert(is_signed<ss::int8>::value);
+static_assert(is_unsigned<ss::uint8>::value);
 
 TEST_CASE("testing extract functions for floating point values") {
     CHECK_FLOATING_CONVERSION(123.456, float);
@@ -38,7 +54,7 @@ TEST_CASE("testing extract functions for floating point values") {
         CHECK_EQ(value, type(input));                                          \
     }                                                                          \
     /* check negative too */                                                   \
-    if (std::is_signed_v<type>) {                                              \
+    if (is_signed<type>::value) {                                              \
         std::string s = std::string("-") + #input;                             \
         type value;                                                            \
         bool valid = ss::extract(s.c_str(), s.c_str() + s.size(), value);      \
@@ -89,7 +105,7 @@ TEST_CASE_TEMPLATE(
     "extract test functions for numbers with out of range inputs", T, short, us,
     int, ui, long, ul, ll, ull, ss::uint8) {
     {
-        std::string s = std::to_string(std::numeric_limits<T>::max());
+        std::string s = std::to_string(numeric_limits<T>::max());
         auto t = ss::to_num<T>(s.c_str(), s.c_str() + s.size());
         CHECK(t.has_value());
         for (auto& i : s) {
@@ -102,14 +118,14 @@ TEST_CASE_TEMPLATE(
         CHECK_FALSE(t.has_value());
     }
     {
-        std::string s = std::to_string(std::numeric_limits<T>::min());
+        std::string s = std::to_string(numeric_limits<T>::min());
         auto t = ss::to_num<T>(s.c_str(), s.c_str() + s.size());
         CHECK(t.has_value());
         for (auto& i : s) {
-            if (std::is_signed_v<T> && i != '9' && i != '.') {
+            if (is_signed<T>::value && i != '9' && i != '.') {
                 i = '9';
                 break;
-            } else if (std::is_unsigned_v<T>) {
+            } else if (is_unsigned<T>::value) {
                 s = "-1";
                 break;
             }
