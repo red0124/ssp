@@ -119,7 +119,7 @@ TEST_CASE_TEMPLATE("converter test valid conversions", T, int, ss::uint8) {
             c.convert<void, std::variant<T, double>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<T>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{5}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{T(5)}, 6.6));
     }
     {
         auto tup =
@@ -248,7 +248,7 @@ TEST_CASE_TEMPLATE("converter test valid conversions with exceptions", T, int,
             c.convert<void, std::variant<T, double>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<T>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{5}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{T(5)}, 6.6));
     } catch (ss::exception& e) {
         FAIL(std::string{e.what()});
     }
