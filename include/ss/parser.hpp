@@ -5,6 +5,7 @@
 #include "exception.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -48,6 +49,23 @@ public:
         }
     }
 
+    parser(const char* const csv_data_buffer, size_t csv_data_size,
+           const std::string& delim = ss::default_delimiter)
+        : file_name_{"buffer line"},
+          reader_{csv_data_buffer, csv_data_size, delim} {
+        if (csv_data_buffer) {
+            read_line();
+            if constexpr (ignore_header) {
+                ignore_next();
+            } else {
+                raw_header_ = reader_.get_buffer();
+            }
+        } else {
+            handle_error_null_buffer();
+            eof_ = true;
+        }
+    }
+
     parser(parser&& other) = default;
     parser& operator=(parser&& other) = default;
 
@@ -84,8 +102,12 @@ public:
     }
 
     size_t line() const {
-        return reader_.line_number_ > 1 ? reader_.line_number_ - 1
+        return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
+    }
+
+    size_t position() const {
+        return reader_.chars_read_;
     }
 
     template <typename T, typename... Ts>
@@ -192,7 +214,7 @@ public:
         reader_.next_line_converter_.set_column_mapping(column_mappings,
                                                         header_.size());
 
-        if (line() == 1) {
+        if (line() == 0) {
             ignore_next();
         }
     }
@@ -351,20 +373,22 @@ public:
 
         template <typename U, typename... Us, typename Fun = none>
         void try_convert_and_invoke(std::optional<U>& value, Fun&& fun) {
-            if (!parser_.valid()) {
-                auto tuple_output = try_same<Us...>();
-                if (!parser_.valid()) {
-                    return;
-                }
-
-                if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
-                    value = to_object<U>(std::move(tuple_output));
-                } else {
-                    value = std::move(tuple_output);
-                }
-
-                parser_.try_invoke(*value, std::forward<Fun>(fun));
+            if (parser_.valid()) {
+                return;
             }
+
+            auto tuple_output = try_same<Us...>();
+            if (!parser_.valid()) {
+                return;
+            }
+
+            if constexpr (!std::is_same_v<U, decltype(tuple_output)>) {
+                value = to_object<U>(std::move(tuple_output));
+            } else {
+                value = std::move(tuple_output);
+            }
+
+            parser_.try_invoke(*value, std::forward<Fun>(fun));
         }
 
         template <typename U, typename... Us>
@@ -512,6 +536,19 @@ private:
         }
     }
 
+    void handle_error_null_buffer() {
+        constexpr static auto error_msg = " received null data buffer";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_).append(error_msg);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg};
+        } else {
+            error_ = true;
+        }
+    }
+
     void handle_error_file_not_open() {
         constexpr static auto error_msg = " could not be opened";
 
@@ -638,21 +675,30 @@ private:
 
     struct reader {
         reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{fopen(file_name_.c_str(), "rb")} {
+            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
+        }
+
+        reader(const char* const buffer, size_t csv_data_size,
+               const std::string& delim)
+            : delim_{delim}, csv_data_buffer_{buffer},
+              csv_data_size_{csv_data_size} {
         }
 
         reader(reader&& other)
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
-              helper_buffer_{other.helper_buffer_}, converter_{std::move(
-                                                        other.converter_)},
+              helper_buffer_{other.helper_buffer_},
+              converter_{std::move(other.converter_)},
               next_line_converter_{std::move(other.next_line_converter_)},
               buffer_size_{other.buffer_size_},
               next_line_buffer_size_{other.next_line_buffer_size_},
-              helper_size_{other.helper_size_}, delim_{std::move(other.delim_)},
-              file_{other.file_}, crlf_{other.crlf_},
-              line_number_{other.line_number_}, next_line_size_{
-                                                    other.next_line_size_} {
+              helper_buffer_size{other.helper_buffer_size},
+              delim_{std::move(other.delim_)}, file_{other.file_},
+              csv_data_buffer_{other.csv_data_buffer_},
+              csv_data_size_{other.csv_data_size_},
+              curr_char_{other.curr_char_}, crlf_{other.crlf_},
+              line_number_{other.line_number_}, chars_read_{other.chars_read_},
+              next_line_size_{other.next_line_size_} {
             other.buffer_ = nullptr;
             other.next_line_buffer_ = nullptr;
             other.helper_buffer_ = nullptr;
@@ -668,35 +714,76 @@ private:
                 next_line_converter_ = std::move(other.next_line_converter_);
                 buffer_size_ = other.buffer_size_;
                 next_line_buffer_size_ = other.next_line_buffer_size_;
-                helper_size_ = other.helper_size_;
+                helper_buffer_size = other.helper_buffer_size;
                 delim_ = std::move(other.delim_);
                 file_ = other.file_;
+                csv_data_buffer_ = other.csv_data_buffer_;
+                csv_data_size_ = other.csv_data_size_;
+                curr_char_ = other.curr_char_;
                 crlf_ = other.crlf_;
                 line_number_ = other.line_number_;
+                chars_read_ = other.chars_read_;
                 next_line_size_ = other.next_line_size_;
 
                 other.buffer_ = nullptr;
                 other.next_line_buffer_ = nullptr;
                 other.helper_buffer_ = nullptr;
                 other.file_ = nullptr;
+                other.csv_data_buffer_ = nullptr;
             }
 
             return *this;
         }
 
         ~reader() {
-            free(buffer_);
-            free(next_line_buffer_);
-            free(helper_buffer_);
+            std::free(buffer_);
+            std::free(next_line_buffer_);
+            std::free(helper_buffer_);
 
             if (file_) {
-                fclose(file_);
+                std::fclose(file_);
             }
         }
 
         reader() = delete;
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
+
+        ssize_t get_line_buffer(char** lineptr, size_t* n,
+                                const char* const csv_data_buffer,
+                                size_t csv_data_size, size_t& curr_char) {
+            if (curr_char >= csv_data_size) {
+                return -1;
+            }
+
+            if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
+                auto new_lineptr = static_cast<char*>(
+                    strict_realloc(*lineptr, get_line_initial_buffer_size));
+                *lineptr = new_lineptr;
+                *n = get_line_initial_buffer_size;
+            }
+
+            size_t line_used = 0;
+            while (curr_char <= csv_data_size) {
+                if (line_used + 1 >= *n) {
+                    size_t new_n = *n * 2;
+
+                    char* new_lineptr =
+                        static_cast<char*>(strict_realloc(*lineptr, new_n));
+                    *n = new_n;
+                    *lineptr = new_lineptr;
+                }
+
+                auto c = csv_data_buffer[curr_char++];
+                (*lineptr)[line_used++] = c;
+                if (c == '\n') {
+                    (*lineptr)[line_used] = '\0';
+                    return line_used;
+                }
+            }
+
+            return (line_used != 0) ? line_used : -1;
+        }
 
         // read next line each time in order to set eof_
         bool read_next() {
@@ -708,10 +795,23 @@ private:
                 if (next_line_buffer_size_ > 0) {
                     next_line_buffer_[0] = '\0';
                 }
-                ssize = get_line(&next_line_buffer_, &next_line_buffer_size_,
-                                 file_);
+
+                chars_read_ = curr_char_;
+                if (file_) {
+                    ssize = get_line_file(&next_line_buffer_,
+                                          &next_line_buffer_size_, file_);
+                    curr_char_ = std::ftell(file_);
+                } else {
+                    ssize = get_line_buffer(&next_line_buffer_,
+                                            &next_line_buffer_size_,
+                                            csv_data_buffer_, csv_data_size_,
+                                            curr_char_);
+                }
 
                 if (ssize == -1) {
+                    if (errno == ENOMEM) {
+                        throw std::bad_alloc{};
+                    }
                     return false;
                 }
 
@@ -821,6 +921,10 @@ private:
         }
 
         size_t remove_eol(char*& buffer, size_t ssize) {
+            if (buffer[ssize - 1] != '\n') {
+                return ssize;
+            }
+
             size_t size = ssize - 1;
             if (ssize >= 2 && buffer[ssize - 2] == '\r') {
                 crlf_ = true;
@@ -834,14 +938,11 @@ private:
         }
 
         void realloc_concat(char*& first, size_t& first_size,
-                            const char* const second, size_t second_size) {
-            // TODO make buffer_size an argument
-            next_line_buffer_size_ = first_size + second_size + 3;
+                            size_t& buffer_size, const char* const second,
+                            size_t second_size) {
+            buffer_size = first_size + second_size + 3;
             auto new_first = static_cast<char*>(
-                realloc(static_cast<void*>(first), next_line_buffer_size_));
-            if (!first) {
-                throw std::bad_alloc{};
-            }
+                strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;
             std::copy_n(second, second_size + 1, first + first_size);
@@ -851,15 +952,25 @@ private:
         bool append_next_line_to_buffer(char*& buffer, size_t& size) {
             undo_remove_eol(buffer, size);
 
-            ssize_t next_ssize =
-                get_line(&helper_buffer_, &helper_size_, file_);
+            ssize_t next_ssize;
+            if (file_) {
+                next_ssize =
+                    get_line_file(&helper_buffer_, &helper_buffer_size, file_);
+            } else {
+                next_ssize =
+                    get_line_buffer(&helper_buffer_, &helper_buffer_size,
+                                    csv_data_buffer_, csv_data_size_,
+                                    curr_char_);
+            }
+
             if (next_ssize == -1) {
                 return false;
             }
 
             ++line_number_;
             size_t next_size = remove_eol(helper_buffer_, next_ssize);
-            realloc_concat(buffer, size, helper_buffer_, next_size);
+            realloc_concat(buffer, size, next_line_buffer_size_, helper_buffer_,
+                           next_size);
             return true;
         }
 
@@ -879,13 +990,18 @@ private:
 
         size_t buffer_size_{0};
         size_t next_line_buffer_size_{0};
-        size_t helper_size_{0};
+        size_t helper_buffer_size{0};
 
         std::string delim_;
         FILE* file_{nullptr};
 
+        const char* csv_data_buffer_{nullptr};
+        size_t csv_data_size_{0};
+        size_t curr_char_{0};
+
         bool crlf_{false};
         size_t line_number_{0};
+        size_t chars_read_{0};
 
         size_t next_line_size_{0};
     };

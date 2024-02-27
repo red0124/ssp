@@ -46,90 +46,88 @@ TEST_CASE("converter test split with exceptions") {
     }
 }
 
-TEST_CASE("converter test valid conversions") {
+TEST_CASE_TEMPLATE("converter test valid conversions", T, int, ss::uint8) {
     ss::converter c;
 
     {
-        auto tup = c.convert<int>("5");
+        auto tup = c.convert<T>("5");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<int, void>("5,junk");
+        auto tup = c.convert<T, void>("5,junk");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<void, int>("junk,5");
+        auto tup = c.convert<void, T>("junk,5");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<int, void, void>("5\njunk\njunk", "\n");
+        auto tup = c.convert<T, void, void>("5\njunk\njunk", "\n");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<void, int, void>("junk 5 junk", " ");
+        auto tup = c.convert<void, T, void>("junk 5 junk", " ");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<void, void, int>("junk\tjunk\t5", "\t");
+        auto tup = c.convert<void, void, T>("junk\tjunk\t5", "\t");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     }
     {
         auto tup =
-            c.convert<void, void, std::optional<int>>("junk\tjunk\t5", "\t");
+            c.convert<void, void, std::optional<T>>("junk\tjunk\t5", "\t");
         REQUIRE(c.valid());
         REQUIRE(tup.has_value());
         CHECK_EQ(tup, 5);
     }
     {
-        auto tup = c.convert<int, double, void>("5,6.6,junk");
+        auto tup = c.convert<T, double, void>("5,6.6,junk");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     }
     {
-        auto tup = c.convert<int, void, double>("5,junk,6.6");
+        auto tup = c.convert<T, void, double>("5,junk,6.6");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     }
     {
-        auto tup = c.convert<void, int, double>("junk;5;6.6", ";");
+        auto tup = c.convert<void, T, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     }
     {
-        auto tup =
-            c.convert<void, std::optional<int>, double>("junk;5;6.6", ";");
+        auto tup = c.convert<void, std::optional<T>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE(std::get<0>(tup).has_value());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     }
     {
         auto tup =
-            c.convert<void, std::optional<int>, double>("junk;5.4;6.6", ";");
+            c.convert<void, std::optional<T>, double>("junk;5.4;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE_FALSE(std::get<0>(tup).has_value());
-        CHECK_EQ(tup, std::make_tuple(std::optional<int>{}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::optional<T>{}, 6.6));
     }
     {
         auto tup =
-            c.convert<void, std::variant<int, double>, double>("junk;5;6.6",
-                                                               ";");
+            c.convert<void, std::variant<T, double>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
-        REQUIRE(std::holds_alternative<int>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5}, 6.6));
+        REQUIRE(std::holds_alternative<T>(std::get<0>(tup)));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{T(5)}, 6.6));
     }
     {
         auto tup =
-            c.convert<void, std::variant<int, double>, double>("junk;5.5;6.6",
-                                                               ";");
+            c.convert<void, std::variant<T, double>, double>("junk;5.5;6.6",
+                                                             ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5.5}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{5.5}, 6.6));
     }
     {
         auto tup = c.convert<void, std::string_view, double,
@@ -140,11 +138,12 @@ TEST_CASE("converter test valid conversions") {
     }
 }
 
-TEST_CASE("converter test valid conversions with exceptions") {
+TEST_CASE_TEMPLATE("converter test valid conversions with exceptions", T, int,
+                   ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
     try {
-        auto tup = c.convert<int>("5");
+        auto tup = c.convert<T>("5");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -152,7 +151,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<int, void>("5,junk");
+        auto tup = c.convert<T, void>("5,junk");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -160,7 +159,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<void, int>("junk,5");
+        auto tup = c.convert<void, T>("junk,5");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -168,7 +167,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<int, void, void>("5\njunk\njunk", "\n");
+        auto tup = c.convert<T, void, void>("5\njunk\njunk", "\n");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -176,7 +175,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<void, int, void>("junk 5 junk", " ");
+        auto tup = c.convert<void, T, void>("junk 5 junk", " ");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -184,7 +183,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<void, void, int>("junk\tjunk\t5", "\t");
+        auto tup = c.convert<void, void, T>("junk\tjunk\t5", "\t");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 5);
     } catch (ss::exception& e) {
@@ -193,7 +192,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
 
     try {
         auto tup =
-            c.convert<void, void, std::optional<int>>("junk\tjunk\t5", "\t");
+            c.convert<void, void, std::optional<T>>("junk\tjunk\t5", "\t");
         REQUIRE(c.valid());
         REQUIRE(tup.has_value());
         CHECK_EQ(tup, 5);
@@ -202,7 +201,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<int, double, void>("5,6.6,junk");
+        auto tup = c.convert<T, double, void>("5,6.6,junk");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
@@ -210,7 +209,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<int, void, double>("5,junk,6.6");
+        auto tup = c.convert<T, void, double>("5,junk,6.6");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
@@ -218,7 +217,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup = c.convert<void, int, double>("junk;5;6.6", ";");
+        auto tup = c.convert<void, T, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
     } catch (ss::exception& e) {
@@ -226,8 +225,7 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 
     try {
-        auto tup =
-            c.convert<void, std::optional<int>, double>("junk;5;6.6", ";");
+        auto tup = c.convert<void, std::optional<T>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE(std::get<0>(tup).has_value());
         CHECK_EQ(tup, std::make_tuple(5, 6.6));
@@ -237,32 +235,31 @@ TEST_CASE("converter test valid conversions with exceptions") {
 
     try {
         auto tup =
-            c.convert<void, std::optional<int>, double>("junk;5.4;6.6", ";");
+            c.convert<void, std::optional<T>, double>("junk;5.4;6.6", ";");
         REQUIRE(c.valid());
         REQUIRE_FALSE(std::get<0>(tup).has_value());
-        CHECK_EQ(tup, std::make_tuple(std::optional<int>{}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::optional<T>{}, 6.6));
     } catch (ss::exception& e) {
         FAIL(std::string{e.what()});
     }
 
     try {
         auto tup =
-            c.convert<void, std::variant<int, double>, double>("junk;5;6.6",
-                                                               ";");
+            c.convert<void, std::variant<T, double>, double>("junk;5;6.6", ";");
         REQUIRE(c.valid());
-        REQUIRE(std::holds_alternative<int>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5}, 6.6));
+        REQUIRE(std::holds_alternative<T>(std::get<0>(tup)));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{T(5)}, 6.6));
     } catch (ss::exception& e) {
         FAIL(std::string{e.what()});
     }
 
     try {
         auto tup =
-            c.convert<void, std::variant<int, double>, double>("junk;5.5;6.6",
-                                                               ";");
+            c.convert<void, std::variant<T, double>, double>("junk;5.5;6.6",
+                                                             ";");
         REQUIRE(c.valid());
         REQUIRE(std::holds_alternative<double>(std::get<0>(tup)));
-        CHECK_EQ(tup, std::make_tuple(std::variant<int, double>{5.5}, 6.6));
+        CHECK_EQ(tup, std::make_tuple(std::variant<T, double>{5.5}, 6.6));
     } catch (ss::exception& e) {
         FAIL(std::string{e.what()});
     }
@@ -278,110 +275,114 @@ TEST_CASE("converter test valid conversions with exceptions") {
     }
 }
 
-TEST_CASE("converter test invalid conversions") {
+TEST_CASE_TEMPLATE("converter test invalid conversions", T, int, ss::uint8) {
     ss::converter c;
 
-    c.convert<int>("");
+    c.convert<T>("");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int>("1", "");
+    c.convert<T>("1", "");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int>("10", "");
+    c.convert<T>("10", "");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int, void>("");
+    c.convert<T, void>("");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int, void>(",junk");
+    c.convert<T, void>(",junk");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, int>("junk,");
+    c.convert<void, T>("junk,");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int>("x");
+    c.convert<T>("x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int, void>("x");
+    c.convert<T, void>("x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int, void>("x,junk");
+    c.convert<T, void>("x,junk");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, int>("junk,x");
+    c.convert<void, T>("junk,x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, std::variant<int, double>, double>("junk;.5.5;6", ";");
+    c.convert<void, std::variant<T, double>, double>("junk;.5.5;6", ";");
     REQUIRE_FALSE(c.valid());
 }
 
-TEST_CASE("converter test invalid conversions with exceptions") {
+TEST_CASE_TEMPLATE("converter test invalid conversions with exceptions", T, int,
+                   ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<int>(""));
-    REQUIRE_EXCEPTION(c.convert<int>("1", ""));
-    REQUIRE_EXCEPTION(c.convert<int>("10", ""));
-    REQUIRE_EXCEPTION(c.convert<int, void>(""));
-    REQUIRE_EXCEPTION(c.convert<int, void>(",junk"));
-    REQUIRE_EXCEPTION(c.convert<void, int>("junk,"));
-    REQUIRE_EXCEPTION(c.convert<int>("x"));
-    REQUIRE_EXCEPTION(c.convert<int, void>("x"));
-    REQUIRE_EXCEPTION(c.convert<int, void>("x,junk"));
-    REQUIRE_EXCEPTION(c.convert<void, int>("junk,x"));
+    REQUIRE_EXCEPTION(c.convert<T>(""));
+    REQUIRE_EXCEPTION(c.convert<T>("1", ""));
+    REQUIRE_EXCEPTION(c.convert<T>("10", ""));
+    REQUIRE_EXCEPTION(c.convert<T, void>(""));
+    REQUIRE_EXCEPTION(c.convert<T, void>(",junk"));
+    REQUIRE_EXCEPTION(c.convert<void, T>("junk,"));
+    REQUIRE_EXCEPTION(c.convert<T>("x"));
+    REQUIRE_EXCEPTION(c.convert<T, void>("x"));
+    REQUIRE_EXCEPTION(c.convert<T, void>("x,junk"));
+    REQUIRE_EXCEPTION(c.convert<void, T>("junk,x"));
     REQUIRE_EXCEPTION(
-        c.convert<void, std::variant<int, double>, double>("junk;.5.5;6", ";"));
+        c.convert<void, std::variant<T, double>, double>("junk;.5.5;6", ";"));
 }
 
-TEST_CASE("converter test ss:ax restriction (all except)") {
+TEST_CASE_TEMPLATE("converter test ss:ax restriction (all except)", T, int,
+                   ss::uint8) {
     ss::converter c;
 
-    c.convert<ss::ax<int, 0>>("0");
+    c.convert<ss::ax<T, 0>>("0");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ax<int, 0, 1, 2>>("1");
+    c.convert<ss::ax<T, 0, 1, 2>>("1");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, char, ss::ax<int, 0, 1, 2>>("junk,c,1");
+    c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ax<int, 1>, char>("1,c");
+    c.convert<ss::ax<T, 1>, char>("1,c");
     REQUIRE_FALSE(c.valid());
     {
-        int tup = c.convert<ss::ax<int, 1>>("3");
+        T tup = c.convert<ss::ax<T, 1>>("3");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 3);
     }
     {
-        std::tuple<char, int> tup = c.convert<char, ss::ax<int, 1>>("c,3");
+        std::tuple<char, T> tup = c.convert<char, ss::ax<T, 1>>("c,3");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple('c', 3));
     }
     {
-        std::tuple<int, char> tup = c.convert<ss::ax<int, 1>, char>("3,c");
+        std::tuple<T, char> tup = c.convert<ss::ax<T, 1>, char>("3,c");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(3, 'c'));
     }
 }
 
-TEST_CASE("converter test ss:ax restriction (all except) with exceptions") {
+TEST_CASE_TEMPLATE(
+    "converter test ss:ax restriction (all except) with exceptions", T, int,
+    ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::ax<int, 0>>("0"));
-    REQUIRE_EXCEPTION(c.convert<ss::ax<int, 0, 1, 2>>("1"));
-    REQUIRE_EXCEPTION(c.convert<void, char, ss::ax<int, 0, 1, 2>>("junk,c,1"));
-    REQUIRE_EXCEPTION(c.convert<ss::ax<int, 1>, char>("1,c"));
+    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 0>>("0"));
+    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 0, 1, 2>>("1"));
+    REQUIRE_EXCEPTION(c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1"));
+    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 1>, char>("1,c"));
 
     try {
         {
-            int tup = c.convert<ss::ax<int, 1>>("3");
+            T tup = c.convert<ss::ax<T, 1>>("3");
             CHECK_EQ(tup, 3);
         }
         {
-            std::tuple<char, int> tup = c.convert<char, ss::ax<int, 1>>("c,3");
+            std::tuple<char, T> tup = c.convert<char, ss::ax<T, 1>>("c,3");
             CHECK_EQ(tup, std::make_tuple('c', 3));
         }
         {
-            std::tuple<int, char> tup = c.convert<ss::ax<int, 1>, char>("3,c");
+            std::tuple<T, char> tup = c.convert<ss::ax<T, 1>, char>("3,c");
             CHECK_EQ(tup, std::make_tuple(3, 'c'));
         }
     } catch (ss::exception& e) {
@@ -456,65 +457,68 @@ TEST_CASE("converter test ss:nx restriction (none except) with exceptions") {
     }
 }
 
-TEST_CASE("converter test ss:ir restriction (in range)") {
+TEST_CASE_TEMPLATE("converter test ss:ir restriction (in range)", T, int,
+                   ss::uint8) {
     ss::converter c;
 
-    c.convert<ss::ir<int, 0, 2>>("3");
+    c.convert<ss::ir<T, 0, 2>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<char, ss::ir<int, 4, 69>>("c,3");
+    c.convert<char, ss::ir<T, 4, 69>>("c,3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ir<int, 1, 2>, char>("3,c");
+    c.convert<ss::ir<T, 1, 2>, char>("3,c");
     REQUIRE_FALSE(c.valid());
 
     {
-        auto tup = c.convert<ss::ir<int, 1, 5>>("3");
+        auto tup = c.convert<ss::ir<T, 1, 5>>("3");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 3);
     }
     {
-        auto tup = c.convert<ss::ir<int, 0, 2>>("2");
+        auto tup = c.convert<ss::ir<T, 0, 2>>("2");
         REQUIRE(c.valid());
         CHECK_EQ(tup, 2);
     }
     {
-        auto tup = c.convert<char, void, ss::ir<int, 0, 1>>("c,junk,1");
+        auto tup = c.convert<char, void, ss::ir<T, 0, 1>>("c,junk,1");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple('c', 1));
     }
     {
-        auto tup = c.convert<ss::ir<int, 1, 20>, char>("1,c");
+        auto tup = c.convert<ss::ir<T, 1, 20>, char>("1,c");
         REQUIRE(c.valid());
         CHECK_EQ(tup, std::make_tuple(1, 'c'));
     }
 }
 
-TEST_CASE("converter test ss:ir restriction (in range) with exceptions") {
+TEST_CASE_TEMPLATE(
+    "converter test ss:ir restriction (in range) with exceptions", T, int,
+    ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::ir<int, 0, 2>>("3"));
-    REQUIRE_EXCEPTION(c.convert<char, ss::ir<int, 4, 69>>("c,3"));
-    REQUIRE_EXCEPTION(c.convert<ss::ir<int, 1, 2>, char>("3,c"));
+    REQUIRE_EXCEPTION(c.convert<ss::ir<T, 0, 2>>("3"));
+    REQUIRE_EXCEPTION(c.convert<char, ss::ir<T, 4, 69>>("c,3"));
+    REQUIRE_EXCEPTION(c.convert<ss::ir<T, 1, 2>, char>("3,c"));
 
     try {
         {
-            auto tup = c.convert<ss::ir<int, 1, 5>>("3");
+            auto tup = c.convert<ss::ir<T, 1, 5>>("3");
             REQUIRE(c.valid());
             CHECK_EQ(tup, 3);
         }
         {
-            auto tup = c.convert<ss::ir<int, 0, 2>>("2");
+            auto tup = c.convert<ss::ir<T, 0, 2>>("2");
             REQUIRE(c.valid());
             CHECK_EQ(tup, 2);
         }
         {
-            auto tup = c.convert<char, void, ss::ir<int, 0, 1>>("c,junk,1");
+            auto tup = c.convert<char, void, ss::ir<T, 0, 1>>("c,junk,1");
             REQUIRE(c.valid());
             CHECK_EQ(tup, std::make_tuple('c', 1));
         }
         {
-            auto tup = c.convert<ss::ir<int, 1, 20>, char>("1,c");
+            auto tup = c.convert<ss::ir<T, 1, 20>, char>("1,c");
             REQUIRE(c.valid());
             CHECK_EQ(tup, std::make_tuple(1, 'c'));
         }
@@ -978,4 +982,3 @@ TEST_CASE("converter test invalid split conversions with exceptions") {
         buff(R"(just,some,2,"strings\")")));
     CHECK(c.unterminated_quote());
 }
-

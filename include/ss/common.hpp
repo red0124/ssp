@@ -28,15 +28,24 @@ inline void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
+inline void* strict_realloc(void* ptr, size_t size) {
+    ptr = std::realloc(ptr, size);
+    if (!ptr) {
+        throw std::bad_alloc{};
+    }
+
+    return ptr;
+}
+
 #if __unix__
-inline ssize_t get_line(char** lineptr, size_t* n, FILE* stream) {
+inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
     return getline(lineptr, n, stream);
 }
 #else
 
-using ssize_t = int64_t;
+using ssize_t = intptr_t;
 
-ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
+ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
     if (lineptr == nullptr || n == nullptr || fp == nullptr) {
         errno = EINVAL;
         return -1;
@@ -46,36 +55,24 @@ ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
 
     if (*lineptr == nullptr || *n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
-        auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-        if (new_lineptr == nullptr) {
-            errno = ENOMEM;
-            return -1;
-        }
-
-        *lineptr = new_lineptr;
+        *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
         *n = new_n;
     }
 
     (*lineptr)[0] = '\0';
 
-    while (fgets(buff, sizeof(buff), fp) != nullptr) {
-        size_t line_used = strlen(*lineptr);
-        size_t buff_used = strlen(buff);
+    size_t line_used = 0;
+    while (std::fgets(buff, sizeof(buff), fp) != nullptr) {
+        line_used = std::strlen(*lineptr);
+        size_t buff_used = std::strlen(buff);
 
         if (*n <= buff_used + line_used) {
             size_t new_n = *n * 2;
-
-            auto new_lineptr = static_cast<char*>(realloc(*lineptr, new_n));
-            if (new_lineptr == nullptr) {
-                errno = ENOMEM;
-                return -1;
-            }
-
-            *lineptr = new_lineptr;
+            *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
             *n = new_n;
         }
 
-        memcpy(*lineptr + line_used, buff, buff_used);
+        std::memcpy(*lineptr + line_used, buff, buff_used);
         line_used += buff_used;
         (*lineptr)[line_used] = '\0';
 
@@ -84,7 +81,7 @@ ssize_t get_line(char** lineptr, size_t* n, FILE* fp) {
         }
     }
 
-    return -1;
+    return (line_used != 0) ? line_used : -1;
 }
 
 #endif

@@ -46,10 +46,13 @@ jobs:
       - name: Install test coverage tools
         run: |
           apt update
-          apt install -y gcovr lcov
+          apt install -y gcovr
+
+      - name: Install lcov2.0
+        run: script/ci_install_lcov.sh
 
       - name: Configure
-        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_FLAGS="-Wall -fprofile-arcs -ftest-coverage --coverage"
+        run: cmake -S test -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_FLAGS="-Wall -fprofile-arcs -ftest-coverage --coverage -fno-elide-constructors -fno-default-inline"
 
       - name: Build
         run: cmake --build build -j ${{steps.cores.outputs.count}}
@@ -60,7 +63,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          lcov -d . -c -o out.info --rc lcov_branch_coverage=1 --no-external
+          lcov -d . -c -o out.info --rc branch_coverage=1 --no-external --filter branch --filter line --ignore-errors mismatch
           lcov -e out.info '*include/ss*hpp' -o filtered.info
 
       - name: Invoke coveralls

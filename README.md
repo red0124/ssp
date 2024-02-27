@@ -17,13 +17,13 @@
 [![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
 [![windows-msvc](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
 
-A header only "csv" parser which is fast and versatile with modern C++ api. Requires compiler with C++17 support. [Can also be used to convert strings to specific types.](#the-converter)
+A header only CSV parser which is fast and versatile with modern C++ API. Requires compiler with C++17 support. [Can also be used to efficiently convert strings to specific types.](#the-converter)
 
 Conversion for floating point values invoked using [fast-float](https://github.com/fastfloat/fast_float) . \
 Function traits taken from *qt-creator* .
 
 # Example 
-Lets say we have a csv file containing students in a given format \<Id,Age,Grade\> and we want to parse and print all the valid values:
+Lets say we have a CSV file containing students in a given format (Id,Age,Grade) and we want to parse and print all the valid values:
 
 ```shell
 $ cat students.csv
@@ -58,6 +58,7 @@ Bill (Heath) Gates 65 3.3
  * Can work without exceptions
  * [Works with headers](#headers)
  * [Works with quotes, escapes and spacings](#setup)
+ * [Works with CSV data stored in buffers](#buffer-mode)
  * [Works with values containing new lines](#multiline)
  * [Columns and rows can be ignored](#special-types)
  * [Works with any type of delimiter](#delimiter)
@@ -158,7 +159,7 @@ while (!p.eof()) {
 
 The alternate example with exceptions disabled will be used to show some of the features of the library. The **`get_next`** method returns a tuple of objects specified inside the template type list.
 
-If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **`valid`** method would return **`false`**, for example if the third (grade) column in our csv could not be converted to a float the conversion would fail.
+If a conversion could not be applied, the method would return a tuple of default constructed objects, and the **`valid`** method would return **`false`**, for example if the third (grade) column in our CSV could not be converted to a float the conversion would fail.
 
 If **`get_next`** is called with a **`tuple`** as template parameter it would behave identically to passing the same tuple parameters to **`get_next`**:
 ```cpp
@@ -202,14 +203,27 @@ struct student {
     auto tied() { return std::tie(id, age, grade); }
 };
 ```
-The method can be used to compare the object, serialize it, deserialize it, etc. Now **`get_next`** can accept such a struct and deduce the types to which to convert the csv.
+The method can be used to compare the object, serialize it, deserialize it, etc. Now **`get_next`** can accept such a struct and deduce the types to which to convert the CSV.
 ```cpp
 // returns student
 auto s = p.get_next<student>();
 ```
 This works with the iteration loop too.
-*Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
+*Note, the order in which the members of the tied method are returned must match the order of the elements in the CSV*.
 
+## Buffer mode
+The parser also works with buffers containing CSV data instead of files. To parse buffer data with the parser simply create the parser by giving it the buffer, as **`const char*`**, and its size. The initial example using a buffer instead of a file would look similar to this:
+```cpp
+std::string buffer = "James Bailey,65,2.5\nBrian S. Wolfe,40,1.9\n";
+
+ss::parser<ss::throw_on_error> p{buffer.c_str(), buffer.size()};
+
+for (const auto& [id, age, grade] : p.iterate<std::string, int, float>()) {
+    std::cout << id << ' ' << age << ' ' << grade << std::endl;
+}
+
+return 0;
+```
 ## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
@@ -241,7 +255,7 @@ Empty lines can be ignored by defining **`ss::ignore_empty`** within the setup p
 ```cpp
 ss::parser<ss::ignore_empty> p{file_name};
 ```
-If this setup option is not set then reading an empty line will result in an error (unless only one column is present within the csv).
+If this setup option is not set then reading an empty line will result in an error (unless only one column is present within the CSV).
 
 ### Quoting
 Quoting can be enabled by defining **`ss::quote`** within the setup parameters. A single character can be defined as the quoting character, for example to use **`"`** as a quoting character:
@@ -290,7 +304,7 @@ Escaping and quoting can be used to leave the space if needed.
 ```
 
 ### Multiline
-Multiline can be enabled by defining **`ss::multilne`** within the setup parameters. It enables the possibility to have the new line characters within rows. The new line character needs to be either escaped or within quotes so either **`ss::escape`** or **`ss::quote`** need to be enabled. There is a specific problem when using multiline, for example, if a row had an unterminated quote, the parser would assume it to be a new line within the row, so until another quote is found, it will treat it as one line which is fine usually, but it can cause the whole csv file to be treated as a single line by mistake. To prevent this **`ss::multiline_restricted`** can be used which accepts an unsigned number representing the maximum number of lines which can be allowed as a single multiline. Examples:
+Multiline can be enabled by defining **`ss::multilne`** within the setup parameters. It enables the possibility to have the new line characters within rows. The new line character needs to be either escaped or within quotes so either **`ss::escape`** or **`ss::quote`** need to be enabled. There is a specific problem when using multiline, for example, if a row had an unterminated quote, the parser would assume it to be a new line within the row, so until another quote is found, it will treat it as one line which is fine usually, but it can cause the whole CSV file to be treated as a single line by mistake. To prevent this **`ss::multiline_restricted`** can be used which accepts an unsigned number representing the maximum number of lines which can be allowed as a single multiline. Examples:
 
 ```cpp
 ss::parser<ss::multiline, ss::quote<'\"'>, ss::escape<'\\'>> p{file_name};
@@ -341,7 +355,7 @@ Gates 65 3.3'
 ```
 ## Special types
 
-Passing **`void`** makes the parser ignore a column. In the initial example **`void`** could be given as the second template parameter to ignore the second (age) column in the csv, a tuple of only 2 parameters would be retuned:
+Passing **`void`** makes the parser ignore a column. In the initial example **`void`** could be given as the second template parameter to ignore the second (age) column in the CSV, a tuple of only 2 parameters would be retuned:
 ```cpp
 // returns std::tuple<std::string, float>
 auto [id, grade] = p.get_next<std::string, void, float>();
@@ -382,6 +396,12 @@ if (std::holds_alternative<float>(grade)) {
 } else if (std::holds_alternative<char>(grade)) {
     // grade set as char
 }
+```
+Passing **`char`** and types that are aliases to it such as **`uint8_t`** and **`int8_t`** make the parser interpret the input data as a single character in a similar way to how **`std::cin`** does it. To read numeric values into something like **`uint8_t`** the **`ss::uint8`** and **`ss::int8`** types can be used. These are wrappers arround the corresponding char aliases and can be implicitly converted to and from them. When these types are given to the parser he will try to read the given data and store it in the underlying element, but this time as a numeric value instead of a single character.
+```cpp
+// returns std::tuple<std::string, ss::uint8, float>
+auto [id, age, grade] = p.get_next<std::string, ss::uint8, float>();
+uint8_t age_copy = age;
 ```
 ## Restrictions
 
@@ -454,12 +474,13 @@ The **`eof`** method can be used to detect if the end of the file was reached.
 Detailed error messages can be accessed via the **`error_msg`** method, and to enable them **`ss::string_error`** needs to be included in the setup. If **`ss::string_error`** is not defined, the **`error_msg`** method will not be defined either.
 
 The line number can be fetched using the **`line`** method.
-
+The cursor position can be fetched using the **`position`** method.
 ```cpp
-const std::string& parser::error_msg();
-bool parser::valid();
-bool parser::eof();
-size_t parser::line();
+const std::string& parser::error_msg() const;
+bool parser::valid() const;
+bool parser::eof() const;
+size_t parser::line() const;
+size_t parser::position() const;
 
 // ...
 ss::parser<ss::string_error> parser;
@@ -474,7 +495,7 @@ ss::parser<ss::throw_on_error> parser;
 
 ## Substitute conversions
 
-The parser can also be used to effectively parse files whose rows are not always in the same format (not a classical csv but still csv-like). A more complicated example would be the best way to demonstrate such a scenario.\
+The parser can also be used to effectively parse files whose rows are not always in the same format (not a classical CSV but still CSV-like). A more complicated example would be the best way to demonstrate such a scenario.\
 ***Important, substitute conversions do not work when throw_on_error is enabled.***
 
 Supposing we have a file containing different shapes in given formats: 

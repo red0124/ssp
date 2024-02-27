@@ -121,7 +121,7 @@ column make_column(const std::string& input_header,
 }
 
 [[maybe_unused]] void replace_all2(std::string& s, const std::string& old_value,
-                  const std::string& new_value) {
+                                   const std::string& new_value) {
     for (size_t i = 0; i < 999; ++i) {
         size_t pos = s.find(old_value);
         if (pos == std::string::npos) {
@@ -257,9 +257,12 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
 }
 
 [[maybe_unused]] void write_to_file(const std::vector<std::string>& data,
-                   const std::string& delim, const std::string& file_name) {
+                                    const std::string& delim,
+                                    const std::string& file_name,
+                                    bool add_new_line = true) {
     std::ofstream out{file_name, std::ios_base::app};
     std::string line;
+
     for (size_t i = 0; i < data.size(); ++i) {
         line += data[i];
         if (i != data.size() - 1) {
@@ -267,7 +270,10 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
         }
     }
 
-    out << line << std::endl;
+    out << line;
+    if (add_new_line) {
+        out << std::endl;
+    }
 }
 
 #define CHECK_EQ_CRLF(V1, V2)                                                  \
@@ -299,7 +305,7 @@ std::vector<std::string> generate_csv_data(const std::vector<field>& data,
         CHECK(V1 == V2);                                                       \
     }
 
-template <typename... Ts>
+template <bool buffer_mode, typename... Ts>
 void test_data_combinations(const std::vector<column>& input_data,
                             const std::string& delim, bool include_header) {
     using setup = ss::setup<Ts...>;
@@ -308,7 +314,7 @@ void test_data_combinations(const std::vector<column>& input_data,
         return;
     }
 
-    unique_file_name f{"test_parser2" + std::string{SEGMENT_NAME}};
+    unique_file_name f{"parser_data_combinations" + std::string{SEGMENT_NAME}};
     std::vector<std::vector<field>> expected_data;
     std::vector<std::string> header;
     std::vector<field> field_header;
@@ -329,7 +335,11 @@ void test_data_combinations(const std::vector<column>& input_data,
 
     if (include_header) {
         auto header_data = generate_csv_data<Ts...>(field_header, delim);
-        write_to_file(header_data, delim, f.name);
+        if (input_data.size() == 0 && rand() % 10 == 0) {
+            write_to_file(header_data, delim, f.name, false);
+        } else {
+            write_to_file(header_data, delim, f.name);
+        }
     }
 
     std::vector<int> layout;
@@ -354,15 +364,12 @@ void test_data_combinations(const std::vector<column>& input_data,
 
         expected_data.push_back(raw_data);
         auto data = generate_csv_data<Ts...>(raw_data, delim);
-        write_to_file(data, delim, f.name);
 
-        /*
-        std::cout << "[.";
-        for (const auto& el : data) {
-            std::cout << el << '.';
+        if (i + 1 == n && rand() % 10 == 0) {
+            write_to_file(data, delim, f.name, false);
+        } else {
+            write_to_file(data, delim, f.name);
         }
-        std::cout << "]" << std::endl;
-        */
     }
 
     auto layout_combinations = include_header && !setup::ignore_header
@@ -388,7 +395,7 @@ void test_data_combinations(const std::vector<column>& input_data,
     }
 
     for (const auto& layout : unique_layout_combinations) {
-        ss::parser<setup> p{f.name, delim};
+        auto [p, _] = make_parser<buffer_mode, setup>(f.name, delim);
 
         if (include_header && !setup::ignore_header) {
             std::vector<std::string> fields;
@@ -409,7 +416,7 @@ void test_data_combinations(const std::vector<column>& input_data,
             REQUIRE(p.valid());
         }
 
-        auto check_error = [&p] {
+        auto check_error = [&p = p] {
             CHECK(p.valid());
             if (!p.valid()) {
                 if constexpr (setup::string_error) {
@@ -426,7 +433,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                     auto s0 = p.template get_next<std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                     } else {
                         CHECK(p.eof());
@@ -439,7 +445,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                         p.template get_next<std::string, std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                     } else {
@@ -454,8 +459,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << ' ' << s2 <<
-                        // std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
@@ -471,10 +474,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string, std::string>();
                     if (i < n) {
                         check_error();
-                        /*
-                        std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' << s3
-                                  << std::endl;
-                                  */
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
@@ -492,9 +491,6 @@ void test_data_combinations(const std::vector<column>& input_data,
                                             std::string>();
                     if (i < n) {
                         check_error();
-                        // std::cout << s0 << ' ' << s1 << ' ' << s2 << ' ' <<
-                        // s3
-                        //  << ' ' << s4 << std::endl;
                         CHECK_EQ_CRLF(s0, expected_data[i][layout[0]].value);
                         CHECK_EQ_CRLF(s1, expected_data[i][layout[1]].value);
                         CHECK_EQ_CRLF(s2, expected_data[i][layout[2]].value);
@@ -570,8 +566,14 @@ void test_option_combinations() {
                  {columns0, columns1, columns2, columns3, columns4, columns5,
                   columns6, columns7}) {
                 try {
-                    test_data_combinations<Ts...>(columns, delimiter, false);
-                    test_data_combinations<Ts...>(columns, delimiter, true);
+                    test_data_combinations<false, Ts...>(columns, delimiter,
+                                                         false);
+                    test_data_combinations<false, Ts...>(columns, delimiter,
+                                                         true);
+                    test_data_combinations<true, Ts...>(columns, delimiter,
+                                                        false);
+                    test_data_combinations<true, Ts...>(columns, delimiter,
+                                                        true);
                 } catch (std::exception& e) {
                     std::cout << typeid(ss::parser<Ts...>).name() << std::endl;
                     FAIL_CHECK(std::string{e.what()});
@@ -616,6 +618,7 @@ void test_option_combinations3() {
 
 } /* namespace */
 
+// Tests split into multiple compilation units
 #if 0
 
 TEST_CASE("parser test various cases version 2 segment 1") {
@@ -627,25 +630,33 @@ TEST_CASE("parser test various cases version 2 segment 1") {
     using multiline_r = ss::multiline_restricted<10>;
     using trimr = ss::trim_right<' '>;
     using triml = ss::trim_left<' '>;
+    using trim = ss::trim<' '>;
 
     // segment 1
     test_option_combinations3<>();
     test_option_combinations3<escape>();
-    test_option_combinations3<quote>();
 
     // segment 2
+    test_option_combinations3<quote>();
     test_option_combinations3<escape, quote>();
+
+    // segment 3
     test_option_combinations3<escape, multiline>();
     test_option_combinations3<quote, multiline>();
 
-    // segment 3
+    // segment 4
     test_option_combinations3<escape, quote, multiline>();
     test_option_combinations3<escape, quote, multiline_r>();
 
-    // segment 4
+    // segment 5
     test_option_combinations<escape, quote, multiline, triml>();
     test_option_combinations<escape, quote, multiline, trimr>();
+
+    // segment 6
+    test_option_combinations3<escape, quote, multiline>();
+    test_option_combinations3<escape, quote, multiline, trim>();
 #else
+
     test_option_combinations3<escape, quote, multiline>();
 #endif
 }

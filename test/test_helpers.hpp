@@ -1,7 +1,11 @@
 #pragma once
+#include <algorithm>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <ss/common.hpp>
+#include <ss/setup.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -12,7 +16,30 @@
 #include <doctest.h>
 #endif
 
+namespace ss {
+template <typename... Ts>
+class parser;
+} /* ss */
+
 namespace {
+
+struct bool_error {};
+
+template <typename T, typename U = bool_error>
+struct config {
+    using BufferMode = T;
+    using ErrorMode = U;
+
+    constexpr static auto ThrowOnError = std::is_same_v<U, ss::throw_on_error>;
+    constexpr static auto StringError = std::is_same_v<U, ss::string_error>;
+};
+
+#define ParserOptionCombinations                                               \
+    config<std::true_type>, config<std::true_type, ss::string_error>,          \
+        config<std::true_type, ss::throw_on_error>, config<std::false_type>,   \
+        config<std::false_type, ss::string_error>,                             \
+        config<std::false_type, ss::throw_on_error>
+
 struct buffer {
     std::string data_;
 
@@ -34,27 +61,34 @@ struct buffer {
 
 [[maybe_unused]] inline buffer buff;
 
-std::string time_now_rand() {
+[[maybe_unused]] std::string time_now_rand() {
+    std::srand(std::time(nullptr));
     std::stringstream ss;
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
     ss << std::put_time(&tm, "%d%m%Y%H%M%S");
-    srand(time(nullptr));
+    std::srand(std::time(nullptr));
     return ss.str() + std::to_string(rand());
 }
 
 struct unique_file_name {
     static inline int i = 0;
 
-    const std::string name;
+    std::string name;
 
-    unique_file_name(const std::string& test)
-        : name{"random_" + test + "_" + std::to_string(i++) + "_" +
-               time_now_rand() + "_file.csv"} {
+    unique_file_name(const std::string& test) {
+        do {
+            name = "ssp_test_" + test + "_" + std::to_string(i++) + "_" +
+                   time_now_rand() + "_file.csv";
+        } while (std::filesystem::exists(name));
     }
 
     ~unique_file_name() {
-        std::filesystem::remove(name);
+        try {
+            std::filesystem::remove(name);
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
     }
 };
 
@@ -112,8 +146,8 @@ struct unique_file_name {
     }
 
 template <typename T>
-std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
-                                                size_t n) {
+[[maybe_unused]] std::vector<std::vector<T>> vector_combinations(
+    const std::vector<T>& v, size_t n) {
     std::vector<std::vector<T>> ret;
     if (n <= 1) {
         for (const auto& i : v) {
@@ -126,9 +160,68 @@ std::vector<std::vector<T>> vector_combinations(const std::vector<T>& v,
     for (const auto& i : v) {
         for (auto j : inner_combinations) {
             j.insert(j.begin(), i);
-            ret.push_back(move(j));
+            ret.push_back(std::move(j));
         }
     }
     return ret;
 }
+
+[[maybe_unused]] std::string make_buffer(const std::string& file_name) {
+    std::ifstream in{file_name, std::ios::binary};
+    std::string tmp;
+    std::string out;
+
+    auto copy_if_whitespaces = [&] {
+        std::string matches = "\n\r\t ";
+        while (std::any_of(matches.begin(), matches.end(),
+                           [&](auto c) { return in.peek() == c; })) {
+            if (in.peek() == '\r') {
+                out += "\r\n";
+                in.ignore(2);
+            } else {
+                out += std::string{static_cast<char>(in.peek())};
+                in.ignore(1);
+            }
+        }
+    };
+
+    out.reserve(sizeof(out) + 1);
+
+    copy_if_whitespaces();
+    while (in >> tmp) {
+        out += tmp;
+        copy_if_whitespaces();
+    }
+    return out;
+}
+
+template <bool buffer_mode, typename... Ts>
+std::tuple<ss::parser<Ts...>, std::string> make_parser_impl(
+    const std::string& file_name, std::string delim = ss::default_delimiter) {
+    if (buffer_mode) {
+        auto buffer = make_buffer(file_name);
+        return {ss::parser<Ts...>{buffer.data(), buffer.size(), delim},
+                std::move(buffer)};
+    } else {
+        return {ss::parser<Ts...>{file_name, delim}, std::string{}};
+    }
+}
+
+template <bool buffer_mode, typename ErrorMode, typename... Ts>
+[[maybe_unused]] std::enable_if_t<
+    !std::is_same_v<ErrorMode, bool_error>,
+    std::tuple<ss::parser<ErrorMode, Ts...>, std::string>>
+make_parser(const std::string& file_name,
+            std::string delim = ss::default_delimiter) {
+    return make_parser_impl<buffer_mode, ErrorMode, Ts...>(file_name, delim);
+}
+
+template <bool buffer_mode, typename ErrorMode, typename... Ts>
+[[maybe_unused]] std::enable_if_t<std::is_same_v<ErrorMode, bool_error>,
+                                  std::tuple<ss::parser<Ts...>, std::string>>
+make_parser(const std::string& file_name,
+            std::string delim = ss::default_delimiter) {
+    return make_parser_impl<buffer_mode, Ts...>(file_name, delim);
+}
+
 } /* namespace */

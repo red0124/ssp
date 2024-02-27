@@ -199,7 +199,7 @@ private:
     };
 
     bool match(const char* const curr, const std::string& delim) {
-        return strncmp(curr, delim.c_str(), delim.size()) == 0;
+        return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
     size_t delimiter_size(char) {
