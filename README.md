@@ -212,7 +212,7 @@ This works with the iteration loop too.
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the CSV*.
 
 ## Buffer mode
-The parser also works with buffers containing CSV data instead of files. To parse buffer data with the parser simply create it by passing it the buffer as a **`const char*`** and its size. The initial example using a buffer instead of a file would look like this:
+The parser also works with buffers containing CSV data instead of files. To parse buffer data with the parser simply create the parser by giving it the buffer, as **`const char*`**, and its size. The initial example using a buffer instead of a file would look similar to this:
 ```cpp
 std::string buffer = "James Bailey,65,2.5\nBrian S. Wolfe,40,1.9\n";
 
