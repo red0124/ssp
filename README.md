@@ -58,6 +58,7 @@ Bill (Heath) Gates 65 3.3
  * Can work without exceptions
  * [Works with headers](#headers)
  * [Works with quotes, escapes and spacings](#setup)
+ * [Works with csv data stored in buffers](#buffer-mode)
  * [Works with values containing new lines](#multiline)
  * [Columns and rows can be ignored](#special-types)
  * [Works with any type of delimiter](#delimiter)
@@ -210,6 +211,19 @@ auto s = p.get_next<student>();
 This works with the iteration loop too.
 *Note, the order in which the members of the tied method are returned must match the order of the elements in the csv*.
 
+## Buffer mode
+The parser also works with buffers containing csv data instead of files. To parse buffer data with the parser simply create it by passing it the buffer as a **`const char*`** which represents the buffer, and its size. The initial example using a buffer instead of a file would look like this:
+```cpp
+std::string buffer = "James Bailey,65,2.5\nBrian S. Wolfe,40,1.9\n";
+
+ss::parser<ss::throw_on_error> p{buffer.c_str(), buffer.size()};
+
+for (const auto& [id, age, grade] : p.iterate<std::string, int, float>()) {
+    std::cout << id << ' ' << age << ' ' << grade << std::endl;
+}
+
+return 0;
+```
 ## Setup
 By default, many of the features supported by the parser are disabled. They can be enabled within the template parameters of the parser. For example, to enable quoting and escaping the parser would look like:
 ```cpp
@@ -383,6 +397,12 @@ if (std::holds_alternative<float>(grade)) {
     // grade set as char
 }
 ```
+Passing **`char`** and types that are aliases to it such as **`uint8_t`** and **`int8_t`** make the parser interpret the input data as a single character in a similar way to how **`std::cin`** does it. To read numeric values into something like **`uint8_t`** the **`ss::uint8`** and **`ss::int8`** types can be used. These are wrappers arround the corresponding char aliases and can be implicitly converted to and from them. When these types are given to the parser he will try to read the given data and store it in the underlying element, but this time as a numeric value instead of a single character.
+```cpp
+// returns std::tuple<std::string, ss::uint8, float>
+auto [id, age, grade] = p.get_next<std::string, ss::uint8, float>();
+uint8_t age_copy = age;
+```
 ## Restrictions
 
 Custom **`restrictions`** can be used to narrow down the conversions of unwanted values. **`ss::ir`** (in range) and **`ss::ne`** (none empty) are some of those:
@@ -454,12 +474,13 @@ The **`eof`** method can be used to detect if the end of the file was reached.
 Detailed error messages can be accessed via the **`error_msg`** method, and to enable them **`ss::string_error`** needs to be included in the setup. If **`ss::string_error`** is not defined, the **`error_msg`** method will not be defined either.
 
 The line number can be fetched using the **`line`** method.
-
+The cursor position can be fetched using the **`position`** method.
 ```cpp
-const std::string& parser::error_msg();
-bool parser::valid();
-bool parser::eof();
-size_t parser::line();
+const std::string& parser::error_msg() const;
+bool parser::valid() const;
+bool parser::eof() const;
+size_t parser::line() const;
+size_t parser::position() const;
 
 // ...
 ss::parser<ss::string_error> parser;
