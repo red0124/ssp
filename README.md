@@ -16,6 +16,7 @@
 [![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
 [![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
 [![windows-msvc](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
+[![macos-apple-clang](https://github.com/red0124/ssp/workflows/macos-apple-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/macos-apple-clang.yml)
 
 A header only CSV parser which is fast and versatile with modern C++ API. Requires compiler with C++17 support. [Can also be used to efficiently convert strings to specific types.](#the-converter)
 

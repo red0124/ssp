@@ -1,4 +1,4 @@
-name: macos-latest-clang-ci
+name: macos-apple-clang-ci
 
 on:
   workflow_dispatch:
