@@ -1,0 +1,63 @@
+name: macos-latest-clang-ci
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  clang_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    strategy:
+      matrix:
+        standard: [11, 14, 17, 20, 23]
+        type: [Release, Debug]
+
+    runs-on: macos-latest
+
+    name: "Clang ${{matrix.version}}: ${{matrix.type}}"
+
+    env:
+      CC: clang
+      CXX: clang++
+      CXXFLAGS: -stdlib=libc++
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - uses: friendlyanon/fetch-core-count@v1
+        id: cores
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git
+          script/ci_install_deps.sh
+
+      - name: Configure
+        run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{matrix.type}}
+
+      - name: Build
+        run: cmake --build build -j ${{steps.cores.outputs.count}}
+
+      - name: Run
+        working-directory: build
+        run: ctest --output-on-failure
