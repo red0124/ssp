@@ -44,10 +44,7 @@ jobs:
         id: cores
 
       - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y git
-          script/ci_install_deps.sh
+        run: script/ci_install_deps.sh
 
       - name: Configure
         run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{matrix.type}}
