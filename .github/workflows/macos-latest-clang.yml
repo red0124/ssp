@@ -27,10 +27,11 @@ jobs:
       matrix:
         xcode: ['13.1', '13.2.1', '13.3.1', '13.4.1', '14.0', '14.0.1', '14.1']
         type: [Release, Debug]
-      env:
-        DEVELOPER_DIR: /Applications/Xcode_${{matrix.xcode}}.app/Contents/Developer
 
     runs-on: macos-12
+
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{matrix.xcode}}.app/Contents/Developer
 
     name: "Xcode ${{matrix.xcode}}: ${{matrix.type}}"
 
