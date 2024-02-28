@@ -30,12 +30,7 @@ jobs:
 
     runs-on: macos-latest
 
-    name: "Clang ${{matrix.version}}: ${{matrix.type}}"
-
-    env:
-      CC: clang
-      CXX: clang++
-      CXXFLAGS: -stdlib=libc++
+    name: "Xcode ${{matrix.standard}}: ${{matrix.type}}"
 
     steps:
       - uses: actions/checkout@v3
