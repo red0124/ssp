@@ -25,12 +25,12 @@ jobs:
 
     strategy:
       matrix:
-        standard: [11, 14, 17, 20, 23]
+        xcode: ['13.1', '13.2.1', '13.3.1', '13.4.1', '14.0', '14.0.1', '14.1']
         type: [Release, Debug]
 
-    runs-on: macos-latest
+    runs-on: macos-12
 
-    name: "Xcode ${{matrix.standard}}: ${{matrix.type}}"
+    name: "Xcode ${{matrix.xcode}}: ${{matrix.type}}"
 
     steps:
       - uses: actions/checkout@v3
