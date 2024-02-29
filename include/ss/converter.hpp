@@ -150,7 +150,7 @@ public:
         if constexpr (sizeof...(Ts) == 0 && is_instance_of_v<std::tuple, T>) {
             return convert_impl(elems, static_cast<T*>(nullptr));
         } else if constexpr (tied_class_v<T, Ts...>) {
-            using arg_ref_tuple = std::result_of_t<decltype (&T::tied)(T)>;
+            using arg_ref_tuple = std::invoke_result_t<decltype(&T::tied), T>;
             using arg_tuple = apply_trait_t<std::decay, arg_ref_tuple>;
 
             return to_object<T>(
