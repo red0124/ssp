@@ -3088,16 +3088,17 @@ private:
 
         void undo_remove_eol(char* buffer, size_t& string_end) {
             if (crlf_) {
-                std::copy_n("\r\n\0", 3, buffer + string_end);
+                std::copy_n("\r\n", 2, buffer + string_end);
                 string_end += 2;
             } else {
-                std::copy_n("\n\0", 2, buffer + string_end);
+                std::copy_n("\n", 1, buffer + string_end);
                 string_end += 1;
             }
         }
 
         size_t remove_eol(char*& buffer, size_t ssize) {
             if (buffer[ssize - 1] != '\n') {
+                crlf_ = false;
                 return ssize;
             }
 
