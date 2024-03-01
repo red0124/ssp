@@ -73,7 +73,7 @@ Bill (Heath) Gates 65 3.3
 
 # Single header
 
-The library can be used with a single header file **`ssp.hpp`**, but it sufferes a slight performance loss when converting floating point values since the **`fast_float`** library is not present within the file.
+The library can be used with a single header file **`ssp.hpp`**, but it suffers a slight performance loss when converting floating point values since the **`fast_float`** library is not present within the file.
 
 # Installation
 
@@ -115,11 +115,11 @@ James Bailey 2.5
 Brian S. Wolfe 1.9
 Bill (Heath) Gates 3.3
 ```
-The header can be ignored using the **`ss::ignore_header`** [setup](#Setup) option or by calling the **`ignore_next`** metod after the parser has been constructed.
+The header can be ignored using the **`ss::ignore_header`** [setup](#Setup) option or by calling the **`ignore_next`** method after the parser has been constructed.
 ```cpp
 ss::parser<ss::ignore_header> p{file_name};
 ```
-The fields with which the parser works with can be modified at any given time. The praser can also check if a field is present within the header by using the **`field_exists`** method.
+The fields with which the parser works with can be modified at any given time. The parser can also check if a field is present within the header by using the **`field_exists`** method.
 ```cpp
     // ...
     ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
@@ -249,7 +249,7 @@ By default, **`,`** is used as the delimiter, a custom delimiter can be specifie
 ```cpp
 ss::parser p{file_name, "--"};
 ```
-*Note, the delimiter can consist of multiple characters but the parser is slightliy faster when using single character delimiters.*
+*Note, the delimiter can consist of multiple characters but the parser is slightly faster when using single character delimiters.*
 
 ### Empty lines
 Empty lines can be ignored by defining **`ss::ignore_empty`** within the setup parameters:
@@ -398,7 +398,7 @@ if (std::holds_alternative<float>(grade)) {
     // grade set as char
 }
 ```
-Passing **`char`** and types that are aliases to it such as **`uint8_t`** and **`int8_t`** make the parser interpret the input data as a single character in a similar way to how **`std::cin`** does it. To read numeric values into something like **`uint8_t`** the **`ss::uint8`** and **`ss::int8`** types can be used. These are wrappers arround the corresponding char aliases and can be implicitly converted to and from them. When these types are given to the parser he will try to read the given data and store it in the underlying element, but this time as a numeric value instead of a single character.
+Passing **`char`** and types that are aliases to it such as **`uint8_t`** and **`int8_t`** make the parser interpret the input data as a single character in a similar way to how **`std::cin`** does it. To read numeric values into something like **`uint8_t`** the **`ss::uint8`** and **`ss::int8`** types can be used. These are wrappers around the corresponding char aliases and can be implicitly converted to and from them. When these types are given to the parser he will try to read the given data and store it in the underlying element, but this time as a numeric value instead of a single character.
 ```cpp
 // returns std::tuple<std::string, ss::uint8, float>
 auto [id, age, grade] = p.get_next<std::string, ss::uint8, float>();
