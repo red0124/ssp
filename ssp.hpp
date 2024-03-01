@@ -650,45 +650,40 @@ inline void* strict_realloc(void* ptr, size_t size) {
 }
 
 #if __unix__
-inline ssize_t get_line_file(char** lineptr, size_t* n, FILE* stream) {
-    return getline(lineptr, n, stream);
+inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+    return getline(&lineptr, &n, file);
 }
 #else
 
 using ssize_t = intptr_t;
 
-ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
-    if (lineptr == nullptr || n == nullptr || fp == nullptr) {
-        errno = EINVAL;
-        return -1;
-    }
-
+ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
     char buff[get_line_initial_buffer_size];
 
-    if (*lineptr == nullptr || *n < sizeof(buff)) {
+    if (lineptr == nullptr || n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
-        *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
-        *n = new_n;
+        lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
+        n = new_n;
     }
 
-    (*lineptr)[0] = '\0';
+    lineptr[0] = '\0';
 
     size_t line_used = 0;
-    while (std::fgets(buff, sizeof(buff), fp) != nullptr) {
-        line_used = std::strlen(*lineptr);
+    while (std::fgets(buff, sizeof(buff), file) != nullptr) {
+        line_used = std::strlen(lineptr);
         size_t buff_used = std::strlen(buff);
 
-        if (*n <= buff_used + line_used) {
-            size_t new_n = *n * 2;
-            *lineptr = static_cast<char*>(strict_realloc(*lineptr, new_n));
-            *n = new_n;
+        if (n <= buff_used + line_used) {
+            size_t new_n = n * 2;
+            lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
+            n = new_n;
         }
 
-        std::memcpy(*lineptr + line_used, buff, buff_used);
+        std::memcpy(lineptr + line_used, buff, buff_used);
         line_used += buff_used;
-        (*lineptr)[line_used] = '\0';
+        lineptr[line_used] = '\0';
 
-        if ((*lineptr)[line_used - 1] == '\n') {
+        if (lineptr[line_used - 1] == '\n') {
             return line_used;
         }
     }
@@ -697,6 +692,70 @@ ssize_t get_line_file(char** lineptr, size_t* n, FILE* fp) {
 }
 
 #endif
+
+ssize_t get_line_buffer(char*& lineptr, size_t& n,
+                        const char* const csv_data_buffer, size_t csv_data_size,
+                        size_t& curr_char) {
+    if (curr_char >= csv_data_size) {
+        return -1;
+    }
+
+    if (lineptr == nullptr || n < get_line_initial_buffer_size) {
+        auto new_lineptr = static_cast<char*>(
+            strict_realloc(lineptr, get_line_initial_buffer_size));
+        lineptr = new_lineptr;
+        n = get_line_initial_buffer_size;
+    }
+
+    size_t line_used = 0;
+    while (curr_char < csv_data_size) {
+        if (line_used + 1 >= n) {
+            size_t new_n = n * 2;
+
+            char* new_lineptr =
+                static_cast<char*>(strict_realloc(lineptr, new_n));
+            n = new_n;
+            lineptr = new_lineptr;
+        }
+
+        auto c = csv_data_buffer[curr_char++];
+        lineptr[line_used++] = c;
+        if (c == '\n') {
+            lineptr[line_used] = '\0';
+            return line_used;
+        }
+    }
+
+    if (line_used != 0) {
+        lineptr[line_used] = '\0';
+        return line_used;
+    }
+
+    return -1;
+}
+
+std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
+                                   FILE* file,
+                                   const char* const csv_data_buffer,
+                                   size_t csv_data_size, size_t& curr_char) {
+    ssize_t ssize;
+    if (file) {
+        ssize = get_line_file(buffer, buffer_size, file);
+        curr_char = std::ftell(file);
+    } else {
+        ssize = get_line_buffer(buffer, buffer_size, csv_data_buffer,
+                                csv_data_size, curr_char);
+    }
+
+    if (ssize == -1) {
+        if (errno == ENOMEM) {
+            throw std::bad_alloc{};
+        }
+        return {ssize, true};
+    }
+
+    return {ssize, false};
+}
 
 } /* ss */
 
@@ -2925,46 +2984,9 @@ private:
         reader(const reader& other) = delete;
         reader& operator=(const reader& other) = delete;
 
-        ssize_t get_line_buffer(char** lineptr, size_t* n,
-                                const char* const csv_data_buffer,
-                                size_t csv_data_size, size_t& curr_char) {
-            if (curr_char >= csv_data_size) {
-                return -1;
-            }
-
-            if (*lineptr == nullptr || *n < get_line_initial_buffer_size) {
-                auto new_lineptr = static_cast<char*>(
-                    strict_realloc(*lineptr, get_line_initial_buffer_size));
-                *lineptr = new_lineptr;
-                *n = get_line_initial_buffer_size;
-            }
-
-            size_t line_used = 0;
-            while (curr_char <= csv_data_size) {
-                if (line_used + 1 >= *n) {
-                    size_t new_n = *n * 2;
-
-                    char* new_lineptr =
-                        static_cast<char*>(strict_realloc(*lineptr, new_n));
-                    *n = new_n;
-                    *lineptr = new_lineptr;
-                }
-
-                auto c = csv_data_buffer[curr_char++];
-                (*lineptr)[line_used++] = c;
-                if (c == '\n') {
-                    (*lineptr)[line_used] = '\0';
-                    return line_used;
-                }
-            }
-
-            return (line_used != 0) ? line_used : -1;
-        }
-
         // read next line each time in order to set eof_
         bool read_next() {
             next_line_converter_.clear_error();
-            ssize_t ssize = 0;
             size_t size = 0;
             while (size == 0) {
                 ++line_number_;
@@ -2973,21 +2995,11 @@ private:
                 }
 
                 chars_read_ = curr_char_;
-                if (file_) {
-                    ssize = get_line_file(&next_line_buffer_,
-                                          &next_line_buffer_size_, file_);
-                    curr_char_ = std::ftell(file_);
-                } else {
-                    ssize = get_line_buffer(&next_line_buffer_,
-                                            &next_line_buffer_size_,
-                                            csv_data_buffer_, csv_data_size_,
-                                            curr_char_);
-                }
+                auto [ssize, eof] =
+                    get_line(next_line_buffer_, next_line_buffer_size_, file_,
+                             csv_data_buffer_, csv_data_size_, curr_char_);
 
-                if (ssize == -1) {
-                    if (errno == ENOMEM) {
-                        throw std::bad_alloc{};
-                    }
+                if (eof) {
                     return false;
                 }
 
@@ -3129,18 +3141,12 @@ private:
         bool append_next_line_to_buffer(char*& buffer, size_t& size) {
             undo_remove_eol(buffer, size);
 
-            ssize_t next_ssize;
-            if (file_) {
-                next_ssize =
-                    get_line_file(&helper_buffer_, &helper_buffer_size, file_);
-            } else {
-                next_ssize =
-                    get_line_buffer(&helper_buffer_, &helper_buffer_size,
-                                    csv_data_buffer_, csv_data_size_,
-                                    curr_char_);
-            }
+            chars_read_ = curr_char_;
+            auto [next_ssize, eof] =
+                get_line(helper_buffer_, helper_buffer_size, file_,
+                         csv_data_buffer_, csv_data_size_, curr_char_);
 
-            if (next_ssize == -1) {
+            if (eof) {
                 return false;
             }
 
