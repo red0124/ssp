@@ -16,13 +16,14 @@ TEST_CASE_TEMPLATE("test multiline restricted", T, ParserOptionCombinations) {
         out << "5,6,just\\\n\\\nstrings" << std::endl;
 #endif
         out << "7,8,ju\\\n\\\n\\\nnk" << std::endl;
+        out << "99,100,\"\n\n\n\n" << std::endl;
         out << "9,10,\"just\\\n\nstrings\"" << std::endl;
         out << "11,12,\"ju\\\n|\n\n\n\n\nk\"" << std::endl;
         out << "13,14,\"ju\\\n\\\n15,16\"\\\n\\\\\n\nnk\"" << std::endl;
         out << "17,18,\"ju\\\n\\\n\\\n\\\\\n\nnk\"" << std::endl;
         out << "19,20,just strings" << std::endl;
     }
-    auto bad_lines = 15;
+    auto bad_lines = 20;
     auto num_errors = 0;
 
     auto [p, _] =
