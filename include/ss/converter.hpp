@@ -269,6 +269,7 @@ private:
 
     void handle_error_multiline_limit_reached() {
         constexpr static auto error_msg = "multiline limit reached";
+        splitter_.unterminated_quote_ = false;
 
         if constexpr (string_error) {
             error_.clear();
