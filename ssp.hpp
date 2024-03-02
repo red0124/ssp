@@ -741,7 +741,7 @@ std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
     ssize_t ssize;
     if (file) {
         ssize = get_line_file(buffer, buffer_size, file);
-        curr_char = std::ftell(file);
+        curr_char += ssize;
     } else {
         ssize = get_line_buffer(buffer, buffer_size, csv_data_buffer,
                                 csv_data_size, curr_char);

@@ -6,7 +6,7 @@ project(
       'cpp_std=c++17', 
       'buildtype=debugoptimized',
       'wrap_mode=forcefallback'],
-  version: '1.7.1',
+  version: '1.7.2',
   meson_version:'>=0.54.0')
 
 fast_float_dep = dependency('fast_float')
