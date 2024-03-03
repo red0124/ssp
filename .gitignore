@@ -6,4 +6,3 @@ build/
 hbuild/
 subprojects/*
 !subprojects/*.wrap
-fuzz/ssp_fuzz

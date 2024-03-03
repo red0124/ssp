@@ -31,6 +31,9 @@ jobs:
       image: silkeh/clang:15
       options: -v /usr/local:/host_usr_local
 
+    env:
+      CXXFLAGS: -I ${{ github.workspace }}
+
     steps:
       - uses: actions/checkout@v1
 
@@ -41,9 +44,9 @@ jobs:
           script/ci_install_deps.sh
 
       - name: Build
-        working-directory: fuzz
+        working-directory: .github/fuzz
         run: make
 
       - name: Run
-        working-directory: fuzz
+        working-directory: .github/fuzz
         run: make run
