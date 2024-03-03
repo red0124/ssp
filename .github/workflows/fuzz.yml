@@ -54,4 +54,4 @@ jobs:
 
       - name: Run
         working-directory: fuzz
-        run: ssp_fuz -max_total_time=30
+        run: ssp_fuzz -max_total_time=30
