@@ -69,6 +69,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     using trim = ss::trim<' ', '\t'>;
     using multiline_r = ss::multiline_restricted<5>;
 
+    if (size == 1234) {
+        throw "...";
+    }
+
     test_ssp<>(data, size);
     test_ssp<escape>(data, size);
     test_ssp<quote>(data, size);
