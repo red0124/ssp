@@ -41,11 +41,13 @@ jobs:
         run: |
           apt-get update
           apt-get install -y git
-          script/ci_install_deps.sh
+
+      - name: Check
+        run: echo ${PDW} && ls -a
 
       - name: Build
         working-directory: .github/fuzz
-        run: make
+        run: echo ${PWD} && ls && make
 
       - name: Run
         working-directory: .github/fuzz
