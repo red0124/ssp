@@ -34,13 +34,9 @@ jobs:
     env:
       CC: clang
       CXX: clang++
-      CXXFLAGS: -stdlib=libc++
 
     steps:
       - uses: actions/checkout@v1
-
-      - uses: friendlyanon/fetch-core-count@v1
-        id: cores
 
       - name: Install dependencies
         run: |
