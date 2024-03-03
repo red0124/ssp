@@ -1,0 +1,43 @@
+name: fuzz-ci
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+  pull_request:
+    branches:
+      - master
+      - feature/**
+      - improvement/**
+      - bugfix/**
+
+jobs:
+  clang_tests:
+    if: >-
+      ! contains(toJSON(github.event.commits.*.message), '[skip ci]') &&
+      ! contains(toJSON(github.event.commits.*.message), '[skip github]')
+
+    runs-on: ubuntu-latest
+
+    name: "Fuzzing"
+
+    container:
+      image: silkeh/clang:15
+      options: -v /usr/local:/host_usr_local
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Build
+        working-directory: .github/fuzz
+        run: make
+
+      - name: Run
+        working-directory: .github/fuzz
+        run: make run
