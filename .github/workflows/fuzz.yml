@@ -36,7 +36,7 @@ jobs:
 
       - name: Build
         working-directory: .github/fuzz
-        run: make CXXFLAGS='-I ${{github.workspace}}'
+        run: ls ${{github.workspace}} && make CXXFLAGS='-I ${{github.workspace}}'
 
       - name: Run
         working-directory: .github/fuzz
