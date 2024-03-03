@@ -31,23 +31,12 @@ jobs:
       image: silkeh/clang:15
       options: -v /usr/local:/host_usr_local
 
-    env:
-      CXXFLAGS: -I ${{ github.workspace }}
-
     steps:
       - uses: actions/checkout@v1
 
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y git
-
-      - name: Check
-        run: echo ${PDW} && ls -a
-
       - name: Build
         working-directory: .github/fuzz
-        run: echo ${PWD} && ls && make
+        run: make CXXFLAGS='-I ${{github.workspace}}'
 
       - name: Run
         working-directory: .github/fuzz
