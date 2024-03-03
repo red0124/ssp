@@ -1,2 +1,8 @@
+BIN=ssp_fuzz
+SRC=ssp_fuzz.cpp
+
 all:
-	clang++ -std=c++17 -o ssp_fuzz ssp_fuzz.cpp -g -fsanitize=fuzzer
+	${CXX} ${CXXFLAGS} ${SRC} -fsanitize=fuzzer -std=c++17 -o ${BIN}
+
+run:
+	./${BIN} -max_total_time=30
