@@ -1,11 +1,7 @@
-BIN=ssp_fuzz
-OPT_BIN=opt_ssp_fuzz
-SRC=ssp_fuzz.cpp
+EXE=ssp_fuzz
 
 all:
-	${CXX} ${SRC} -fsanitize=fuzzer -std=c++17 -o ${BIN}
-	${CXX} ${SRC} -fsanitize=fuzzer -std=c++17 -O2 -o ${OPT_BIN}
+	clang++ ssp_fuzz.cpp -fsanitize=fuzzer -std=c++17 -o ${EXE}
 
 run:
-	./${BIN} -max_total_time=300
-	./${OPT_BIN} -max_total_time=300
+	./${EXE} -max_total_time=900

@@ -31,10 +31,6 @@ jobs:
       image: silkeh/clang:15
       options: -v /usr/local:/host_usr_local
 
-    env:
-      CC: clang
-      CXX: clang++
-
     steps:
       - uses: actions/checkout@v1
 
