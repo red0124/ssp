@@ -9,6 +9,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![coverage](https://coveralls.io/repos/github/red0124/ssp/badge.svg?branch=master)](https://coveralls.io/github/red0124/ssp?branch=master)
+[![fuzz](https://github.com/red0124/ssp/workflows/fuzz-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/fuzz.yml)
 [![single-header](https://github.com/red0124/ssp/workflows/single-header-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
 [![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
 [![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
