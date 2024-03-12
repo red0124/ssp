@@ -141,4 +141,4 @@ inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
     return {ssize, false};
 }
 
-} /* ss */
+} /* namespace ss */

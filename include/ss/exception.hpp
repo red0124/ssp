@@ -20,4 +20,4 @@ public:
     }
 };
 
-} /* ss */
+} /* namespace ss */

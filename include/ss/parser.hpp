@@ -971,4 +971,4 @@ private:
     bool eof_{false};
 };
 
-} /* ss */
+} /* namespace ss */

@@ -293,4 +293,4 @@ private:
 template <typename... Options>
 struct setup<setup<Options...>> : setup<Options...> {};
 
-} /* ss */
+} /* namespace ss */

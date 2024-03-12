@@ -478,4 +478,4 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */

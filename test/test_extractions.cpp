@@ -23,7 +23,7 @@ struct is_unsigned : public std::is_unsigned<T> {};
 template <>
 struct is_unsigned<ss::uint8> : public std::true_type {};
 
-} /* namespace */
+} /* anonymous namespace */
 
 static_assert(is_signed<ss::int8>::value);
 static_assert(is_unsigned<ss::uint8>::value);

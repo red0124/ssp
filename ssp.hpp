@@ -393,7 +393,7 @@ T to_object(U&& data) {
     }
 }
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -413,7 +413,7 @@ public:
     }
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -489,7 +489,7 @@ struct member_wrapper<R T::*> {
     template <typename T>                                                      \
     constexpr bool has_m_##method##_t = has_m_##method<T>::value;
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -615,7 +615,7 @@ struct ne {
     }
 };
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -752,7 +752,7 @@ inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
     return {ssize, false};
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -1045,7 +1045,7 @@ private:
 template <typename... Options>
 struct setup<setup<Options...>> : setup<Options...> {};
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -1516,7 +1516,7 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 #ifndef SSP_DISABLE_FAST_FLOAT
@@ -1649,7 +1649,7 @@ template <typename T>
 struct unsupported_type {
     constexpr static bool value = false;
 };
-} /* namespace */
+} /* namespace error */
 
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
@@ -1754,7 +1754,7 @@ inline bool extract(const char* begin, const char* end,
     return true;
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 INIT_HAS_METHOD(tied)
@@ -2240,7 +2240,7 @@ private:
     size_t number_of_columns_;
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -3202,4 +3202,4 @@ private:
     bool eof_{false};
 };
 
-} /* ss */
+} /* namespace ss */

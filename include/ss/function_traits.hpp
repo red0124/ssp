@@ -77,4 +77,4 @@ struct member_wrapper<R T::*> {
     template <typename T>                                                      \
     constexpr bool has_m_##method##_t = has_m_##method<T>::value;
 
-} /* trait */
+} /* namespace ss */

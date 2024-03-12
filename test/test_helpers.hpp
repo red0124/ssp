@@ -19,7 +19,7 @@
 namespace ss {
 template <typename... Ts>
 class parser;
-} /* ss */
+} /* namespace ss */
 
 namespace {
 
@@ -224,4 +224,4 @@ make_parser(const std::string& file_name,
     return make_parser_impl<buffer_mode, Ts...>(file_name, delim);
 }
 
-} /* namespace */
+} /* anonymous namespace */
