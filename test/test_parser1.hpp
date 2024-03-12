@@ -109,4 +109,4 @@ static void make_and_write(const std::string& file_name,
     }
 }
 
-} /* namespace */
+} /* anonymous namespace */

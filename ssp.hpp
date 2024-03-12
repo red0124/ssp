@@ -8,7 +8,6 @@
 #include <cstring>
 #include <exception>
 #include <functional>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -394,7 +393,7 @@ T to_object(U&& data) {
     }
 }
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -414,7 +413,7 @@ public:
     }
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -490,7 +489,7 @@ struct member_wrapper<R T::*> {
     template <typename T>                                                      \
     constexpr bool has_m_##method##_t = has_m_##method<T>::value;
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -616,7 +615,7 @@ struct ne {
     }
 };
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -657,7 +656,7 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 
 using ssize_t = intptr_t;
 
-ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
     char buff[get_line_initial_buffer_size];
 
     if (lineptr == nullptr || n < sizeof(buff)) {
@@ -693,7 +692,7 @@ ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 
 #endif
 
-ssize_t get_line_buffer(char*& lineptr, size_t& n,
+inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
                         const char* const csv_data_buffer, size_t csv_data_size,
                         size_t& curr_char) {
     if (curr_char >= csv_data_size) {
@@ -726,15 +725,11 @@ ssize_t get_line_buffer(char*& lineptr, size_t& n,
         }
     }
 
-    if (line_used != 0) {
-        lineptr[line_used] = '\0';
-        return line_used;
-    }
-
-    return -1;
+    lineptr[line_used] = '\0';
+    return line_used;
 }
 
-std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
+inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
                                    FILE* file,
                                    const char* const csv_data_buffer,
                                    size_t csv_data_size, size_t& curr_char) {
@@ -757,7 +752,7 @@ std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
     return {ssize, false};
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -1050,7 +1045,7 @@ private:
 template <typename... Options>
 struct setup<setup<Options...>> : setup<Options...> {};
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -1521,7 +1516,7 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 #ifndef SSP_DISABLE_FAST_FLOAT
@@ -1654,7 +1649,7 @@ template <typename T>
 struct unsupported_type {
     constexpr static bool value = false;
 };
-} /* namespace */
+} /* namespace error */
 
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
@@ -1759,7 +1754,7 @@ inline bool extract(const char* begin, const char* end,
     return true;
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 INIT_HAS_METHOD(tied)
@@ -2245,7 +2240,7 @@ private:
     size_t number_of_columns_;
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -3207,4 +3202,4 @@ private:
     bool eof_{false};
 };
 
-} /* ss */
+} /* namespace ss */

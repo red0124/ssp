@@ -616,7 +616,7 @@ void test_option_combinations3() {
     test_option_combinations2<Ts..., trim>();
 }
 
-} /* namespace */
+} /* anonymous namespace */
 
 // Tests split into multiple compilation units
 #if 0

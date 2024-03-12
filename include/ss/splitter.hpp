@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -479,4 +478,4 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */

@@ -124,4 +124,4 @@ struct ne {
     }
 };
 
-} /* ss */
+} /* namespace ss */

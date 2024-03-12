@@ -493,4 +493,4 @@ private:
     size_t number_of_columns_;
 };
 
-} /* ss */
+} /* namespace ss */

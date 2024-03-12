@@ -378,4 +378,4 @@ T to_object(U&& data) {
     }
 }
 
-} /* trait */
+} /* namespace ss */
