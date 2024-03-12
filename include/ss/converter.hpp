@@ -224,8 +224,9 @@ private:
     }
 
     std::string error_sufix(const string_range msg, size_t pos) const {
+        constexpr static auto reserve_size = 32;
         std::string error;
-        error.reserve(32);
+        error.reserve(reserve_size);
         error.append("at column ")
             .append(std::to_string(pos + 1))
             .append(": \'")
@@ -391,7 +392,7 @@ private:
     ////////////////
 
     bool columns_mapped() const {
-        return column_mappings_.size() != 0;
+        return !column_mappings_.empty();
     }
 
     size_t column_position(size_t tuple_position) const {
@@ -404,7 +405,7 @@ private:
     // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        column_mappings_ = positions;
+        column_mappings_ = std::move(positions);
         number_of_columns_ = number_of_columns;
     }
 
@@ -490,7 +491,7 @@ private:
     friend class parser;
 
     std::vector<size_t> column_mappings_;
-    size_t number_of_columns_;
+    size_t number_of_columns_{0};
 };
 
 } /* namespace ss */

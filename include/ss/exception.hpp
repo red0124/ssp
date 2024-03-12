@@ -12,10 +12,10 @@ class exception : public std::exception {
     std::string msg_;
 
 public:
-    exception(const std::string& msg): msg_{msg} {
+    exception(std::string msg): msg_{std::move(msg)} {
     }
 
-    virtual char const* what() const noexcept {
+    char const* what() const noexcept override {
         return msg_.c_str();
     }
 };
