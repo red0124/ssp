@@ -5,7 +5,6 @@
 #include "exception.hpp"
 #include "extract.hpp"
 #include "restrictions.hpp"
-#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -33,9 +32,9 @@ class parser {
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
-    parser(const std::string& file_name,
-           const std::string& delim = ss::default_delimiter)
-        : file_name_{file_name}, reader_{file_name_, delim} {
+    parser(std::string file_name,
+           std::string delim = ss::default_delimiter)
+        : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
             if constexpr (ignore_header) {
@@ -68,6 +67,7 @@ public:
 
     parser(parser&& other) = default;
     parser& operator=(parser&& other) = default;
+    ~parser() = default;
 
     parser() = delete;
     parser(const parser& other) = delete;
@@ -237,6 +237,10 @@ public:
 
             iterator(const iterator& other) = default;
             iterator(iterator&& other) = default;
+            ~iterator() = default;
+
+            iterator& operator=(const iterator& other) = delete;
+            iterator& operator=(iterator&& other) = delete;
 
             value& operator*() {
                 return value_;
@@ -261,8 +265,10 @@ public:
                 return *this;
             }
 
-            iterator& operator++(int) {
-                return ++*this;
+            iterator operator++(int) {
+                auto result = *this;
+                ++*this;
+                return result;
             }
 
             friend bool operator==(const iterator& lhs, const iterator& rhs) {
@@ -326,7 +332,7 @@ public:
             Fun&& fun = none{}) {
             using Value = no_void_validator_tup_t<Us...>;
             std::optional<Value> value;
-            try_convert_and_invoke<Value, Us...>(value, fun);
+            try_convert_and_invoke<Value, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
@@ -335,7 +341,7 @@ public:
         template <typename U, typename... Us, typename Fun = none>
         composite<Ts..., std::optional<U>> or_object(Fun&& fun = none{}) {
             std::optional<U> value;
-            try_convert_and_invoke<U, Us...>(value, fun);
+            try_convert_and_invoke<U, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
@@ -443,7 +449,7 @@ private:
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
-                if (!try_invoke_impl(arg, std::forward<Fun>(fun))) {
+                if (!try_invoke_impl(std::forward<Arg>(arg), std::forward<Fun>(fun))) {
                     handle_error_failed_check();
                 }
             } else {
@@ -478,7 +484,7 @@ private:
         if (valid()) {
             try_invoke(*value, std::forward<Fun>(fun));
         }
-        return {valid() ? std::move(value) : std::nullopt, *this};
+        return {valid() ? std::forward<T>(value) : std::nullopt, *this};
     }
 
     ////////////////
@@ -674,17 +680,17 @@ private:
     }
 
     struct reader {
-        reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
+        reader(const std::string& file_name_, std::string delim)
+            : delim_{std::move(delim)}, file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,
-               const std::string& delim)
-            : delim_{delim}, csv_data_buffer_{buffer},
+               std::string delim)
+            : delim_{std::move(delim)}, csv_data_buffer_{buffer},
               csv_data_size_{csv_data_size} {
         }
 
-        reader(reader&& other)
+        reader(reader&& other) noexcept
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
               helper_buffer_{other.helper_buffer_},
@@ -705,7 +711,7 @@ private:
             other.file_ = nullptr;
         }
 
-        reader& operator=(reader&& other) {
+        reader& operator=(reader&& other) noexcept {
             if (this != &other) {
                 buffer_ = other.buffer_;
                 next_line_buffer_ = other.next_line_buffer_;
@@ -853,7 +859,7 @@ private:
         }
 
         bool escaped_eol(size_t size) {
-            const char* curr;
+            const char* curr = nullptr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
                  setup<Options...>::escape::match(*curr);
@@ -899,7 +905,7 @@ private:
                             size_t& buffer_size, const char* const second,
                             size_t second_size) {
             buffer_size = first_size + second_size + 3;
-            auto new_first = static_cast<char*>(
+            auto* new_first = static_cast<char*>(
                 strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;

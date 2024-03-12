@@ -2,7 +2,6 @@
 #include "common.hpp"
 #include "exception.hpp"
 #include "setup.hpp"
-#include "type_traits.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -321,8 +320,9 @@ private:
 
         trim_left_if_enabled(begin_);
 
-        for (done_ = false; !done_; read(delim))
-            ;
+        for (done_ = false; !done_;) {
+            read(delim);
+        }
 
         return split_data_;
     }

@@ -2,8 +2,8 @@
 
 #include "type_traits.hpp"
 #include <charconv>
+#include <cstdint>
 #include <cstring>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -91,6 +91,8 @@ struct numeric_wrapper {
 
     numeric_wrapper& operator=(numeric_wrapper&&) = default;
     numeric_wrapper& operator=(const numeric_wrapper&) = default;
+
+    ~numeric_wrapper() = default;
 
     numeric_wrapper(T other) : value{other} {
     }
@@ -215,10 +217,13 @@ inline bool extract(const char* begin, const char* end, bool& value) {
             return false;
         }
     } else {
+        constexpr static auto true_size = 4;
+        constexpr static auto false_size = 5;
         size_t size = end - begin;
-        if (size == 4 && std::strncmp(begin, "true", size) == 0) {
+        if (size == true_size && std::strncmp(begin, "true", size) == 0) {
             value = true;
-        } else if (size == 5 && std::strncmp(begin, "false", size) == 0) {
+        } else if (size == false_size &&
+                   std::strncmp(begin, "false", size) == 0) {
             value = false;
         } else {
             return false;

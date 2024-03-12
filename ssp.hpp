@@ -49,7 +49,11 @@ struct left_of_impl;
 
 template <size_t N, typename T, typename... Ts>
 struct left_of_impl {
-    static_assert(N < 128, "recursion limit reached");
+private:
+    constexpr static auto recursion_limit = 128;
+
+public:
+    static_assert(N < recursion_limit, "recursion limit reached");
     static_assert(N != 0, "cannot take the whole tuple");
     using type = tup_cat_t<T, typename left_of_impl<N - 1, Ts...>::type>;
 };
@@ -405,10 +409,10 @@ class exception : public std::exception {
     std::string msg_;
 
 public:
-    exception(const std::string& msg): msg_{msg} {
+    exception(std::string msg): msg_{std::move(msg)} {
     }
 
-    virtual char const* what() const noexcept {
+    char const* what() const noexcept override {
         return msg_.c_str();
     }
 };
@@ -617,6 +621,11 @@ struct ne {
 
 } /* namespace ss */
 
+#if !__unix__
+#include <array>
+#include <cstdint>
+#endif
+
 namespace ss {
 
 struct none {};
@@ -657,7 +666,7 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 using ssize_t = intptr_t;
 
 inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
-    char buff[get_line_initial_buffer_size];
+    std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
         size_t new_n = sizeof(buff);
@@ -668,9 +677,9 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
     lineptr[0] = '\0';
 
     size_t line_used = 0;
-    while (std::fgets(buff, sizeof(buff), file) != nullptr) {
+    while (std::fgets(buff.data(), sizeof(buff), file) != nullptr) {
         line_used = std::strlen(lineptr);
-        size_t buff_used = std::strlen(buff);
+        size_t buff_used = std::strlen(buff.data());
 
         if (n <= buff_used + line_used) {
             size_t new_n = n * 2;
@@ -678,7 +687,7 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
             n = new_n;
         }
 
-        std::memcpy(lineptr + line_used, buff, buff_used);
+        std::memcpy(lineptr + line_used, buff.data(), buff_used);
         line_used += buff_used;
         lineptr[line_used] = '\0';
 
@@ -700,7 +709,7 @@ inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
     }
 
     if (lineptr == nullptr || n < get_line_initial_buffer_size) {
-        auto new_lineptr = static_cast<char*>(
+        auto* new_lineptr = static_cast<char*>(
             strict_realloc(lineptr, get_line_initial_buffer_size));
         lineptr = new_lineptr;
         n = get_line_initial_buffer_size;
@@ -733,7 +742,7 @@ inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
                                    FILE* file,
                                    const char* const csv_data_buffer,
                                    size_t csv_data_size, size_t& curr_char) {
-    ssize_t ssize;
+    ssize_t ssize = 0;
     if (file) {
         ssize = get_line_file(buffer, buffer_size, file);
         curr_char += ssize;
@@ -1359,8 +1368,9 @@ private:
 
         trim_left_if_enabled(begin_);
 
-        for (done_ = false; !done_; read(delim))
-            ;
+        for (done_ = false; !done_;) {
+            read(delim);
+        }
 
         return split_data_;
     }
@@ -1599,6 +1609,8 @@ struct numeric_wrapper {
     numeric_wrapper& operator=(numeric_wrapper&&) = default;
     numeric_wrapper& operator=(const numeric_wrapper&) = default;
 
+    ~numeric_wrapper() = default;
+
     numeric_wrapper(T other) : value{other} {
     }
 
@@ -1649,7 +1661,7 @@ template <typename T>
 struct unsupported_type {
     constexpr static bool value = false;
 };
-} /* namespace error */
+} /* namespace errors */
 
 template <typename T>
 std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
@@ -1722,10 +1734,13 @@ inline bool extract(const char* begin, const char* end, bool& value) {
             return false;
         }
     } else {
+        constexpr static auto true_size = 4;
+        constexpr static auto false_size = 5;
         size_t size = end - begin;
-        if (size == 4 && std::strncmp(begin, "true", size) == 0) {
+        if (size == true_size && std::strncmp(begin, "true", size) == 0) {
             value = true;
-        } else if (size == 5 && std::strncmp(begin, "false", size) == 0) {
+        } else if (size == false_size &&
+                   std::strncmp(begin, "false", size) == 0) {
             value = false;
         } else {
             return false;
@@ -1971,8 +1986,9 @@ private:
     }
 
     std::string error_sufix(const string_range msg, size_t pos) const {
+        constexpr static auto reserve_size = 32;
         std::string error;
-        error.reserve(32);
+        error.reserve(reserve_size);
         error.append("at column ")
             .append(std::to_string(pos + 1))
             .append(": \'")
@@ -2138,7 +2154,7 @@ private:
     ////////////////
 
     bool columns_mapped() const {
-        return column_mappings_.size() != 0;
+        return !column_mappings_.empty();
     }
 
     size_t column_position(size_t tuple_position) const {
@@ -2151,7 +2167,7 @@ private:
     // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        column_mappings_ = positions;
+        column_mappings_ = std::move(positions);
         number_of_columns_ = number_of_columns;
     }
 
@@ -2237,7 +2253,7 @@ private:
     friend class parser;
 
     std::vector<size_t> column_mappings_;
-    size_t number_of_columns_;
+    size_t number_of_columns_{0};
 };
 
 } /* namespace ss */
@@ -2264,9 +2280,9 @@ class parser {
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
-    parser(const std::string& file_name,
-           const std::string& delim = ss::default_delimiter)
-        : file_name_{file_name}, reader_{file_name_, delim} {
+    parser(std::string file_name,
+           std::string delim = ss::default_delimiter)
+        : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
             if constexpr (ignore_header) {
@@ -2299,6 +2315,7 @@ public:
 
     parser(parser&& other) = default;
     parser& operator=(parser&& other) = default;
+    ~parser() = default;
 
     parser() = delete;
     parser(const parser& other) = delete;
@@ -2468,6 +2485,10 @@ public:
 
             iterator(const iterator& other) = default;
             iterator(iterator&& other) = default;
+            ~iterator() = default;
+
+            iterator& operator=(const iterator& other) = delete;
+            iterator& operator=(iterator&& other) = delete;
 
             value& operator*() {
                 return value_;
@@ -2492,8 +2513,10 @@ public:
                 return *this;
             }
 
-            iterator& operator++(int) {
-                return ++*this;
+            iterator operator++(int) {
+                auto result = *this;
+                ++*this;
+                return result;
             }
 
             friend bool operator==(const iterator& lhs, const iterator& rhs) {
@@ -2557,7 +2580,7 @@ public:
             Fun&& fun = none{}) {
             using Value = no_void_validator_tup_t<Us...>;
             std::optional<Value> value;
-            try_convert_and_invoke<Value, Us...>(value, fun);
+            try_convert_and_invoke<Value, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
@@ -2566,7 +2589,7 @@ public:
         template <typename U, typename... Us, typename Fun = none>
         composite<Ts..., std::optional<U>> or_object(Fun&& fun = none{}) {
             std::optional<U> value;
-            try_convert_and_invoke<U, Us...>(value, fun);
+            try_convert_and_invoke<U, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
@@ -2674,7 +2697,7 @@ private:
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
-                if (!try_invoke_impl(arg, std::forward<Fun>(fun))) {
+                if (!try_invoke_impl(std::forward<Arg>(arg), std::forward<Fun>(fun))) {
                     handle_error_failed_check();
                 }
             } else {
@@ -2709,7 +2732,7 @@ private:
         if (valid()) {
             try_invoke(*value, std::forward<Fun>(fun));
         }
-        return {valid() ? std::move(value) : std::nullopt, *this};
+        return {valid() ? std::forward<T>(value) : std::nullopt, *this};
     }
 
     ////////////////
@@ -2905,17 +2928,17 @@ private:
     }
 
     struct reader {
-        reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
+        reader(const std::string& file_name_, std::string delim)
+            : delim_{std::move(delim)}, file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,
-               const std::string& delim)
-            : delim_{delim}, csv_data_buffer_{buffer},
+               std::string delim)
+            : delim_{std::move(delim)}, csv_data_buffer_{buffer},
               csv_data_size_{csv_data_size} {
         }
 
-        reader(reader&& other)
+        reader(reader&& other) noexcept
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
               helper_buffer_{other.helper_buffer_},
@@ -2936,7 +2959,7 @@ private:
             other.file_ = nullptr;
         }
 
-        reader& operator=(reader&& other) {
+        reader& operator=(reader&& other) noexcept {
             if (this != &other) {
                 buffer_ = other.buffer_;
                 next_line_buffer_ = other.next_line_buffer_;
@@ -3084,7 +3107,7 @@ private:
         }
 
         bool escaped_eol(size_t size) {
-            const char* curr;
+            const char* curr = nullptr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
                  setup<Options...>::escape::match(*curr);
@@ -3130,7 +3153,7 @@ private:
                             size_t& buffer_size, const char* const second,
                             size_t second_size) {
             buffer_size = first_size + second_size + 3;
-            auto new_first = static_cast<char*>(
+            auto* new_first = static_cast<char*>(
                 strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;

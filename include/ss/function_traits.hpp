@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 #include <functional>
-#include <tuple>
 
 namespace ss {
 
