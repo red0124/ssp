@@ -637,13 +637,13 @@ constexpr inline auto default_delimiter = ",";
 constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
-inline void assert_string_error_defined() {
+void assert_string_error_defined() {
     static_assert(StringError,
                   "'string_error' needs to be enabled to use 'error_msg'");
 }
 
 template <bool ThrowOnError>
-inline void assert_throw_on_error_not_defined() {
+void assert_throw_on_error_not_defined() {
     static_assert(!ThrowOnError, "cannot handle errors manually if "
                                  "'throw_on_error' is enabled");
 }
@@ -1562,16 +1562,17 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
                   "Conversion to long double is disabled");
 
     constexpr static auto buff_max = 64;
-    char short_buff[buff_max];
+    std::array<char, buff_max> short_buff;
+
     size_t string_range = std::distance(begin, end);
     std::string long_buff;
 
-    char* buff;
+    char* buff = nullptr;
     if (string_range > buff_max) {
         long_buff = std::string{begin, end};
         buff = long_buff.data();
     } else {
-        buff = short_buff;
+        buff = short_buff.data();
         buff[string_range] = '\0';
         std::copy_n(begin, string_range, buff);
     }
@@ -2280,8 +2281,7 @@ class parser {
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
-    parser(std::string file_name,
-           std::string delim = ss::default_delimiter)
+    parser(std::string file_name, std::string delim = ss::default_delimiter)
         : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
@@ -2697,7 +2697,8 @@ private:
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
-                if (!try_invoke_impl(std::forward<Arg>(arg), std::forward<Fun>(fun))) {
+                if (!try_invoke_impl(std::forward<Arg>(arg),
+                                     std::forward<Fun>(fun))) {
                     handle_error_failed_check();
                 }
             } else {
@@ -2929,7 +2930,8 @@ private:
 
     struct reader {
         reader(const std::string& file_name_, std::string delim)
-            : delim_{std::move(delim)}, file_{std::fopen(file_name_.c_str(), "rb")} {
+            : delim_{std::move(delim)},
+              file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,

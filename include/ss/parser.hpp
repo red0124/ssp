@@ -32,8 +32,7 @@ class parser {
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
 public:
-    parser(std::string file_name,
-           std::string delim = ss::default_delimiter)
+    parser(std::string file_name, std::string delim = ss::default_delimiter)
         : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
@@ -449,7 +448,8 @@ private:
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
-                if (!try_invoke_impl(std::forward<Arg>(arg), std::forward<Fun>(fun))) {
+                if (!try_invoke_impl(std::forward<Arg>(arg),
+                                     std::forward<Fun>(fun))) {
                     handle_error_failed_check();
                 }
             } else {
@@ -681,7 +681,8 @@ private:
 
     struct reader {
         reader(const std::string& file_name_, std::string delim)
-            : delim_{std::move(delim)}, file_{std::fopen(file_name_.c_str(), "rb")} {
+            : delim_{std::move(delim)},
+              file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,

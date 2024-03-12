@@ -1,0 +1,12 @@
+int main() {
+    using quote = ss::quote<'"'>;
+    using escape = ss::escape<'\\'>;
+    using trim = ss::trim<' '>;
+
+    std::string data = "1,string,2.34,c";
+
+    ss::parser<quote, escape, trim, ss::multiline> p{data.c_str(), data.size()};
+    auto tup = p.get_next<int, std::string, float, std::optional<char>>();
+
+    return 0;
+}

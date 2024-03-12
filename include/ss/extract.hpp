@@ -14,6 +14,7 @@
 #else
 #include <algorithm>
 #include <cstdlib>
+#include <array>
 #endif
 
 namespace ss {
@@ -45,16 +46,17 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
                   "Conversion to long double is disabled");
 
     constexpr static auto buff_max = 64;
-    char short_buff[buff_max];
+    std::array<char, buff_max> short_buff;
+
     size_t string_range = std::distance(begin, end);
     std::string long_buff;
 
-    char* buff;
+    char* buff = nullptr;
     if (string_range > buff_max) {
         long_buff = std::string{begin, end};
         buff = long_buff.data();
     } else {
-        buff = short_buff;
+        buff = short_buff.data();
         buff[string_range] = '\0';
         std::copy_n(begin, string_range, buff);
     }

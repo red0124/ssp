@@ -21,13 +21,13 @@ constexpr inline auto default_delimiter = ",";
 constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
-inline void assert_string_error_defined() {
+void assert_string_error_defined() {
     static_assert(StringError,
                   "'string_error' needs to be enabled to use 'error_msg'");
 }
 
 template <bool ThrowOnError>
-inline void assert_throw_on_error_not_defined() {
+void assert_throw_on_error_not_defined() {
     static_assert(!ThrowOnError, "cannot handle errors manually if "
                                  "'throw_on_error' is enabled");
 }
