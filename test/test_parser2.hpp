@@ -399,7 +399,9 @@ void test_data_combinations(const std::vector<column>& input_data,
                 fields.push_back(header[index]);
             }
 
-            p.use_fields(fields);
+            if constexpr (!setup::ignore_header) {
+                p.use_fields(fields);
+            }
 
             if (!p.valid()) {
                 if constexpr (setup::string_error) {

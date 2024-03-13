@@ -2304,7 +2304,7 @@ public:
 
     parser(const char* const csv_data_buffer, size_t csv_data_size,
            const std::string& delim = ss::default_delimiter)
-        : file_name_{"buffer line"},
+        : file_name_{"CSV data buffer"},
           reader_{csv_data_buffer, csv_data_size, delim} {
         if (csv_data_buffer) {
             read_line();
@@ -2471,7 +2471,7 @@ public:
         auto fields = std::vector<std::string>{fields_args...};
 
         if (fields.empty()) {
-            handle_error_empty_mapping();
+            handle_error_invalid_use_fields_argument();
             return;
         }
 
@@ -2789,7 +2789,7 @@ private:
             try {
                 splitter.split(header.data(), reader_.delim_);
             } catch (const ss::exception& e) {
-                decorate_rethrow_no_line(e);
+                decorate_rethrow_invalid_header_split(e);
             }
         } else {
             splitter.split(header.data(), reader_.delim_);
@@ -2850,7 +2850,7 @@ private:
     }
 
     void handle_error_failed_check() {
-        constexpr static auto error_msg = " failed check";
+        constexpr static auto error_msg = ": failed check";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2863,7 +2863,7 @@ private:
     }
 
     void handle_error_null_buffer() {
-        constexpr static auto error_msg = " received null data buffer";
+        constexpr static auto error_msg = ": received null data buffer";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2876,7 +2876,7 @@ private:
     }
 
     void handle_error_file_not_open() {
-        constexpr static auto error_msg = " could not be opened";
+        constexpr static auto error_msg = ": could not be opened";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2889,7 +2889,7 @@ private:
     }
 
     void handle_error_eof_reached() {
-        constexpr static auto error_msg = " read on end of file";
+        constexpr static auto error_msg = ": read on end of file";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2941,8 +2941,9 @@ private:
         }
     }
 
-    void handle_error_empty_mapping() {
-        constexpr static auto error_msg = "received empty mapping";
+    void handle_error_invalid_use_fields_argument() {
+        constexpr static auto error_msg =
+            "received invalid argument for 'use_fields'";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2955,20 +2956,20 @@ private:
     }
 
     void handle_error_invalid_header_field() {
-        constexpr static auto error_msg = " header contains empty field";
+        constexpr static auto error_msg = ": header contains empty field";
 
         if constexpr (string_error) {
             error_.clear();
             error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
-            throw ss::exception{error_msg};
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
     }
 
     void handle_error_duplicate_header_field(const std::string& field) {
-        constexpr static auto error_msg = " header contains duplicate: ";
+        constexpr static auto error_msg = ": header contains duplicate: ";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2981,7 +2982,7 @@ private:
     }
 
     void handle_error_invalid_header_split(const header_splitter& splitter) {
-        constexpr static auto error_msg = " failed header split: ";
+        constexpr static auto error_msg = ": failed header parsing: ";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2993,20 +2994,20 @@ private:
         }
     }
 
+    void decorate_rethrow_invalid_header_split(const ss::exception& e) const {
+        static_assert(throw_on_error,
+                      "throw_on_error needs to be enabled to use this method");
+        throw ss::exception{std::string{file_name_}
+                                .append(": failed header parsing: ")
+                                .append(e.what())};
+    }
+
     void decorate_rethrow(const ss::exception& e) const {
         static_assert(throw_on_error,
                       "throw_on_error needs to be enabled to use this method");
         throw ss::exception{std::string{file_name_}
                                 .append(" ")
                                 .append(std::to_string(line()))
-                                .append(": ")
-                                .append(e.what())};
-    }
-
-    void decorate_rethrow_no_line(const ss::exception& e) const {
-        static_assert(throw_on_error,
-                      "throw_on_error needs to be enabled to use this method");
-        throw ss::exception{std::string{file_name_}
                                 .append(": ")
                                 .append(e.what())};
     }
