@@ -1,13 +1,7 @@
 #include "test_helpers.hpp"
-#include <algorithm>
-#include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <regex>
 #include <ss/parser.hpp>
-#include <sstream>
-#include <unordered_map>
 #include <unordered_set>
 
 #ifndef SEGMENT_NAME
@@ -333,8 +327,10 @@ void test_data_combinations(const std::vector<column>& input_data,
         field_header.push_back(field{el.header});
     }
 
+    std::string header_line;
     if (include_header) {
         auto header_data = generate_csv_data<Ts...>(field_header, delim);
+        header_line = merge_header(header_data, delim);
         if (input_data.size() == 0 && rand() % 10 == 0) {
             write_to_file(header_data, delim, f.name, false);
         } else {
@@ -425,8 +421,19 @@ void test_data_combinations(const std::vector<column>& input_data,
             }
         };
 
+        auto check_header = [&p = p, &header = header, include_header,
+                             header_line] {
+            if (include_header) {
+                if constexpr (!setup::ignore_header) {
+                    CHECK_EQ_ARRAY(header, p.header());
+                    CHECK_EQ(header_line, p.raw_header());
+                }
+            }
+        };
+
         int num_columns = layout.size();
         for (size_t i = 0; i < n + 1; ++i) {
+            check_header();
             try {
                 switch (num_columns) {
                 case 1: {

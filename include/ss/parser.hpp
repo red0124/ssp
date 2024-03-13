@@ -31,6 +31,9 @@ class parser {
 
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
+    using header_splitter = ss::splitter<
+        ss::filter_not_t<ss::is_instance_of_multiline, Options...>>;
+
 public:
     parser(std::string file_name, std::string delim = ss::default_delimiter)
         : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
@@ -161,9 +164,40 @@ public:
         return value;
     }
 
+    std::string raw_header() const {
+        assert_ignore_header_not_defined();
+        return raw_header_;
+    }
+
+    std::vector<std::string> header() {
+        assert_ignore_header_not_defined();
+        clear_error();
+
+        header_splitter splitter;
+        std::string raw_header_copy = raw_header_;
+
+        if (!strict_split(splitter, raw_header_copy)) {
+            return {};
+        }
+
+        std::vector<std::string> split_header;
+        for (const auto& [begin, end] : splitter.split_data_) {
+            split_header.emplace_back(begin, end);
+        }
+
+        return split_header;
+    }
+
     bool field_exists(const std::string& field) {
+        assert_ignore_header_not_defined();
+        clear_error();
+
         if (header_.empty()) {
             split_header_data();
+        }
+
+        if (!valid()) {
+            return false;
         }
 
         return header_index(field).has_value();
@@ -171,10 +205,8 @@ public:
 
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
-        if constexpr (ignore_header) {
-            handle_error_header_ignored();
-            return;
-        }
+        assert_ignore_header_not_defined();
+        clear_error();
 
         if (header_.empty() && !eof()) {
             split_header_data();
@@ -491,15 +523,51 @@ private:
     // header
     ////////////////
 
+    void assert_ignore_header_not_defined() const {
+        static_assert(!ignore_header,
+                      "cannot use this method when 'ignore_header' is defined");
+    }
+
+    bool strict_split(header_splitter& splitter, std::string& header) {
+        if (header.empty()) {
+            return false;
+        }
+
+        if constexpr (throw_on_error) {
+            try {
+                splitter.split(header.data(), reader_.delim_);
+            } catch (const ss::exception& e) {
+                decorate_rethrow_no_line(e);
+            }
+        } else {
+            splitter.split(header.data(), reader_.delim_);
+            if (!splitter.valid()) {
+                handle_error_invalid_header_split(splitter);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void split_header_data() {
-        ss::splitter<Options...> splitter;
+        header_splitter splitter;
         std::string raw_header_copy = raw_header_;
-        splitter.split(raw_header_copy.data(), reader_.delim_);
+
+        if (!strict_split(splitter, raw_header_copy)) {
+            return;
+        }
+
         for (const auto& [begin, end] : splitter.split_data_) {
             std::string field{begin, end};
+            if (field.empty()) {
+                handle_error_duplicate_header_field(field);
+                header_.clear();
+                return;
+            }
             if (std::find(header_.begin(), header_.end(), field) !=
                 header_.end()) {
-                handle_error_invalid_header(field);
+                handle_error_duplicate_header_field(field);
                 header_.clear();
                 return;
             }
@@ -594,20 +662,6 @@ private:
         }
     }
 
-    void handle_error_header_ignored() {
-        constexpr static auto error_msg =
-            ": the header row is ignored within the setup it cannot be used";
-
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append(file_name_).append(error_msg);
-        } else if constexpr (throw_on_error) {
-            throw ss::exception{file_name_ + error_msg};
-        } else {
-            error_ = true;
-        }
-    }
-
     void handle_error_invalid_field(const std::string& field) {
         constexpr static auto error_msg =
             ": header does not contain given field: ";
@@ -648,14 +702,40 @@ private:
         }
     }
 
-    void handle_error_invalid_header(const std::string& field) {
-        constexpr static auto error_msg = "header contains duplicates: ";
+    void handle_error_invalid_header_field() {
+        constexpr static auto error_msg = " header contains empty field";
 
         if constexpr (string_error) {
             error_.clear();
-            error_.append(error_msg).append(error_msg);
+            error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
-            throw ss::exception{error_msg + field};
+            throw ss::exception{error_msg};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void handle_error_duplicate_header_field(const std::string& field) {
+        constexpr static auto error_msg = " header contains duplicate: ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void handle_error_invalid_header_split(const header_splitter& splitter) {
+        constexpr static auto error_msg = " failed header split: ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_)
+                .append(error_msg)
+                .append(splitter.error_msg());
         } else {
             error_ = true;
         }
@@ -667,6 +747,14 @@ private:
         throw ss::exception{std::string{file_name_}
                                 .append(" ")
                                 .append(std::to_string(line()))
+                                .append(": ")
+                                .append(e.what())};
+    }
+
+    void decorate_rethrow_no_line(const ss::exception& e) const {
+        static_assert(throw_on_error,
+                      "throw_on_error needs to be enabled to use this method");
+        throw ss::exception{std::string{file_name_}
                                 .append(": ")
                                 .append(e.what())};
     }
@@ -935,7 +1023,7 @@ private:
         }
 
         std::string get_buffer() {
-            return std::string{next_line_buffer_, next_line_buffer_size_};
+            return std::string{next_line_buffer_, next_line_size_};
         }
 
         ////////////////

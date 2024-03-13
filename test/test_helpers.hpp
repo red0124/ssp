@@ -145,6 +145,17 @@ struct unique_file_name {
         CHECK_FALSE(std::string{e.what()}.empty());                            \
     }
 
+#define CHECK_EQ_ARRAY(first, second)                                          \
+    {                                                                          \
+        const auto& first_ = (first);                                          \
+        const auto& second_ = (second);                                        \
+        CHECK_EQ(first_.size(), second_.size());                               \
+        for (size_t i_ = 0; i_ < std::min(first_.size(), second_.size());      \
+             ++i_) {                                                           \
+            CHECK_EQ(first_[i_], second_[i_]);                                 \
+        }                                                                      \
+    }
+
 template <typename T>
 [[maybe_unused]] std::vector<std::vector<T>> vector_combinations(
     const std::vector<T>& v, size_t n) {
@@ -165,6 +176,22 @@ template <typename T>
     }
     return ret;
 }
+
+[[maybe_unused]] std::string merge_header(
+    const std::vector<std::string>& header,
+    const std::string& delimiter = ss::default_delimiter) {
+    std::string s;
+    if (!header.empty()) {
+        for (const auto& i : header) {
+            s.append(i);
+            s.append(delimiter);
+        }
+        for (size_t i = 0; i < delimiter.size(); ++i) {
+            s.pop_back();
+        }
+    }
+    return s;
+};
 
 [[maybe_unused]] std::string make_buffer(const std::string& file_name) {
     std::ifstream in{file_name, std::ios::binary};

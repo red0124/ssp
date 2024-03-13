@@ -28,6 +28,7 @@ void expect_error_on_command(ss::parser<Ts...>& p,
     if (ss::setup<Ts...>::throw_on_error) {
         try {
             command();
+            FAIL("expected exception");
         } catch (const std::exception& e) {
             CHECK_FALSE(std::string{e.what()}.empty());
         }
