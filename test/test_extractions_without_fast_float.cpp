@@ -1,5 +1,4 @@
 #include "test_helpers.hpp"
-#include <algorithm>
 
 #define SSP_DISABLE_FAST_FLOAT
 #include <ss/extract.hpp>

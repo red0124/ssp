@@ -51,14 +51,16 @@ TEST_CASE_TEMPLATE("test moving of parsed composite values", T,
     // to compile is enough
     return;
     auto [p, _] = make_parser<buffer_mode, ErrorMode>("", "");
-    p.template try_next<my_string, my_string, my_string>()
-        .template or_else<my_string, my_string, my_string, my_string>(
-            [](auto&&) {})
-        .template or_else<my_string>([](auto&) {})
-        .template or_else<xyz>([](auto&&) {})
-        .template or_object<xyz, my_string, my_string, my_string>([](auto&&) {})
-        .template or_else<std::tuple<my_string, my_string, my_string>>(
-            [](auto&, auto&, auto&) {});
+    std::ignore =
+        p.template try_next<my_string, my_string, my_string>()
+            .template or_else<my_string, my_string, my_string, my_string>(
+                [](auto&&) {})
+            .template or_else<my_string>([](auto&) {})
+            .template or_else<xyz>([](auto&&) {})
+            .template or_object<xyz, my_string, my_string, my_string>(
+                [](auto&&) {})
+            .template or_else<std::tuple<my_string, my_string, my_string>>(
+                [](auto&, auto&, auto&) {});
 }
 
 TEST_CASE_TEMPLATE("parser test string error mode", BufferMode, std::true_type,
@@ -73,7 +75,7 @@ TEST_CASE_TEMPLATE("parser test string error mode", BufferMode, std::true_type,
     auto [p, _] = make_parser<BufferMode::value, ss::string_error>(f.name, ",");
 
     REQUIRE_FALSE(p.eof());
-    p.template get_next<int>();
+    std::ignore = p.template get_next<int>();
     CHECK_FALSE(p.valid());
     CHECK_FALSE(p.error_msg().empty());
 }
@@ -92,7 +94,7 @@ TEST_CASE_TEMPLATE("parser throw on error mode", BufferMode, std::true_type,
 
     REQUIRE_FALSE(p.eof());
     try {
-        p.template get_next<int>();
+        std::ignore = p.template get_next<int>();
         FAIL("Expected exception...");
     } catch (const std::exception& e) {
         CHECK_FALSE(std::string{e.what()}.empty());
@@ -148,7 +150,8 @@ TEST_CASE_TEMPLATE("test quote multiline", T, ParserOptionCombinations) {
         make_parser<buffer_mode, ErrorMode, ss::quote<'"'>>(f.name, ",");
     while (!p.eof()) {
         auto command = [&p_no_multiline = p_no_multiline] {
-            p_no_multiline.template get_next<int, double, std::string>();
+            std::ignore =
+                p_no_multiline.template get_next<int, double, std::string>();
         };
         expect_error_on_command(p_no_multiline, command);
     }

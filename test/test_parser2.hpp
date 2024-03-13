@@ -85,8 +85,8 @@ struct column {
 };
 
 template <typename... Ts>
-column make_column(const std::string& input_header,
-                   const std::vector<field>& input_fields) {
+[[nodiscard]] column make_column(const std::string& input_header,
+                                 const std::vector<field>& input_fields) {
     using setup = ss::setup<Ts...>;
     std::vector<field> filtered_fields;
 
@@ -127,8 +127,8 @@ column make_column(const std::string& input_header,
 }
 
 template <typename... Ts>
-std::vector<std::string> generate_csv_data(const std::vector<field>& data,
-                                           const std::string& delim) {
+[[nodiscard]] std::vector<std::string> generate_csv_data(
+    const std::vector<field>& data, const std::string& delim) {
     (void)delim;
     using setup = ss::setup<Ts...>;
     constexpr static auto escape = '\\';

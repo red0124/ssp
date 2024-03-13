@@ -381,12 +381,12 @@ constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 ////////////////
 
 template <class T, std::size_t... Is, class U>
-T to_object_impl(std::index_sequence<Is...>, U&& data) {
+[[nodiscard]] T to_object_impl(std::index_sequence<Is...>, U&& data) {
     return {std::get<Is>(std::forward<U>(data))...};
 }
 
 template <class T, class U>
-T to_object(U&& data) {
+[[nodiscard]] T to_object(U&& data) {
     using NoRefU = std::decay_t<U>;
     if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
         return to_object_impl<
@@ -409,10 +409,10 @@ class exception : public std::exception {
     std::string msg_;
 
 public:
-    exception(std::string msg): msg_{std::move(msg)} {
+    exception(std::string msg) : msg_{std::move(msg)} {
     }
 
-    char const* what() const noexcept override {
+    [[nodiscard]] char const* what() const noexcept override {
         return msg_.c_str();
     }
 };
@@ -505,7 +505,7 @@ template <typename T, auto... Values>
 struct ax {
 private:
     template <auto X, auto... Xs>
-    bool ss_valid_impl(const T& x) const {
+    [[nodiscard]] bool ss_valid_impl(const T& x) const {
         if constexpr (sizeof...(Xs) != 0) {
             return x != X && ss_valid_impl<Xs...>(x);
         }
@@ -513,11 +513,11 @@ private:
     }
 
 public:
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return ss_valid_impl<Values...>(value);
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "value excluded";
     }
 };
@@ -530,7 +530,7 @@ template <typename T, auto... Values>
 struct nx {
 private:
     template <auto X, auto... Xs>
-    bool ss_valid_impl(const T& x) const {
+    [[nodiscard]] bool ss_valid_impl(const T& x) const {
         if constexpr (sizeof...(Xs) != 0) {
             return x == X || ss_valid_impl<Xs...>(x);
         }
@@ -538,11 +538,11 @@ private:
     }
 
 public:
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return ss_valid_impl<Values...>(value);
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "value excluded";
     }
 };
@@ -556,28 +556,28 @@ public:
 
 template <typename T, auto N>
 struct gt {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value > N;
     }
 };
 
 template <typename T, auto N>
 struct gte {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value >= N;
     }
 };
 
 template <typename T, auto N>
 struct lt {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value < N;
     }
 };
 
 template <typename T, auto N>
 struct lte {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value <= N;
     }
 };
@@ -588,7 +588,7 @@ struct lte {
 
 template <typename T, auto Min, auto Max>
 struct ir {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value >= Min && value <= Max;
     }
 };
@@ -599,7 +599,7 @@ struct ir {
 
 template <typename T, auto Min, auto Max>
 struct oor {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value < Min || value > Max;
     }
 };
@@ -610,11 +610,11 @@ struct oor {
 
 template <typename T>
 struct ne {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return !value.empty();
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "empty field";
     }
 };
@@ -648,7 +648,7 @@ void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
-inline void* strict_realloc(void* ptr, size_t size) {
+[[nodiscard]] inline void* strict_realloc(void* ptr, size_t size) {
     ptr = std::realloc(ptr, size);
     if (!ptr) {
         throw std::bad_alloc{};
@@ -658,14 +658,16 @@ inline void* strict_realloc(void* ptr, size_t size) {
 }
 
 #if __unix__
-inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
     return getline(&lineptr, &n, file);
 }
 #else
 
 using ssize_t = intptr_t;
 
-inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
     std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
@@ -701,9 +703,10 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 
 #endif
 
-inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
-                        const char* const csv_data_buffer, size_t csv_data_size,
-                        size_t& curr_char) {
+[[nodiscard]] inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
+                                             const char* const csv_data_buffer,
+                                             size_t csv_data_size,
+                                             size_t& curr_char) {
     if (curr_char >= csv_data_size) {
         return -1;
     }
@@ -738,10 +741,10 @@ inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
     return line_used;
 }
 
-inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
-                                   FILE* file,
-                                   const char* const csv_data_buffer,
-                                   size_t csv_data_size, size_t& curr_char) {
+[[nodiscard]] inline std::tuple<ssize_t, bool> get_line(
+    char*& buffer, size_t& buffer_size, FILE* file,
+    const char* const csv_data_buffer, size_t csv_data_size,
+    size_t& curr_char) {
     ssize_t ssize = 0;
     if (file) {
         ssize = get_line_file(buffer, buffer_size, file);
@@ -1079,7 +1082,7 @@ private:
 public:
     using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -1089,12 +1092,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return unterminated_quote_;
     }
 
@@ -1112,7 +1115,7 @@ private:
     ////////////////
 
     // number of characters the end of line is shifted backwards
-    size_t size_shifted() const {
+    [[nodiscard]] size_t size_shifted() const {
         return escaped_;
     }
 
@@ -1243,19 +1246,19 @@ private:
     // matching
     ////////////////
 
-    bool match(const char* const curr, char delim) {
+    [[nodiscard]] bool match(const char* const curr, char delim) {
         return *curr == delim;
     };
 
-    bool match(const char* const curr, const std::string& delim) {
+    [[nodiscard]] bool match(const char* const curr, const std::string& delim) {
         return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
-    size_t delimiter_size(char) {
+    [[nodiscard]] size_t delimiter_size(char) {
         return 1;
     }
 
-    size_t delimiter_size(const std::string& delim) {
+    [[nodiscard]] size_t delimiter_size(const std::string& delim) {
         return delim.size();
     }
 
@@ -1276,8 +1279,8 @@ private:
     }
 
     template <typename Delim>
-    std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
-                                             const Delim& delim) {
+    [[nodiscard]] std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
+                                                           const Delim& delim) {
         line_ptr_type end = begin;
 
         trim_right_if_enabled(end);
@@ -1545,8 +1548,8 @@ namespace ss {
 #ifndef SSP_DISABLE_FAST_FLOAT
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = fast_float::from_chars(begin, end, ret);
 
@@ -1559,8 +1562,8 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 #else
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     static_assert(!std::is_same_v<T, long double>,
                   "Conversion to long double is disabled");
 
@@ -1633,7 +1636,7 @@ using int8 = numeric_wrapper<int8_t>;
 using uint8 = numeric_wrapper<uint8_t>;
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret);
@@ -1645,8 +1648,9 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<numeric_wrapper, T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<numeric_wrapper, T>,
+                               std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret.value);
 
@@ -1668,11 +1672,12 @@ struct unsupported_type {
 } /* namespace errors */
 
 template <typename T>
-std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
-                     !is_instance_of_v<std::optional, T> &&
-                     !is_instance_of_v<std::variant, T> &&
-                     !is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<!std::is_integral_v<T> &&
+                                   !std::is_floating_point_v<T> &&
+                                   !is_instance_of_v<std::optional, T> &&
+                                   !is_instance_of_v<std::variant, T> &&
+                                   !is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char*, const char*, T&) {
     static_assert(error::unsupported_type<T>::value,
                   "Conversion for given type is not defined, an "
@@ -1680,9 +1685,10 @@ extract(const char*, const char*, T&) {
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                     is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T> ||
+                                   std::is_floating_point_v<T> ||
+                                   is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char* begin, const char* end, T& value) {
     auto optional_value = to_num<T>(begin, end);
     if (!optional_value) {
@@ -1693,8 +1699,8 @@ extract(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
-    const char* begin, const char* end, T& value) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::optional, T>, bool>
+extract(const char* begin, const char* end, T& value) {
     typename T::value_type raw_value;
     if (extract(begin, end, raw_value)) {
         value = raw_value;
@@ -1705,7 +1711,8 @@ std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
 }
 
 template <typename T, size_t I>
-bool extract_variant(const char* begin, const char* end, T& value) {
+[[nodiscard]] bool extract_variant(const char* begin, const char* end,
+                                   T& value) {
     using IthType = std::variant_alternative_t<I, std::decay_t<T>>;
     IthType ithValue;
     if (extract<IthType>(begin, end, ithValue)) {
@@ -1718,7 +1725,7 @@ bool extract_variant(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
     const char* begin, const char* end, T& value) {
     return extract_variant<T, 0>(begin, end, value);
 }
@@ -1728,7 +1735,8 @@ std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
 ////////////////
 
 template <>
-inline bool extract(const char* begin, const char* end, bool& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  bool& value) {
     if (end == begin + 1) {
         if (*begin == '1') {
             value = true;
@@ -1755,20 +1763,22 @@ inline bool extract(const char* begin, const char* end, bool& value) {
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, char& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  char& value) {
     value = *begin;
     return (end == begin + 1);
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, std::string& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string& value) {
     value = std::string{begin, end};
     return true;
 }
 
 template <>
-inline bool extract(const char* begin, const char* end,
-                    std::string_view& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string_view& value) {
     value = std::string_view{begin, static_cast<size_t>(end - begin)};
     return true;
 }
@@ -1876,15 +1886,15 @@ public:
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(line_ptr_type line,
-                     const std::string& delim = default_delimiter) {
+    [[nodiscard]] T convert_object(
+        line_ptr_type line, const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
     // parses line with given delimiter, returns tuple of objects with
     // extracted values of type 'Ts'
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert(
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
         if (splitter_.valid()) {
@@ -1897,13 +1907,13 @@ public:
 
     // parses already split line, returns 'T' object with extracted values
     template <typename T, typename... Ts>
-    T convert_object(const split_data& elems) {
+    [[nodiscard]] T convert_object(const split_data& elems) {
         return to_object<T>(convert<Ts...>(elems));
     }
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    T convert_object() {
+    [[nodiscard]] T convert_object() {
         return to_object<T>(convert<Ts...>());
     }
 
@@ -1912,7 +1922,8 @@ public:
     // one argument is given which is a class which has a tied
     // method which returns a tuple, returns that type
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert(
+        const split_data& elems) {
         if constexpr (sizeof...(Ts) == 0 && is_instance_of_v<std::tuple, T>) {
             return convert_impl(elems, static_cast<T*>(nullptr));
         } else if constexpr (tied_class_v<T, Ts...>) {
@@ -1928,11 +1939,11 @@ public:
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert() {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert() {
         return convert<T, Ts...>(splitter_.split_data_);
     }
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -1942,12 +1953,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return splitter_.unterminated_quote();
     }
 
@@ -1973,7 +1984,7 @@ private:
         return splitter_.resplit(new_line, new_size, delim);
     }
 
-    size_t size_shifted() {
+    [[nodiscard]] size_t size_shifted() {
         return splitter_.size_shifted();
     }
 
@@ -1989,7 +2000,8 @@ private:
         }
     }
 
-    std::string error_sufix(const string_range msg, size_t pos) const {
+    [[nodiscard]] std::string error_sufix(const string_range msg,
+                                          size_t pos) const {
         constexpr static auto reserve_size = 32;
         std::string error;
         error.reserve(reserve_size);
@@ -2117,7 +2129,8 @@ private:
     ////////////////
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert_impl(
+        const split_data& elems) {
         clear_error();
 
         if (!splitter_.valid()) {
@@ -2148,7 +2161,7 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
+    [[nodiscard]] no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
         const split_data& elems, const std::tuple<Ts...>*) {
         return convert_impl<Ts...>(elems);
     }
@@ -2157,11 +2170,11 @@ private:
     // column mapping
     ////////////////
 
-    bool columns_mapped() const {
+    [[nodiscard]] bool columns_mapped() const {
         return !column_mappings_.empty();
     }
 
-    size_t column_position(size_t tuple_position) const {
+    [[nodiscard]] size_t column_position(size_t tuple_position) const {
         if (!columns_mapped()) {
             return tuple_position;
         }
@@ -2192,7 +2205,7 @@ private:
         }
 
         if constexpr (std::is_same_v<T, std::string>) {
-            extract(msg.first, msg.second, dst);
+            static_cast<void>(extract(msg.first, msg.second, dst));
             return;
         }
 
@@ -2238,7 +2251,8 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> extract_tuple(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> extract_tuple(
+        const split_data& elems) {
         static_assert(!all_of_v<std::is_void, Ts...>,
                       "at least one parameter must be non void");
         no_void_validator_tup_t<Ts...> ret{};
@@ -2327,7 +2341,7 @@ public:
     parser(const parser& other) = delete;
     parser& operator=(const parser& other) = delete;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -2337,12 +2351,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool eof() const {
+    [[nodiscard]] bool eof() const {
         return eof_;
     }
 
@@ -2351,21 +2365,21 @@ public:
     }
 
     template <typename T, typename... Ts>
-    T get_object() {
+    [[nodiscard]] T get_object() {
         return to_object<T>(get_next<Ts...>());
     }
 
-    size_t line() const {
+    [[nodiscard]] size_t line() const {
         return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
     }
 
-    size_t position() const {
+    [[nodiscard]] size_t position() const {
         return reader_.chars_read_;
     }
 
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> get_next() {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> get_next() {
         std::optional<std::string> error;
 
         if (!eof_) {
@@ -2416,12 +2430,12 @@ public:
         return value;
     }
 
-    std::string raw_header() const {
+    [[nodiscard]] std::string raw_header() const {
         assert_ignore_header_not_defined();
         return raw_header_;
     }
 
-    std::vector<std::string> header() {
+    [[nodiscard]] std::vector<std::string> header() {
         assert_ignore_header_not_defined();
         clear_error();
 
@@ -2440,7 +2454,7 @@ public:
         return split_header;
     }
 
-    bool field_exists(const std::string& field) {
+    [[nodiscard]] bool field_exists(const std::string& field) {
         assert_ignore_header_not_defined();
         clear_error();
 
@@ -2525,11 +2539,11 @@ public:
             iterator& operator=(const iterator& other) = delete;
             iterator& operator=(iterator&& other) = delete;
 
-            value& operator*() {
+            [[nodiscard]] value& operator*() {
                 return value_;
             }
 
-            value* operator->() {
+            [[nodiscard]] value* operator->() {
                 return &value_;
             }
 
@@ -2554,13 +2568,15 @@ public:
                 return result;
             }
 
-            friend bool operator==(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator==(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return (lhs.parser_ == nullptr && rhs.parser_ == nullptr) ||
                        (lhs.parser_ == rhs.parser_ &&
                         &lhs.value_ == &rhs.value_);
             }
 
-            friend bool operator!=(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator!=(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return !(lhs == rhs);
             }
 
@@ -2572,11 +2588,11 @@ public:
         iterable(parser<Options...>* parser) : parser_{parser} {
         }
 
-        iterator begin() {
+        [[nodiscard]] iterator begin() {
             return ++iterator{parser_};
         }
 
-        iterator end() {
+        [[nodiscard]] iterator end() {
             return iterator{};
         }
 
@@ -2585,12 +2601,12 @@ public:
     };
 
     template <typename... Ts>
-    auto iterate() {
+    [[nodiscard]] auto iterate() {
         return iterable<false, Ts...>{this};
     }
 
     template <typename... Ts>
-    auto iterate_object() {
+    [[nodiscard]] auto iterate_object() {
         return iterable<true, Ts...>{this};
     }
 
@@ -2628,7 +2644,7 @@ public:
             return composite_with(std::move(value));
         }
 
-        std::tuple<Ts...> values() {
+        [[nodiscard]] std::tuple<Ts...> values() {
             return values_;
         }
 
@@ -2651,7 +2667,7 @@ public:
 
     private:
         template <typename T>
-        composite<Ts..., T> composite_with(T&& new_value) {
+        [[nodiscard]] composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
                                std::tuple<T>{parser_.valid()
@@ -2681,7 +2697,7 @@ public:
         }
 
         template <typename U, typename... Us>
-        no_void_validator_tup_t<U, Us...> try_same() {
+        [[nodiscard]] no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
                 parser_.reader_.converter_.template convert<U, Us...>();
@@ -2702,8 +2718,8 @@ public:
     // tries to convert a line and returns a composite which is
     // able to try additional conversions in case of failure
     template <typename... Ts, typename Fun = none>
-    composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
-        Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<no_void_validator_tup_t<Ts...>>>
+    try_next(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
@@ -2713,7 +2729,7 @@ public:
     // identical to try_next but returns composite with object instead of a
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
-    composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<T>> try_object(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
@@ -2764,7 +2780,8 @@ private:
     }
 
     template <typename T, typename Fun = none>
-    composite<T> try_invoke_and_make_composite(T&& value, Fun&& fun) {
+    [[nodiscard]] composite<T> try_invoke_and_make_composite(T&& value,
+                                                             Fun&& fun) {
         if (valid()) {
             try_invoke(*value, std::forward<Fun>(fun));
         }
@@ -2780,7 +2797,8 @@ private:
                       "cannot use this method when 'ignore_header' is defined");
     }
 
-    bool strict_split(header_splitter& splitter, std::string& header) {
+    [[nodiscard]] bool strict_split(header_splitter& splitter,
+                                    std::string& header) {
         if (header.empty()) {
             return false;
         }
@@ -2827,7 +2845,7 @@ private:
         }
     }
 
-    std::optional<size_t> header_index(const std::string& field) {
+    [[nodiscard]] std::optional<size_t> header_index(const std::string& field) {
         auto it = std::find(header_.begin(), header_.end(), field);
 
         if (it == header_.end()) {
@@ -3098,7 +3116,7 @@ private:
         reader& operator=(const reader& other) = delete;
 
         // read next line each time in order to set eof_
-        bool read_next() {
+        [[nodiscard]] bool read_next() {
             next_line_converter_.clear_error();
             size_t size = 0;
             while (size == 0) {
@@ -3190,7 +3208,7 @@ private:
             std::swap(converter_, next_line_converter_);
         }
 
-        bool multiline_limit_reached(size_t& limit) {
+        [[nodiscard]] bool multiline_limit_reached(size_t& limit) {
             if constexpr (multiline::size > 0) {
                 if (limit++ >= multiline::size) {
                     next_line_converter_.handle_error_multiline_limit_reached();
@@ -3200,7 +3218,7 @@ private:
             return false;
         }
 
-        bool escaped_eol(size_t size) {
+        [[nodiscard]] bool escaped_eol(size_t size) {
             const char* curr = nullptr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
@@ -3210,7 +3228,7 @@ private:
             return (next_line_buffer_ - curr + size) % 2 == 0;
         }
 
-        bool unterminated_quote() {
+        [[nodiscard]] bool unterminated_quote() {
             return next_line_converter_.unterminated_quote();
         }
 
@@ -3225,7 +3243,7 @@ private:
             }
         }
 
-        size_t remove_eol(char*& buffer, size_t ssize) {
+        [[nodiscard]] size_t remove_eol(char*& buffer, size_t ssize) {
             if (buffer[ssize - 1] != '\n') {
                 crlf_ = false;
                 return ssize;
@@ -3255,8 +3273,9 @@ private:
             first_size += second_size;
         }
 
-        bool append_next_line_to_buffer(char*& buffer, size_t& line_size,
-                                        size_t buffer_size) {
+        [[nodiscard]] bool append_next_line_to_buffer(char*& buffer,
+                                                      size_t& line_size,
+                                                      size_t buffer_size) {
             undo_remove_eol(buffer, line_size, buffer_size);
 
             chars_read_ = curr_char_;
@@ -3275,7 +3294,7 @@ private:
             return true;
         }
 
-        std::string get_buffer() {
+        [[nodiscard]] std::string get_buffer() {
             return std::string{next_line_buffer_, next_line_size_};
         }
 

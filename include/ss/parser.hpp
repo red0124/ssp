@@ -75,7 +75,7 @@ public:
     parser(const parser& other) = delete;
     parser& operator=(const parser& other) = delete;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -85,12 +85,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool eof() const {
+    [[nodiscard]] bool eof() const {
         return eof_;
     }
 
@@ -99,21 +99,21 @@ public:
     }
 
     template <typename T, typename... Ts>
-    T get_object() {
+    [[nodiscard]] T get_object() {
         return to_object<T>(get_next<Ts...>());
     }
 
-    size_t line() const {
+    [[nodiscard]] size_t line() const {
         return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
     }
 
-    size_t position() const {
+    [[nodiscard]] size_t position() const {
         return reader_.chars_read_;
     }
 
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> get_next() {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> get_next() {
         std::optional<std::string> error;
 
         if (!eof_) {
@@ -164,12 +164,12 @@ public:
         return value;
     }
 
-    std::string raw_header() const {
+    [[nodiscard]] std::string raw_header() const {
         assert_ignore_header_not_defined();
         return raw_header_;
     }
 
-    std::vector<std::string> header() {
+    [[nodiscard]] std::vector<std::string> header() {
         assert_ignore_header_not_defined();
         clear_error();
 
@@ -188,7 +188,7 @@ public:
         return split_header;
     }
 
-    bool field_exists(const std::string& field) {
+    [[nodiscard]] bool field_exists(const std::string& field) {
         assert_ignore_header_not_defined();
         clear_error();
 
@@ -273,11 +273,11 @@ public:
             iterator& operator=(const iterator& other) = delete;
             iterator& operator=(iterator&& other) = delete;
 
-            value& operator*() {
+            [[nodiscard]] value& operator*() {
                 return value_;
             }
 
-            value* operator->() {
+            [[nodiscard]] value* operator->() {
                 return &value_;
             }
 
@@ -302,13 +302,15 @@ public:
                 return result;
             }
 
-            friend bool operator==(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator==(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return (lhs.parser_ == nullptr && rhs.parser_ == nullptr) ||
                        (lhs.parser_ == rhs.parser_ &&
                         &lhs.value_ == &rhs.value_);
             }
 
-            friend bool operator!=(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator!=(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return !(lhs == rhs);
             }
 
@@ -320,11 +322,11 @@ public:
         iterable(parser<Options...>* parser) : parser_{parser} {
         }
 
-        iterator begin() {
+        [[nodiscard]] iterator begin() {
             return ++iterator{parser_};
         }
 
-        iterator end() {
+        [[nodiscard]] iterator end() {
             return iterator{};
         }
 
@@ -333,12 +335,12 @@ public:
     };
 
     template <typename... Ts>
-    auto iterate() {
+    [[nodiscard]] auto iterate() {
         return iterable<false, Ts...>{this};
     }
 
     template <typename... Ts>
-    auto iterate_object() {
+    [[nodiscard]] auto iterate_object() {
         return iterable<true, Ts...>{this};
     }
 
@@ -376,7 +378,7 @@ public:
             return composite_with(std::move(value));
         }
 
-        std::tuple<Ts...> values() {
+        [[nodiscard]] std::tuple<Ts...> values() {
             return values_;
         }
 
@@ -399,7 +401,7 @@ public:
 
     private:
         template <typename T>
-        composite<Ts..., T> composite_with(T&& new_value) {
+        [[nodiscard]] composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
                                std::tuple<T>{parser_.valid()
@@ -429,7 +431,7 @@ public:
         }
 
         template <typename U, typename... Us>
-        no_void_validator_tup_t<U, Us...> try_same() {
+        [[nodiscard]] no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
                 parser_.reader_.converter_.template convert<U, Us...>();
@@ -450,8 +452,8 @@ public:
     // tries to convert a line and returns a composite which is
     // able to try additional conversions in case of failure
     template <typename... Ts, typename Fun = none>
-    composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
-        Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<no_void_validator_tup_t<Ts...>>>
+    try_next(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
@@ -461,7 +463,7 @@ public:
     // identical to try_next but returns composite with object instead of a
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
-    composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<T>> try_object(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
@@ -512,7 +514,8 @@ private:
     }
 
     template <typename T, typename Fun = none>
-    composite<T> try_invoke_and_make_composite(T&& value, Fun&& fun) {
+    [[nodiscard]] composite<T> try_invoke_and_make_composite(T&& value,
+                                                             Fun&& fun) {
         if (valid()) {
             try_invoke(*value, std::forward<Fun>(fun));
         }
@@ -528,7 +531,8 @@ private:
                       "cannot use this method when 'ignore_header' is defined");
     }
 
-    bool strict_split(header_splitter& splitter, std::string& header) {
+    [[nodiscard]] bool strict_split(header_splitter& splitter,
+                                    std::string& header) {
         if (header.empty()) {
             return false;
         }
@@ -575,7 +579,7 @@ private:
         }
     }
 
-    std::optional<size_t> header_index(const std::string& field) {
+    [[nodiscard]] std::optional<size_t> header_index(const std::string& field) {
         auto it = std::find(header_.begin(), header_.end(), field);
 
         if (it == header_.end()) {
@@ -846,7 +850,7 @@ private:
         reader& operator=(const reader& other) = delete;
 
         // read next line each time in order to set eof_
-        bool read_next() {
+        [[nodiscard]] bool read_next() {
             next_line_converter_.clear_error();
             size_t size = 0;
             while (size == 0) {
@@ -938,7 +942,7 @@ private:
             std::swap(converter_, next_line_converter_);
         }
 
-        bool multiline_limit_reached(size_t& limit) {
+        [[nodiscard]] bool multiline_limit_reached(size_t& limit) {
             if constexpr (multiline::size > 0) {
                 if (limit++ >= multiline::size) {
                     next_line_converter_.handle_error_multiline_limit_reached();
@@ -948,7 +952,7 @@ private:
             return false;
         }
 
-        bool escaped_eol(size_t size) {
+        [[nodiscard]] bool escaped_eol(size_t size) {
             const char* curr = nullptr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
@@ -958,7 +962,7 @@ private:
             return (next_line_buffer_ - curr + size) % 2 == 0;
         }
 
-        bool unterminated_quote() {
+        [[nodiscard]] bool unterminated_quote() {
             return next_line_converter_.unterminated_quote();
         }
 
@@ -973,7 +977,7 @@ private:
             }
         }
 
-        size_t remove_eol(char*& buffer, size_t ssize) {
+        [[nodiscard]] size_t remove_eol(char*& buffer, size_t ssize) {
             if (buffer[ssize - 1] != '\n') {
                 crlf_ = false;
                 return ssize;
@@ -1003,8 +1007,9 @@ private:
             first_size += second_size;
         }
 
-        bool append_next_line_to_buffer(char*& buffer, size_t& line_size,
-                                        size_t buffer_size) {
+        [[nodiscard]] bool append_next_line_to_buffer(char*& buffer,
+                                                      size_t& line_size,
+                                                      size_t buffer_size) {
             undo_remove_eol(buffer, line_size, buffer_size);
 
             chars_read_ = curr_char_;
@@ -1023,7 +1028,7 @@ private:
             return true;
         }
 
-        std::string get_buffer() {
+        [[nodiscard]] std::string get_buffer() {
             return std::string{next_line_buffer_, next_line_size_};
         }
 

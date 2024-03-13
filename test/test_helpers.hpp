@@ -212,6 +212,7 @@ template <typename T>
         }
     };
 
+    // Evade small string optimization
     out.reserve(sizeof(out) + 1);
 
     copy_if_whitespaces();

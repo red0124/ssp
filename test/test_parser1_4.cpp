@@ -228,7 +228,7 @@ void test_invalid_fields(const std::vector<std::string>& lines,
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         auto command = [&p = p, &fields = fields] {
             p.use_fields(fields.at(0));
-            p.template get_next<std::string, std::string>();
+            std::ignore = p.template get_next<std::string, std::string>();
         };
         check_header(p);
 
@@ -428,7 +428,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     {
         auto [p, _] =
             make_parser<buffer_mode, ErrorMode, ss::quote<'"'>>(f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "\"Int");
     }
@@ -437,7 +437,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
         auto [p, _] =
             make_parser<buffer_mode, ErrorMode, ss::quote<'"'>, ss::multiline>(
                 f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "\"Int");
     }
@@ -445,7 +445,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::quote<'"'>,
                                   ss::escape<'\\'>, ss::multiline>(f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "\"Int");
     }
@@ -460,7 +460,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     {
         auto [p, _] =
             make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>>(f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "Int\\");
     }
@@ -468,7 +468,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>,
                                   ss::multiline>(f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "Int\\");
     }
@@ -476,7 +476,7 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>,
                                   ss::quote<'"'>, ss::multiline>(f.name);
-        auto command = [&p = p] { p.header(); };
+        auto command = [&p = p] { std::ignore = p.header(); };
         expect_error_on_command(p, command);
         CHECK_EQ(p.raw_header(), "Int\\");
     }

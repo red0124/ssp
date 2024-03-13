@@ -13,8 +13,8 @@
 #include <fast_float/fast_float.h>
 #else
 #include <algorithm>
-#include <cstdlib>
 #include <array>
+#include <cstdlib>
 #endif
 
 namespace ss {
@@ -26,8 +26,8 @@ namespace ss {
 #ifndef SSP_DISABLE_FAST_FLOAT
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = fast_float::from_chars(begin, end, ret);
 
@@ -40,8 +40,8 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 #else
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     static_assert(!std::is_same_v<T, long double>,
                   "Conversion to long double is disabled");
 
@@ -114,7 +114,7 @@ using int8 = numeric_wrapper<int8_t>;
 using uint8 = numeric_wrapper<uint8_t>;
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret);
@@ -126,8 +126,9 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<numeric_wrapper, T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<numeric_wrapper, T>,
+                               std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret.value);
 
@@ -149,11 +150,12 @@ struct unsupported_type {
 } /* namespace errors */
 
 template <typename T>
-std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
-                     !is_instance_of_v<std::optional, T> &&
-                     !is_instance_of_v<std::variant, T> &&
-                     !is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<!std::is_integral_v<T> &&
+                                   !std::is_floating_point_v<T> &&
+                                   !is_instance_of_v<std::optional, T> &&
+                                   !is_instance_of_v<std::variant, T> &&
+                                   !is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char*, const char*, T&) {
     static_assert(error::unsupported_type<T>::value,
                   "Conversion for given type is not defined, an "
@@ -161,9 +163,10 @@ extract(const char*, const char*, T&) {
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                     is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T> ||
+                                   std::is_floating_point_v<T> ||
+                                   is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char* begin, const char* end, T& value) {
     auto optional_value = to_num<T>(begin, end);
     if (!optional_value) {
@@ -174,8 +177,8 @@ extract(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
-    const char* begin, const char* end, T& value) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::optional, T>, bool>
+extract(const char* begin, const char* end, T& value) {
     typename T::value_type raw_value;
     if (extract(begin, end, raw_value)) {
         value = raw_value;
@@ -186,7 +189,8 @@ std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
 }
 
 template <typename T, size_t I>
-bool extract_variant(const char* begin, const char* end, T& value) {
+[[nodiscard]] bool extract_variant(const char* begin, const char* end,
+                                   T& value) {
     using IthType = std::variant_alternative_t<I, std::decay_t<T>>;
     IthType ithValue;
     if (extract<IthType>(begin, end, ithValue)) {
@@ -199,7 +203,7 @@ bool extract_variant(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
     const char* begin, const char* end, T& value) {
     return extract_variant<T, 0>(begin, end, value);
 }
@@ -209,7 +213,8 @@ std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
 ////////////////
 
 template <>
-inline bool extract(const char* begin, const char* end, bool& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  bool& value) {
     if (end == begin + 1) {
         if (*begin == '1') {
             value = true;
@@ -236,20 +241,22 @@ inline bool extract(const char* begin, const char* end, bool& value) {
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, char& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  char& value) {
     value = *begin;
     return (end == begin + 1);
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, std::string& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string& value) {
     value = std::string{begin, end};
     return true;
 }
 
 template <>
-inline bool extract(const char* begin, const char* end,
-                    std::string_view& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string_view& value) {
     value = std::string_view{begin, static_cast<size_t>(end - begin)};
     return true;
 }
