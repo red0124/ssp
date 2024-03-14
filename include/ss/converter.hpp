@@ -122,7 +122,7 @@ public:
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
         if (splitter_.valid()) {
-            return convert<Ts...>(splitter_.split_data_);
+            return convert<Ts...>(splitter_.get_split_data());
         } else {
             handle_error_bad_split();
             return {};
@@ -164,7 +164,7 @@ public:
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
     [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.split_data_);
+        return convert<T, Ts...>(splitter_.get_split_data());
     }
 
     [[nodiscard]] bool valid() const {
@@ -190,9 +190,9 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_data& split(line_ptr_type line,
                             const std::string& delim = default_delimiter) {
-        splitter_.split_data_.clear();
+        splitter_.clear_split_data();
         if (line[0] == '\0') {
-            return splitter_.split_data_;
+            return splitter_.get_split_data();
         }
 
         return splitter_.split(line, delim);

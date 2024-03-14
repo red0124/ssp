@@ -55,7 +55,7 @@ using ssize_t = intptr_t;
     std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
-        size_t new_n = sizeof(buff);
+        const size_t new_n = sizeof(buff);
         lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
         n = new_n;
     }
@@ -68,7 +68,7 @@ using ssize_t = intptr_t;
         size_t buff_used = std::strlen(buff.data());
 
         if (n <= buff_used + line_used) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
             lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
             n = new_n;
         }
@@ -105,7 +105,7 @@ using ssize_t = intptr_t;
     size_t line_used = 0;
     while (curr_char < csv_data_size) {
         if (line_used + 1 >= n) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
 
             char* new_lineptr =
                 static_cast<char*>(strict_realloc(lineptr, new_n));

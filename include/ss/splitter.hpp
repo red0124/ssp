@@ -55,6 +55,14 @@ public:
         return split_impl_select_delim(delimiter);
     }
 
+    [[nodiscard]] const split_data& get_split_data() const {
+        return split_data_;
+    }
+
+    void clear_split_data() {
+        split_data_.clear();
+    }
+
 private:
     ////////////////
     // resplit
@@ -84,7 +92,7 @@ private:
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
-        size_t begin = old_begin - old_line - 1;
+        const size_t begin = old_begin - old_line - 1;
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
@@ -461,7 +469,6 @@ private:
     // members
     ////////////////
 
-public:
     error_type error_{};
     bool unterminated_quote_{false};
     bool done_{true};

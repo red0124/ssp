@@ -67,8 +67,8 @@ public:
         }
     }
 
-    parser(parser&& other) = default;
-    parser& operator=(parser&& other) = default;
+    parser(parser&& other) noexcept = default;
+    parser& operator=(parser&& other) noexcept = default;
     ~parser() = default;
 
     parser() = delete;
@@ -114,8 +114,6 @@ public:
 
     template <typename T, typename... Ts>
     [[nodiscard]] no_void_validator_tup_t<T, Ts...> get_next() {
-        std::optional<std::string> error;
-
         if (!eof_) {
             if constexpr (throw_on_error) {
                 try {
@@ -181,7 +179,7 @@ public:
         }
 
         std::vector<std::string> split_header;
-        for (const auto& [begin, end] : splitter.split_data_) {
+        for (const auto& [begin, end] : splitter.get_split_data()) {
             split_header.emplace_back(begin, end);
         }
 
@@ -267,11 +265,11 @@ public:
             }
 
             iterator(const iterator& other) = default;
-            iterator(iterator&& other) = default;
+            iterator(iterator&& other) noexcept = default;
             ~iterator() = default;
 
             iterator& operator=(const iterator& other) = delete;
-            iterator& operator=(iterator&& other) = delete;
+            iterator& operator=(iterator&& other) noexcept = delete;
 
             [[nodiscard]] value& operator*() {
                 return value_;
@@ -562,7 +560,7 @@ private:
             return;
         }
 
-        for (const auto& [begin, end] : splitter.split_data_) {
+        for (const auto& [begin, end] : splitter.get_split_data()) {
             std::string field{begin, end};
             if (field.empty()) {
                 handle_error_duplicate_header_field(field);
@@ -841,7 +839,7 @@ private:
             std::free(helper_buffer_);
 
             if (file_) {
-                std::fclose(file_);
+                std::ignore = std::fclose(file_);
             }
         }
 

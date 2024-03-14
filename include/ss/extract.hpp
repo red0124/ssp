@@ -48,7 +48,7 @@ to_num(const char* const begin, const char* const end) {
     constexpr static auto buff_max = 64;
     std::array<char, buff_max> short_buff;
 
-    size_t string_range = std::distance(begin, end);
+    const size_t string_range = std::distance(begin, end);
     std::string long_buff;
 
     char* buff = nullptr;
@@ -88,10 +88,10 @@ struct numeric_wrapper {
     using type = T;
 
     numeric_wrapper() = default;
-    numeric_wrapper(numeric_wrapper&&) = default;
+    numeric_wrapper(numeric_wrapper&&) noexcept = default;
     numeric_wrapper(const numeric_wrapper&) = default;
 
-    numeric_wrapper& operator=(numeric_wrapper&&) = default;
+    numeric_wrapper& operator=(numeric_wrapper&&) noexcept = default;
     numeric_wrapper& operator=(const numeric_wrapper&) = default;
 
     ~numeric_wrapper() = default;
@@ -226,7 +226,7 @@ template <>
     } else {
         constexpr static auto true_size = 4;
         constexpr static auto false_size = 5;
-        size_t size = end - begin;
+        const size_t size = end - begin;
         if (size == true_size && std::strncmp(begin, "true", size) == 0) {
             value = true;
         } else if (size == false_size &&

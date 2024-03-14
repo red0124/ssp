@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -671,7 +672,7 @@ using ssize_t = intptr_t;
     std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
-        size_t new_n = sizeof(buff);
+        const size_t new_n = sizeof(buff);
         lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
         n = new_n;
     }
@@ -684,7 +685,7 @@ using ssize_t = intptr_t;
         size_t buff_used = std::strlen(buff.data());
 
         if (n <= buff_used + line_used) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
             lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
             n = new_n;
         }
@@ -721,7 +722,7 @@ using ssize_t = intptr_t;
     size_t line_used = 0;
     while (curr_char < csv_data_size) {
         if (line_used + 1 >= n) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
 
             char* new_lineptr =
                 static_cast<char*>(strict_realloc(lineptr, new_n));
@@ -1109,6 +1110,14 @@ public:
         return split_impl_select_delim(delimiter);
     }
 
+    [[nodiscard]] const split_data& get_split_data() const {
+        return split_data_;
+    }
+
+    void clear_split_data() {
+        split_data_.clear();
+    }
+
 private:
     ////////////////
     // resplit
@@ -1138,7 +1147,7 @@ private:
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
-        size_t begin = old_begin - old_line - 1;
+        const size_t begin = old_begin - old_line - 1;
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
@@ -1515,7 +1524,6 @@ private:
     // members
     ////////////////
 
-public:
     error_type error_{};
     bool unterminated_quote_{false};
     bool done_{true};
@@ -1570,7 +1578,7 @@ to_num(const char* const begin, const char* const end) {
     constexpr static auto buff_max = 64;
     std::array<char, buff_max> short_buff;
 
-    size_t string_range = std::distance(begin, end);
+    const size_t string_range = std::distance(begin, end);
     std::string long_buff;
 
     char* buff = nullptr;
@@ -1610,10 +1618,10 @@ struct numeric_wrapper {
     using type = T;
 
     numeric_wrapper() = default;
-    numeric_wrapper(numeric_wrapper&&) = default;
+    numeric_wrapper(numeric_wrapper&&) noexcept = default;
     numeric_wrapper(const numeric_wrapper&) = default;
 
-    numeric_wrapper& operator=(numeric_wrapper&&) = default;
+    numeric_wrapper& operator=(numeric_wrapper&&) noexcept = default;
     numeric_wrapper& operator=(const numeric_wrapper&) = default;
 
     ~numeric_wrapper() = default;
@@ -1748,7 +1756,7 @@ template <>
     } else {
         constexpr static auto true_size = 4;
         constexpr static auto false_size = 5;
-        size_t size = end - begin;
+        const size_t size = end - begin;
         if (size == true_size && std::strncmp(begin, "true", size) == 0) {
             value = true;
         } else if (size == false_size &&
@@ -1898,7 +1906,7 @@ public:
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
         if (splitter_.valid()) {
-            return convert<Ts...>(splitter_.split_data_);
+            return convert<Ts...>(splitter_.get_split_data());
         } else {
             handle_error_bad_split();
             return {};
@@ -1940,7 +1948,7 @@ public:
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
     [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.split_data_);
+        return convert<T, Ts...>(splitter_.get_split_data());
     }
 
     [[nodiscard]] bool valid() const {
@@ -1966,9 +1974,9 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_data& split(line_ptr_type line,
                             const std::string& delim = default_delimiter) {
-        splitter_.split_data_.clear();
+        splitter_.clear_split_data();
         if (line[0] == '\0') {
-            return splitter_.split_data_;
+            return splitter_.get_split_data();
         }
 
         return splitter_.split(line, delim);
@@ -2333,8 +2341,8 @@ public:
         }
     }
 
-    parser(parser&& other) = default;
-    parser& operator=(parser&& other) = default;
+    parser(parser&& other) noexcept = default;
+    parser& operator=(parser&& other) noexcept = default;
     ~parser() = default;
 
     parser() = delete;
@@ -2380,8 +2388,6 @@ public:
 
     template <typename T, typename... Ts>
     [[nodiscard]] no_void_validator_tup_t<T, Ts...> get_next() {
-        std::optional<std::string> error;
-
         if (!eof_) {
             if constexpr (throw_on_error) {
                 try {
@@ -2447,7 +2453,7 @@ public:
         }
 
         std::vector<std::string> split_header;
-        for (const auto& [begin, end] : splitter.split_data_) {
+        for (const auto& [begin, end] : splitter.get_split_data()) {
             split_header.emplace_back(begin, end);
         }
 
@@ -2533,11 +2539,11 @@ public:
             }
 
             iterator(const iterator& other) = default;
-            iterator(iterator&& other) = default;
+            iterator(iterator&& other) noexcept = default;
             ~iterator() = default;
 
             iterator& operator=(const iterator& other) = delete;
-            iterator& operator=(iterator&& other) = delete;
+            iterator& operator=(iterator&& other) noexcept = delete;
 
             [[nodiscard]] value& operator*() {
                 return value_;
@@ -2828,7 +2834,7 @@ private:
             return;
         }
 
-        for (const auto& [begin, end] : splitter.split_data_) {
+        for (const auto& [begin, end] : splitter.get_split_data()) {
             std::string field{begin, end};
             if (field.empty()) {
                 handle_error_duplicate_header_field(field);
@@ -3107,7 +3113,7 @@ private:
             std::free(helper_buffer_);
 
             if (file_) {
-                std::fclose(file_);
+                std::ignore = std::fclose(file_);
             }
         }
 

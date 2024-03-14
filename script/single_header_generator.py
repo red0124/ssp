@@ -37,6 +37,7 @@ for header in headers:
 
 includes = sorted(set(includes))
 
+print('#pragma once')
 print('\n'.join(includes))
 print('#define SSP_DISABLE_FAST_FLOAT')
 print('\n'.join(combined_file))
