@@ -2805,10 +2805,6 @@ private:
 
     [[nodiscard]] bool strict_split(header_splitter& splitter,
                                     std::string& header) {
-        if (header.empty()) {
-            return false;
-        }
-
         if constexpr (throw_on_error) {
             try {
                 splitter.split(header.data(), reader_.delim_);

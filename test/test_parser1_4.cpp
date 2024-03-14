@@ -178,7 +178,8 @@ void test_invalid_fields(const std::vector<std::string>& lines,
 
     auto check_header = [&lines](auto& p) {
         if (lines.empty()) {
-            CHECK(p.header().empty());
+            CHECK_EQ(p.header().size(), 1);
+            CHECK_EQ(p.header().at(0), "");
             CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
         } else {
             CHECK_EQ(lines[0], merge_header(p.header()));
@@ -263,7 +264,7 @@ void test_invalid_fields(const std::vector<std::string>& lines,
     }
 }
 
-TEST_CASE_TEMPLATE("test invalid fheader fields usage", T,
+TEST_CASE_TEMPLATE("test invalid header fields usage", T,
                    ParserOptionCombinations) {
     test_invalid_fields<T>({}, {});
 
@@ -412,13 +413,42 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     }
 
     {
+        std::vector<std::string> expected_header = {""};
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name);
-        CHECK(p.header().empty());
-        CHECK_EQ(merge_header(p.header()), p.raw_header());
+        CHECK_EQ_ARRAY(expected_header, p.header());
+        CHECK_EQ("", p.raw_header());
         CHECK(p.valid());
     }
 
-    // Unterminated quote in header
+    // Empty header fields
+    {
+        std::ofstream out{f.name};
+        out << ",," << std::endl;
+        out << "1,2,3" << std::endl;
+    }
+
+    {
+        std::vector<std::string> expected_header = {"", "", ""};
+        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name);
+        CHECK_EQ_ARRAY(expected_header, p.header());
+        CHECK_EQ(",,", p.raw_header());
+        CHECK(p.valid());
+
+        auto command1 = [&p = p] { std::ignore = p.field_exists("Int"); };
+        expect_error_on_command(p, command1);
+
+        auto command2 = [&p = p] { p.use_fields("Int"); };
+        expect_error_on_command(p, command2);
+    }
+}
+
+template <typename T, typename... Ts>
+void test_unterminated_quote_header() {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"unterminated_quote_header"};
+
     {
         std::ofstream out{f.name};
         out << "\"Int" << std::endl;
@@ -426,29 +456,36 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     }
 
     {
-        auto [p, _] =
-            make_parser<buffer_mode, ErrorMode, ss::quote<'"'>>(f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
-        CHECK_EQ(p.raw_header(), "\"Int");
-    }
+        auto [p, _] = make_parser<buffer_mode, ErrorMode, Ts...>(f.name);
 
-    {
-        auto [p, _] =
-            make_parser<buffer_mode, ErrorMode, ss::quote<'"'>, ss::multiline>(
-                f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
+        auto command0 = [&p = p] { std::ignore = p.header(); };
+        expect_error_on_command(p, command0);
         CHECK_EQ(p.raw_header(), "\"Int");
-    }
 
-    {
-        auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::quote<'"'>,
-                                  ss::escape<'\\'>, ss::multiline>(f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
-        CHECK_EQ(p.raw_header(), "\"Int");
+        auto command1 = [&p = p] { std::ignore = p.field_exists("Int"); };
+        expect_error_on_command(p, command1);
+
+        auto command2 = [&p = p] { p.use_fields("Int"); };
+        expect_error_on_command(p, command2);
     }
+}
+
+TEST_CASE_TEMPLATE("test unterminated quote header", T,
+                   ParserOptionCombinations) {
+    using quote = ss::quote<'"'>;
+    using escape = ss::escape<'\\'>;
+    test_unterminated_quote_header<T, quote>();
+    test_unterminated_quote_header<T, quote, ss::multiline>();
+    test_unterminated_quote_header<T, quote, escape>();
+    test_unterminated_quote_header<T, quote, escape, ss::multiline>();
+}
+
+template <typename T, typename... Ts>
+void test_unterminated_escape_header() {
+    constexpr auto buffer_mode = T::BufferMode::value;
+    using ErrorMode = typename T::ErrorMode;
+
+    unique_file_name f{"unterminated_escape_header"};
 
     // Unterminated escape in header
     {
@@ -458,28 +495,28 @@ TEST_CASE_TEMPLATE("test invalid header", T, ParserOptionCombinations) {
     }
 
     {
-        auto [p, _] =
-            make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>>(f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
-        CHECK_EQ(p.raw_header(), "Int\\");
-    }
+        auto [p, _] = make_parser<buffer_mode, ErrorMode, Ts...>(f.name);
 
-    {
-        auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>,
-                                  ss::multiline>(f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
+        auto command0 = [&p = p] { std::ignore = p.header(); };
+        expect_error_on_command(p, command0);
         CHECK_EQ(p.raw_header(), "Int\\");
-    }
 
-    {
-        auto [p, _] = make_parser<buffer_mode, ErrorMode, ss::escape<'\\'>,
-                                  ss::quote<'"'>, ss::multiline>(f.name);
-        auto command = [&p = p] { std::ignore = p.header(); };
-        expect_error_on_command(p, command);
-        CHECK_EQ(p.raw_header(), "Int\\");
+        auto command1 = [&p = p] { std::ignore = p.field_exists("Int"); };
+        expect_error_on_command(p, command1);
+
+        auto command2 = [&p = p] { p.use_fields("Int"); };
+        expect_error_on_command(p, command2);
     }
+}
+
+TEST_CASE_TEMPLATE("test unterminated escape header", T,
+                   ParserOptionCombinations) {
+    using quote = ss::quote<'"'>;
+    using escape = ss::escape<'\\'>;
+    test_unterminated_escape_header<T, escape>();
+    test_unterminated_escape_header<T, escape, ss::multiline>();
+    test_unterminated_escape_header<T, escape, quote>();
+    test_unterminated_escape_header<T, escape, quote, ss::multiline>();
 }
 
 template <typename T>
