@@ -74,7 +74,7 @@ Bill (Heath) Gates 65 3.3
 
 # Single header
 
-The library can be used with a single header file **`ssp.hpp`**, but it suffers a slight performance loss when converting floating point values since the **`fast_float`** library is not present within the file.
+The library can be used with a single header file **`ssp.hpp`**, but it suffers a significant performance loss when converting floating point values since the **`fast_float`** library is not present within the file.
 
 # Installation
 
@@ -92,7 +92,7 @@ The library supports [CMake](#Cmake) and [meson](#Meson) build systems
 
 ## Headers
 
-The parser can be told to use only certain columns by parsing the header. This can be done by using the **`use_fields`** method. It accepts any number of string-like arguments or even an **`std::vector<std::string>`** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
+The parser can be told to use only certain columns by parsing the header. This can be done with the **`use_fields`** method. It accepts any number of string-like arguments or even an **`std::vector<std::string>`** with the field names. If any of the fields are not found within the header or if any fields are defined multiple times it will result in an error.
 ```shell
 $ cat students_with_header.csv
 Id,Age,Grade
@@ -116,7 +116,7 @@ James Bailey 2.5
 Brian S. Wolfe 1.9
 Bill (Heath) Gates 3.3
 ```
-The header can be ignored using the **`ss::ignore_header`** [setup](#Setup) option or by calling the **`ignore_next`** method after the parser has been constructed.
+The header can be ignored using the **`ss::ignore_header`** [setup](#Setup) option or by calling the **`ignore_next`** method after the parser has been constructed. If the header has been ignored calling any method related to header usage will result in a compilation error.
 ```cpp
 ss::parser<ss::ignore_header> p{file_name};
 ```
@@ -124,10 +124,10 @@ The fields with which the parser works with can be modified at any given time. T
 ```cpp
     // ...
     ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
-    p.use_fields("Id", "Grade");
+    p.use_fields("Grade");
 
-    const auto& [id, grade] = p.get_next<std::string, float>();
-    std::cout << id << ' ' << grade << std::endl;
+    const auto& grade = p.get_next<std::string>();
+    std::cout << grade << std::endl;
 
     if (p.field_exists("Id")) {
         p.use_fields("Grade", "Id");
@@ -139,10 +139,32 @@ The fields with which the parser works with can be modified at any given time. T
 ```
 ```shell
 $ ./a.out
-James Bailey 2.5
-40 Brian S. Wolfe
-65 Bill (Heath) Gates
+2.5
+1.9 Brian S. Wolfe
+3.3 Bill (Heath) Gates
 ```
+The header is parsed with the same rules as other rows, the only difference is that **`multiline`** will be disabled when parsing the header. To get the data that is
+present in the header as a **`std::vector<std::string>`**, the **`header`** method can be used, and to get the header line before it has been parsed, the **`raw_header`** method can be used:
+```cpp
+    // ...
+    ss::parser<ss::throw_on_error> p{"students_with_header.csv"};
+
+    std::cout << p.raw_header() << std::endl;
+
+    for (const auto& field: p.header()) {
+        std::cout << "> " << field << std::endl;
+    }
+    // ...
+```
+```shell
+$ ./a.out
+Id,Age,Grade
+> Id
+> Age
+> Grade
+```
+Methods related to headers can also fail, the error handling of these is done in the same way as for other methods.
+
 ## Conversions
 An alternate loop to the example above would look like: 
 ```cpp
