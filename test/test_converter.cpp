@@ -1,17 +1,17 @@
 #include "test_helpers.hpp"
-#include <algorithm>
 #include <ss/converter.hpp>
 
 TEST_CASE("converter test split") {
     ss::converter c;
     for (const auto& [s, expected, delim] :
          // clang-format off
-                {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
-                {"", {}, " "},
-                {" x x x x | x ", {" x x x x ", " x "}, "|"},
-                {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
-                {"x\t-\ty", {"x", "y"}, "\t-\t"},
-                {"x", {"x"}, ","}} // clang-format on
+        {std::make_tuple("a,b,c,d", std::vector{"a", "b", "c", "d"}, ","),
+        {"", {}, " "},
+        {" x x x x | x ", {" x x x x ", " x "}, "|"},
+        {"a::b::c::d", {"a", "b", "c", "d"}, "::"},
+        {"x\t-\ty", {"x", "y"}, "\t-\t"},
+        {"x", {"x"}, ","}} 
+        // clang-format on
     ) {
         auto split = c.split(s, delim);
         CHECK_EQ(split.size(), expected.size());
@@ -278,37 +278,38 @@ TEST_CASE_TEMPLATE("converter test valid conversions with exceptions", T, int,
 TEST_CASE_TEMPLATE("converter test invalid conversions", T, int, ss::uint8) {
     ss::converter c;
 
-    c.convert<T>("");
+    std::ignore = c.convert<T>("");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T>("1", "");
+    std::ignore = c.convert<T>("1", "");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T>("10", "");
+    std::ignore = c.convert<T>("10", "");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T, void>("");
+    std::ignore = c.convert<T, void>("");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T, void>(",junk");
+    std::ignore = c.convert<T, void>(",junk");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, T>("junk,");
+    std::ignore = c.convert<void, T>("junk,");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T>("x");
+    std::ignore = c.convert<T>("x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T, void>("x");
+    std::ignore = c.convert<T, void>("x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<T, void>("x,junk");
+    std::ignore = c.convert<T, void>("x,junk");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, T>("junk,x");
+    std::ignore = c.convert<void, T>("junk,x");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, std::variant<T, double>, double>("junk;.5.5;6", ";");
+    std::ignore =
+        c.convert<void, std::variant<T, double>, double>("junk;.5.5;6", ";");
     REQUIRE_FALSE(c.valid());
 }
 
@@ -316,34 +317,36 @@ TEST_CASE_TEMPLATE("converter test invalid conversions with exceptions", T, int,
                    ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<T>(""));
-    REQUIRE_EXCEPTION(c.convert<T>("1", ""));
-    REQUIRE_EXCEPTION(c.convert<T>("10", ""));
-    REQUIRE_EXCEPTION(c.convert<T, void>(""));
-    REQUIRE_EXCEPTION(c.convert<T, void>(",junk"));
-    REQUIRE_EXCEPTION(c.convert<void, T>("junk,"));
-    REQUIRE_EXCEPTION(c.convert<T>("x"));
-    REQUIRE_EXCEPTION(c.convert<T, void>("x"));
-    REQUIRE_EXCEPTION(c.convert<T, void>("x,junk"));
-    REQUIRE_EXCEPTION(c.convert<void, T>("junk,x"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T>(""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T>("1", ""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T>("10", ""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T, void>(""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T, void>(",junk"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<void, T>("junk,"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T>("x"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T, void>("x"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<T, void>("x,junk"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<void, T>("junk,x"));
     REQUIRE_EXCEPTION(
-        c.convert<void, std::variant<T, double>, double>("junk;.5.5;6", ";"));
+        std::ignore =
+            c.convert<void, std::variant<T, double>, double>("junk;.5.5;6",
+                                                             ";"));
 }
 
 TEST_CASE_TEMPLATE("converter test ss:ax restriction (all except)", T, int,
                    ss::uint8) {
     ss::converter c;
 
-    c.convert<ss::ax<T, 0>>("0");
+    std::ignore = c.convert<ss::ax<T, 0>>("0");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ax<T, 0, 1, 2>>("1");
+    std::ignore = c.convert<ss::ax<T, 0, 1, 2>>("1");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1");
+    std::ignore = c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ax<T, 1>, char>("1,c");
+    std::ignore = c.convert<ss::ax<T, 1>, char>("1,c");
     REQUIRE_FALSE(c.valid());
     {
         T tup = c.convert<ss::ax<T, 1>>("3");
@@ -367,10 +370,11 @@ TEST_CASE_TEMPLATE(
     ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 0>>("0"));
-    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 0, 1, 2>>("1"));
-    REQUIRE_EXCEPTION(c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1"));
-    REQUIRE_EXCEPTION(c.convert<ss::ax<T, 1>, char>("1,c"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ax<T, 0>>("0"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ax<T, 0, 1, 2>>("1"));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<void, char, ss::ax<T, 0, 1, 2>>("junk,c,1"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ax<T, 1>, char>("1,c"));
 
     try {
         {
@@ -393,13 +397,13 @@ TEST_CASE_TEMPLATE(
 TEST_CASE("converter test ss:nx restriction (none except)") {
     ss::converter c;
 
-    c.convert<ss::nx<int, 1>>("3");
+    std::ignore = c.convert<ss::nx<int, 1>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<char, ss::nx<int, 1, 2, 69>>("c,3");
+    std::ignore = c.convert<char, ss::nx<int, 1, 2, 69>>("c,3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::nx<int, 1>, char>("3,c");
+    std::ignore = c.convert<ss::nx<int, 1>, char>("3,c");
     REQUIRE_FALSE(c.valid());
 
     {
@@ -427,9 +431,10 @@ TEST_CASE("converter test ss:nx restriction (none except)") {
 TEST_CASE("converter test ss:nx restriction (none except) with exceptions") {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::nx<int, 1>>("3"));
-    REQUIRE_EXCEPTION(c.convert<char, ss::nx<int, 1, 2, 69>>("c,3"));
-    REQUIRE_EXCEPTION(c.convert<ss::nx<int, 1>, char>("3,c"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::nx<int, 1>>("3"));
+    REQUIRE_EXCEPTION(std::ignore =
+                          c.convert<char, ss::nx<int, 1, 2, 69>>("c,3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::nx<int, 1>, char>("3,c"));
 
     try {
         {
@@ -461,13 +466,13 @@ TEST_CASE_TEMPLATE("converter test ss:ir restriction (in range)", T, int,
                    ss::uint8) {
     ss::converter c;
 
-    c.convert<ss::ir<T, 0, 2>>("3");
+    std::ignore = c.convert<ss::ir<T, 0, 2>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<char, ss::ir<T, 4, 69>>("c,3");
+    std::ignore = c.convert<char, ss::ir<T, 4, 69>>("c,3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ir<T, 1, 2>, char>("3,c");
+    std::ignore = c.convert<ss::ir<T, 1, 2>, char>("3,c");
     REQUIRE_FALSE(c.valid());
 
     {
@@ -497,9 +502,9 @@ TEST_CASE_TEMPLATE(
     ss::uint8) {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::ir<T, 0, 2>>("3"));
-    REQUIRE_EXCEPTION(c.convert<char, ss::ir<T, 4, 69>>("c,3"));
-    REQUIRE_EXCEPTION(c.convert<ss::ir<T, 1, 2>, char>("3,c"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ir<T, 0, 2>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<char, ss::ir<T, 4, 69>>("c,3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ir<T, 1, 2>, char>("3,c"));
 
     try {
         {
@@ -530,16 +535,16 @@ TEST_CASE_TEMPLATE(
 TEST_CASE("converter test ss:oor restriction (out of range)") {
     ss::converter c;
 
-    c.convert<ss::oor<int, 1, 5>>("3");
+    std::ignore = c.convert<ss::oor<int, 1, 5>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::oor<int, 0, 2>>("2");
+    std::ignore = c.convert<ss::oor<int, 0, 2>>("2");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<char, ss::oor<int, 0, 1>, void>("c,1,junk");
+    std::ignore = c.convert<char, ss::oor<int, 0, 1>, void>("c,1,junk");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::oor<int, 1, 20>, char>("1,c");
+    std::ignore = c.convert<ss::oor<int, 1, 20>, char>("1,c");
     REQUIRE_FALSE(c.valid());
 
     {
@@ -564,10 +569,12 @@ TEST_CASE("converter test ss:oor restriction (out of range)") {
 TEST_CASE("converter test ss:oor restriction (out of range) with exceptions") {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::oor<int, 1, 5>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::oor<int, 0, 2>>("2"));
-    REQUIRE_EXCEPTION(c.convert<char, ss::oor<int, 0, 1>, void>("c,1,junk"));
-    REQUIRE_EXCEPTION(c.convert<ss::oor<int, 1, 20>, char>("1,c"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::oor<int, 1, 5>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::oor<int, 0, 2>>("2"));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<char, ss::oor<int, 0, 1>, void>("c,1,junk"));
+    REQUIRE_EXCEPTION(std::ignore =
+                          c.convert<ss::oor<int, 1, 20>, char>("1,c"));
 
     try {
         {
@@ -608,19 +615,19 @@ inline bool ss::extract(const char* begin, const char* end,
 TEST_CASE("converter test ss:ne restriction (not empty)") {
     ss::converter c;
 
-    c.convert<ss::ne<std::string>>("");
+    std::ignore = c.convert<ss::ne<std::string>>("");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<int, ss::ne<std::string>>("3,");
+    std::ignore = c.convert<int, ss::ne<std::string>>("3,");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ne<std::string>, int>(",3");
+    std::ignore = c.convert<ss::ne<std::string>, int>(",3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<void, ss::ne<std::string>, int>("junk,,3");
+    std::ignore = c.convert<void, ss::ne<std::string>, int>("junk,,3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::ne<std::vector<int>>>("");
+    std::ignore = c.convert<ss::ne<std::vector<int>>>("");
     REQUIRE_FALSE(c.valid());
 
     {
@@ -643,11 +650,12 @@ TEST_CASE("converter test ss:ne restriction (not empty)") {
 TEST_CASE("converter test ss:ne restriction (not empty) with exceptions") {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::ne<std::string>>(""));
-    REQUIRE_EXCEPTION(c.convert<int, ss::ne<std::string>>("3,"));
-    REQUIRE_EXCEPTION(c.convert<ss::ne<std::string>, int>(",3"));
-    REQUIRE_EXCEPTION(c.convert<void, ss::ne<std::string>, int>("junk,,3"));
-    REQUIRE_EXCEPTION(c.convert<ss::ne<std::vector<int>>>(""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ne<std::string>>(""));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<int, ss::ne<std::string>>("3,"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ne<std::string>, int>(",3"));
+    REQUIRE_EXCEPTION(std::ignore =
+                          c.convert<void, ss::ne<std::string>, int>("junk,,3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::ne<std::vector<int>>>(""));
 
     try {
         {
@@ -675,22 +683,22 @@ TEST_CASE(
     "converter test ss:lt ss::lte ss::gt ss::gte restriction (in range)") {
     ss::converter c;
 
-    c.convert<ss::lt<int, 3>>("3");
+    std::ignore = c.convert<ss::lt<int, 3>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::lt<int, 2>>("3");
+    std::ignore = c.convert<ss::lt<int, 2>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::gt<int, 3>>("3");
+    std::ignore = c.convert<ss::gt<int, 3>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::gt<int, 4>>("3");
+    std::ignore = c.convert<ss::gt<int, 4>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::lte<int, 2>>("3");
+    std::ignore = c.convert<ss::lte<int, 2>>("3");
     REQUIRE_FALSE(c.valid());
 
-    c.convert<ss::gte<int, 4>>("3");
+    std::ignore = c.convert<ss::gte<int, 4>>("3");
     REQUIRE_FALSE(c.valid());
 
     {
@@ -734,12 +742,12 @@ TEST_CASE("converter test ss:lt ss::lte ss::gt ss::gte restriction (in range) "
           "with exception") {
     ss::converter<ss::throw_on_error> c;
 
-    REQUIRE_EXCEPTION(c.convert<ss::lt<int, 3>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::lt<int, 2>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::gt<int, 3>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::gt<int, 4>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::lte<int, 2>>("3"));
-    REQUIRE_EXCEPTION(c.convert<ss::gte<int, 4>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::lt<int, 3>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::lt<int, 2>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::gt<int, 3>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::gt<int, 4>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::lte<int, 2>>("3"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<ss::gte<int, 4>>("3"));
 
     try {
         {
@@ -784,14 +792,14 @@ TEST_CASE("converter test ss:lt ss::lte ss::gt ss::gte restriction (in range) "
 
 TEST_CASE("converter test error mode") {
     ss::converter<ss::string_error> c;
-    c.convert<int>("junk");
+    std::ignore = c.convert<int>("junk");
     CHECK_FALSE(c.valid());
     CHECK_FALSE(c.error_msg().empty());
 }
 
 TEST_CASE("converter test throw on error mode") {
     ss::converter<ss::throw_on_error> c;
-    REQUIRE_EXCEPTION(c.convert<int>("junk"));
+    REQUIRE_EXCEPTION(std::ignore = c.convert<int>("junk"));
 }
 
 TEST_CASE("converter test converter with quotes spacing and escaping") {
@@ -908,7 +916,7 @@ TEST_CASE("converter test invalid split conversions") {
 
     {
         // mismatched quote
-        c.convert<std::string, std::string, double, char>(
+        std::ignore = c.convert<std::string, std::string, double, char>(
             buff(R"(  "just  , some ,   "12.3","a"  )"));
         CHECK_FALSE(c.valid());
         CHECK_FALSE(c.unterminated_quote());
@@ -917,7 +925,7 @@ TEST_CASE("converter test invalid split conversions") {
 
     {
         // unterminated quote
-        c.convert<std::string, std::string, double, std::string>(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
             buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)"));
         CHECK_FALSE(c.valid());
         CHECK(c.unterminated_quote());
@@ -926,7 +934,7 @@ TEST_CASE("converter test invalid split conversions") {
 
     {
         // unterminated escape
-        c.convert<std::string, std::string, double, std::string>(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
             buff(R"(just,some,2,strings\)"));
         CHECK_FALSE(c.valid());
         CHECK_FALSE(c.unterminated_quote());
@@ -935,7 +943,7 @@ TEST_CASE("converter test invalid split conversions") {
 
     {
         // unterminated escape while quoting
-        c.convert<std::string, std::string, double, std::string>(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
             buff(R"(just,some,2,"strings\)"));
         CHECK_FALSE(c.valid());
         CHECK_FALSE(c.unterminated_quote());
@@ -944,7 +952,7 @@ TEST_CASE("converter test invalid split conversions") {
 
     {
         // unterminated escaped quote
-        c.convert<std::string, std::string, double, std::string>(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
             buff(R"(just,some,2,"strings\")"));
         CHECK_FALSE(c.valid());
         CHECK(c.unterminated_quote());
@@ -958,27 +966,32 @@ TEST_CASE("converter test invalid split conversions with exceptions") {
         c;
 
     // mismatched quote
-    REQUIRE_EXCEPTION(c.convert<std::string, std::string, double, char>(
-        buff(R"(  "just  , some ,   "12.3","a"  )")));
+    REQUIRE_EXCEPTION(std::ignore =
+                          c.convert<std::string, std::string, double, char>(
+                              buff(R"(  "just  , some ,   "12.3","a"  )")));
     CHECK_FALSE(c.unterminated_quote());
 
     // unterminated quote
-    REQUIRE_EXCEPTION(c.convert<std::string, std::string, double, std::string>(
-        buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)")));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(  ju\,st  ,  "so,me"  ,   12.34     ,   "str""ings)")));
     CHECK(c.unterminated_quote());
 
     // unterminated escape
-    REQUIRE_EXCEPTION(c.convert<std::string, std::string, double, std::string>(
-        buff(R"(just,some,2,strings\)")));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(just,some,2,strings\)")));
     CHECK_FALSE(c.unterminated_quote());
 
     // unterminated escape while quoting
-    REQUIRE_EXCEPTION(c.convert<std::string, std::string, double, std::string>(
-        buff(R"(just,some,2,"strings\)")));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(just,some,2,"strings\)")));
     CHECK_FALSE(c.unterminated_quote());
 
     // unterminated escaped quote
-    REQUIRE_EXCEPTION(c.convert<std::string, std::string, double, std::string>(
-        buff(R"(just,some,2,"strings\")")));
+    REQUIRE_EXCEPTION(
+        std::ignore = c.convert<std::string, std::string, double, std::string>(
+            buff(R"(just,some,2,"strings\")")));
     CHECK(c.unterminated_quote());
 }

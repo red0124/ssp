@@ -32,7 +32,7 @@ void assert_throw_on_error_not_defined() {
                                  "'throw_on_error' is enabled");
 }
 
-inline void* strict_realloc(void* ptr, size_t size) {
+[[nodiscard]] inline void* strict_realloc(void* ptr, size_t size) {
     ptr = std::realloc(ptr, size);
     if (!ptr) {
         throw std::bad_alloc{};
@@ -42,14 +42,16 @@ inline void* strict_realloc(void* ptr, size_t size) {
 }
 
 #if __unix__
-inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
     return getline(&lineptr, &n, file);
 }
 #else
 
 using ssize_t = intptr_t;
 
-inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
     std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
@@ -85,9 +87,10 @@ inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 
 #endif
 
-inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
-                        const char* const csv_data_buffer, size_t csv_data_size,
-                        size_t& curr_char) {
+[[nodiscard]] inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
+                                             const char* const csv_data_buffer,
+                                             size_t csv_data_size,
+                                             size_t& curr_char) {
     if (curr_char >= csv_data_size) {
         return -1;
     }
@@ -122,10 +125,10 @@ inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
     return line_used;
 }
 
-inline std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
-                                   FILE* file,
-                                   const char* const csv_data_buffer,
-                                   size_t csv_data_size, size_t& curr_char) {
+[[nodiscard]] inline std::tuple<ssize_t, bool> get_line(
+    char*& buffer, size_t& buffer_size, FILE* file,
+    const char* const csv_data_buffer, size_t csv_data_size,
+    size_t& curr_char) {
     ssize_t ssize = 0;
     if (file) {
         ssize = get_line_file(buffer, buffer_size, file);

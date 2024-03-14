@@ -8,4 +8,3 @@ TEST_CASE("parser test various cases version 2 segment 6") {
 
     test_option_combinations3<escape, quote, multiline>();
 }
-

@@ -366,12 +366,12 @@ constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 ////////////////
 
 template <class T, std::size_t... Is, class U>
-T to_object_impl(std::index_sequence<Is...>, U&& data) {
+[[nodiscard]] T to_object_impl(std::index_sequence<Is...>, U&& data) {
     return {std::get<Is>(std::forward<U>(data))...};
 }
 
 template <class T, class U>
-T to_object(U&& data) {
+[[nodiscard]] T to_object(U&& data) {
     using NoRefU = std::decay_t<U>;
     if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
         return to_object_impl<

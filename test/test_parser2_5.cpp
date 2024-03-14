@@ -13,4 +13,3 @@ TEST_CASE("parser test various cases version 2 segment 5") {
     test_option_combinations<escape, quote, multiline, trimr>();
 #endif
 }
-

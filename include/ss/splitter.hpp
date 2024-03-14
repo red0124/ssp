@@ -28,7 +28,7 @@ private:
 public:
     using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -38,12 +38,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return unterminated_quote_;
     }
 
@@ -61,7 +61,7 @@ private:
     ////////////////
 
     // number of characters the end of line is shifted backwards
-    size_t size_shifted() const {
+    [[nodiscard]] size_t size_shifted() const {
         return escaped_;
     }
 
@@ -192,19 +192,19 @@ private:
     // matching
     ////////////////
 
-    bool match(const char* const curr, char delim) {
+    [[nodiscard]] bool match(const char* const curr, char delim) {
         return *curr == delim;
     };
 
-    bool match(const char* const curr, const std::string& delim) {
+    [[nodiscard]] bool match(const char* const curr, const std::string& delim) {
         return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
-    size_t delimiter_size(char) {
+    [[nodiscard]] size_t delimiter_size(char) {
         return 1;
     }
 
-    size_t delimiter_size(const std::string& delim) {
+    [[nodiscard]] size_t delimiter_size(const std::string& delim) {
         return delim.size();
     }
 
@@ -225,8 +225,8 @@ private:
     }
 
     template <typename Delim>
-    std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
-                                             const Delim& delim) {
+    [[nodiscard]] std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
+                                                           const Delim& delim) {
         line_ptr_type end = begin;
 
         trim_right_if_enabled(end);

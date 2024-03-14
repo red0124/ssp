@@ -11,4 +11,3 @@ TEST_CASE("parser test various cases version 2 segment 3") {
     test_option_combinations3<quote, multiline>();
 #endif
 }
-

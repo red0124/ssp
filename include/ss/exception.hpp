@@ -12,10 +12,10 @@ class exception : public std::exception {
     std::string msg_;
 
 public:
-    exception(std::string msg): msg_{std::move(msg)} {
+    exception(std::string msg) : msg_{std::move(msg)} {
     }
 
-    char const* what() const noexcept override {
+    [[nodiscard]] char const* what() const noexcept override {
         return msg_.c_str();
     }
 };
