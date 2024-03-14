@@ -33,10 +33,11 @@ set(DOCTEST "${FETCHCONTENT_BASE_DIR}/doctest-src")
 enable_testing()
 
 foreach(name IN ITEMS test_splitter test_parser1_1 test_parser1_2
-                      test_parser1_3 test_parser1_4 test_converter
-                      test_extractions test_parser2_1 test_parser2_2
-                      test_parser2_3 test_parser2_4 test_parser2_5
-                      test_parser2_6 test_extractions_without_fast_float)
+                      test_parser1_3 test_parser1_4 test_parser_1_5
+                      test_converter test_extractions test_parser2_1
+                      test_parser2_2 test_parser2_3 test_parser2_4
+                      test_parser2_5 test_parser2_6
+                      test_extractions_without_fast_float)
     add_executable("${name}" "${name}.cpp")
     target_link_libraries("${name}" PRIVATE ssp::ssp fast_float
                                             doctest::doctest)

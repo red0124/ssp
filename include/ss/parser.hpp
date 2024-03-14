@@ -558,11 +558,6 @@ private:
 
         for (const auto& [begin, end] : splitter.get_split_data()) {
             std::string field{begin, end};
-            if (field.empty()) {
-                handle_error_duplicate_header_field(field);
-                header_.clear();
-                return;
-            }
             if (std::find(header_.begin(), header_.end(), field) !=
                 header_.end()) {
                 handle_error_duplicate_header_field(field);

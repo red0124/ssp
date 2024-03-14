@@ -6,6 +6,7 @@ tests = [
   'parser1_2',
   'parser1_3',
   'parser1_4',
+  'parser1_5',
   'splitter',
   'converter',
   'extractions',
