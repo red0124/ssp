@@ -83,7 +83,7 @@ void test_unterminated_line(const std::vector<std::string>& lines,
     size_t line = 0;
     while (!p.eof()) {
         auto command = [&p = p] {
-            p.template get_next<int, double, std::string>();
+            std::ignore = p.template get_next<int, double, std::string>();
         };
 
         if (line == bad_line) {

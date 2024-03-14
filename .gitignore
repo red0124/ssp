@@ -1,6 +1,8 @@
 compile_commands.json
 .clang-format
-.ccls-cache/*
+.clang-tidy
+.ccls-cache/
+.cache/
 experiment/
 build/
 hbuild/

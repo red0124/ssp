@@ -2,11 +2,9 @@
 #include "common.hpp"
 #include "exception.hpp"
 #include "setup.hpp"
-#include "type_traits.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,7 +28,7 @@ private:
 public:
     using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -40,12 +38,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return unterminated_quote_;
     }
 
@@ -57,13 +55,21 @@ public:
         return split_impl_select_delim(delimiter);
     }
 
+    [[nodiscard]] const split_data& get_split_data() const {
+        return split_data_;
+    }
+
+    void clear_split_data() {
+        split_data_.clear();
+    }
+
 private:
     ////////////////
     // resplit
     ////////////////
 
     // number of characters the end of line is shifted backwards
-    size_t size_shifted() const {
+    [[nodiscard]] size_t size_shifted() const {
         return escaped_;
     }
 
@@ -86,7 +92,7 @@ private:
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
-        size_t begin = old_begin - old_line - 1;
+        const size_t begin = old_begin - old_line - 1;
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
@@ -194,19 +200,19 @@ private:
     // matching
     ////////////////
 
-    bool match(const char* const curr, char delim) {
+    [[nodiscard]] bool match(const char* const curr, char delim) {
         return *curr == delim;
     };
 
-    bool match(const char* const curr, const std::string& delim) {
+    [[nodiscard]] bool match(const char* const curr, const std::string& delim) {
         return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
-    size_t delimiter_size(char) {
+    [[nodiscard]] size_t delimiter_size(char) {
         return 1;
     }
 
-    size_t delimiter_size(const std::string& delim) {
+    [[nodiscard]] size_t delimiter_size(const std::string& delim) {
         return delim.size();
     }
 
@@ -227,8 +233,8 @@ private:
     }
 
     template <typename Delim>
-    std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
-                                             const Delim& delim) {
+    [[nodiscard]] std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
+                                                           const Delim& delim) {
         line_ptr_type end = begin;
 
         trim_right_if_enabled(end);
@@ -322,8 +328,9 @@ private:
 
         trim_left_if_enabled(begin_);
 
-        for (done_ = false; !done_; read(delim))
-            ;
+        for (done_ = false; !done_;) {
+            read(delim);
+        }
 
         return split_data_;
     }
@@ -462,7 +469,6 @@ private:
     // members
     ////////////////
 
-public:
     error_type error_{};
     bool unterminated_quote_{false};
     bool done_{true};
@@ -479,4 +485,4 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */

@@ -9,6 +9,7 @@ struct has_type<T, std::tuple<Us...>>
 
 template <typename T, typename... Ts>
 static void test_fields(const std::string file_name, const std::vector<X>& data,
+                        const std::vector<std::string>& header,
                         const std::vector<std::string>& fields) {
     constexpr auto buffer_mode = T::BufferMode::value;
     using ErrorMode = typename T::ErrorMode;
@@ -17,9 +18,14 @@ static void test_fields(const std::string file_name, const std::vector<X>& data,
     auto [p, _] = make_parser<buffer_mode, ErrorMode>(file_name, ",");
     CHECK_FALSE(p.field_exists("Unknown"));
     p.use_fields(fields);
+
+    CHECK_EQ_ARRAY(header, p.header());
+    CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
     std::vector<CaseType> i;
 
     for (const auto& a : p.template iterate<CaseType>()) {
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
         i.push_back(a);
     }
 
@@ -40,12 +46,12 @@ static void test_fields(const std::string file_name, const std::vector<X>& data,
 TEST_CASE_TEMPLATE("test various cases with header", T,
                    ParserOptionCombinations) {
     unique_file_name f{"various_cases_with_header"};
+    using str = std::string;
+
     constexpr static auto Int = "Int";
     constexpr static auto Dbl = "Double";
     constexpr static auto Str = "String";
-    using str = std::string;
-
-    std::vector<std::string> header{Int, Dbl, Str};
+    const std::vector<std::string> header{Int, Dbl, Str};
 
     std::vector<X> data = {{1, 2, "x"}, {3, 4, "y"},  {5, 6, "z"},
                            {7, 8, "u"}, {9, 10, "v"}, {11, 12, "w"}};
@@ -59,6 +65,8 @@ TEST_CASE_TEMPLATE("test various cases with header", T,
         std::vector<X> i;
 
         for (const auto& a : p.iterate<int, double, std::string>()) {
+            CHECK_EQ(header, p.header());
+            CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
             i.emplace_back(ss::to_object<X>(a));
         }
 
@@ -71,46 +79,22 @@ TEST_CASE_TEMPLATE("test various cases with header", T,
 
         p.ignore_next();
         for (const auto& a : p.iterate<int, double, std::string>()) {
+            CHECK_EQ(header, p.header());
+            CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
             i.emplace_back(ss::to_object<X>(a));
         }
 
         CHECK_EQ(i, data);
-    }
-
-    {
-        ss::parser<ss::ignore_header> p{f.name, ","};
-        std::vector<X> i;
-
-        for (const auto& a : p.iterate<int, double, std::string>()) {
-            i.emplace_back(ss::to_object<X>(a));
-        }
-
-        CHECK_EQ(i, data);
-    }
-
-    {
-        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
-        p.use_fields(Int, Dbl, Str);
-        CHECK_FALSE(p.valid());
-    }
-
-    {
-        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
-        CHECK_FALSE(p.field_exists("Unknown"));
-
-        p.use_fields(Int, "Unknown");
-        CHECK_FALSE(p.valid());
-    }
-
-    {
-        ss::parser<ss::ignore_header, ss::string_error> p{f.name, ","};
-        p.use_fields(Int, Int);
-        CHECK_FALSE(p.valid());
     }
 
     {
         ss::parser<ss::string_error> p{f.name, ","};
+        CHECK_EQ(header, p.header());
+        CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
+
         p.use_fields(Int, Dbl);
+        CHECK_EQ(header, p.header());
+        CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
 
         {
             auto [int_, double_] = p.get_next<int, double>();
@@ -119,6 +103,8 @@ TEST_CASE_TEMPLATE("test various cases with header", T,
         }
 
         p.use_fields(Dbl, Int);
+        CHECK_EQ(header, p.header());
+        CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
 
         {
             auto [double_, int_] = p.get_next<double, int>();
@@ -163,25 +149,25 @@ TEST_CASE_TEMPLATE("test various cases with header", T,
                     template_params.append(type)
                     arg_params.append(header[type])
                 call = 'testFields<' + ', '.join(template_params) + \
-                    '>(o, d, {' + ', '.join(arg_params) + '});'
+                    '>(o, d, header, {' + ', '.join(arg_params) + '});'
                 print(call)
         */
 
-    test_fields<T, str>(o, d, {Str});
-    test_fields<T, int>(o, d, {Int});
-    test_fields<T, double>(o, d, {Dbl});
-    test_fields<T, str, int>(o, d, {Str, Int});
-    test_fields<T, str, double>(o, d, {Str, Dbl});
-    test_fields<T, int, str>(o, d, {Int, Str});
-    test_fields<T, int, double>(o, d, {Int, Dbl});
-    test_fields<T, double, str>(o, d, {Dbl, Str});
-    test_fields<T, double, int>(o, d, {Dbl, Int});
-    test_fields<T, str, int, double>(o, d, {Str, Int, Dbl});
-    test_fields<T, str, double, int>(o, d, {Str, Dbl, Int});
-    test_fields<T, int, str, double>(o, d, {Int, Str, Dbl});
-    test_fields<T, int, double, str>(o, d, {Int, Dbl, Str});
-    test_fields<T, double, str, int>(o, d, {Dbl, Str, Int});
-    test_fields<T, double, int, str>(o, d, {Dbl, Int, Str});
+    test_fields<T, str>(o, d, header, {Str});
+    test_fields<T, int>(o, d, header, {Int});
+    test_fields<T, double>(o, d, header, {Dbl});
+    test_fields<T, str, int>(o, d, header, {Str, Int});
+    test_fields<T, str, double>(o, d, header, {Str, Dbl});
+    test_fields<T, int, str>(o, d, header, {Int, Str});
+    test_fields<T, int, double>(o, d, header, {Int, Dbl});
+    test_fields<T, double, str>(o, d, header, {Dbl, Str});
+    test_fields<T, double, int>(o, d, header, {Dbl, Int});
+    test_fields<T, str, int, double>(o, d, header, {Str, Int, Dbl});
+    test_fields<T, str, double, int>(o, d, header, {Str, Dbl, Int});
+    test_fields<T, int, str, double>(o, d, header, {Int, Str, Dbl});
+    test_fields<T, int, double, str>(o, d, header, {Int, Dbl, Str});
+    test_fields<T, double, str, int>(o, d, header, {Dbl, Str, Int});
+    test_fields<T, double, int, str>(o, d, header, {Dbl, Int, Str});
 }
 
 template <typename T>
@@ -189,6 +175,18 @@ void test_invalid_fields(const std::vector<std::string>& lines,
                          const std::vector<std::string>& fields) {
     constexpr auto buffer_mode = T::BufferMode::value;
     using ErrorMode = typename T::ErrorMode;
+
+    auto check_header = [&lines](auto& p) {
+        if (lines.empty()) {
+            CHECK_EQ(p.header().size(), 1);
+            CHECK_EQ(p.header().at(0), "");
+            CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
+        } else {
+            CHECK_EQ(lines[0], merge_header(p.header()));
+            CHECK_EQ(merge_header(p.header(), ","), p.raw_header());
+        }
+        CHECK(p.valid());
+    };
 
     unique_file_name f{"invalid_fields"};
     {
@@ -203,6 +201,7 @@ void test_invalid_fields(const std::vector<std::string>& lines,
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         auto command = [&p = p] { p.use_fields(); };
         expect_error_on_command(p, command);
+        check_header(p);
     }
 
     {
@@ -210,6 +209,7 @@ void test_invalid_fields(const std::vector<std::string>& lines,
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         auto command = [&p = p] { p.use_fields("Unknown"); };
         expect_error_on_command(p, command);
+        check_header(p);
     }
 
     {
@@ -221,6 +221,7 @@ void test_invalid_fields(const std::vector<std::string>& lines,
         if (!fields.empty()) {
             expect_error_on_command(p, command);
         }
+        check_header(p);
     }
 
     {
@@ -228,17 +229,21 @@ void test_invalid_fields(const std::vector<std::string>& lines,
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         auto command = [&p = p, &fields = fields] {
             p.use_fields(fields.at(0));
-            p.template get_next<std::string, std::string>();
+            std::ignore = p.template get_next<std::string, std::string>();
         };
+        check_header(p);
+
         if (!fields.empty()) {
             expect_error_on_command(p, command);
         }
+        check_header(p);
     }
 
     {
         // Invalid header
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
         auto command = [&p = p, &fields = fields] { p.use_fields(fields); };
+        check_header(p);
 
         if (!fields.empty()) {
             // Pass if there are no duplicates, fail otherwise
@@ -255,10 +260,11 @@ void test_invalid_fields(const std::vector<std::string>& lines,
                 }
             }
         }
+        check_header(p);
     }
 }
 
-TEST_CASE_TEMPLATE("test invalid fheader fields usage", T,
+TEST_CASE_TEMPLATE("test invalid header fields usage", T,
                    ParserOptionCombinations) {
     test_invalid_fields<T>({}, {});
 
@@ -289,7 +295,7 @@ TEST_CASE_TEMPLATE("test invalid rows with header", T,
     constexpr auto buffer_mode = T::BufferMode::value;
     using ErrorMode = typename T::ErrorMode;
 
-    unique_file_name f{"invalid rows with header"};
+    unique_file_name f{"invalid_rows_with_header"};
     {
         std::ofstream out{f.name};
         out << "Int,String,Double" << std::endl;
@@ -301,8 +307,12 @@ TEST_CASE_TEMPLATE("test invalid rows with header", T,
         out << "six,line6,10.11" << std::endl;
     }
 
+    std::vector<std::string> header = {"Int", "String", "Double"};
+
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
 
         p.use_fields("Int", "String", "Double");
         using data = std::tuple<int, std::string, double>;
@@ -325,10 +335,14 @@ TEST_CASE_TEMPLATE("test invalid rows with header", T,
                                       {3, "line3", 67.8},
                                       {5, "line5", 9.10}};
         CHECK_EQ(i, expected);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
     }
 
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
 
         p.use_fields("Double", "Int");
         using data = std::tuple<double, int>;
@@ -349,10 +363,14 @@ TEST_CASE_TEMPLATE("test invalid rows with header", T,
 
         std::vector<data> expected = {{2.34, 1}, {67.8, 3}, {9.10, 5}};
         CHECK_EQ(i, expected);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
     }
 
     {
         auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
 
         p.use_fields("String", "Double");
         using data = std::tuple<std::string, double>;
@@ -376,96 +394,7 @@ TEST_CASE_TEMPLATE("test invalid rows with header", T,
                                       {"line5", 9.10},
                                       {"line6", 10.11}};
         CHECK_EQ(i, expected);
+        CHECK_EQ_ARRAY(header, p.header());
+        CHECK_EQ(merge_header(p.header()), p.raw_header());
     }
-}
-
-template <typename T>
-void test_ignore_empty(const std::vector<X>& data) {
-    constexpr auto buffer_mode = T::BufferMode::value;
-    using ErrorMode = typename T::ErrorMode;
-
-    unique_file_name f{"ignore_empty"};
-    make_and_write(f.name, data);
-
-    std::vector<X> expected;
-    for (const auto& d : data) {
-        if (d.s != X::empty) {
-            expected.push_back(d);
-        }
-    }
-
-    {
-        auto [p, _] =
-            make_parser<buffer_mode, ErrorMode, ss::ignore_empty>(f.name, ",");
-
-        std::vector<X> i;
-        for (const auto& a : p.template iterate<X>()) {
-            i.push_back(a);
-        }
-
-        CHECK_EQ(i, expected);
-    }
-
-    {
-        auto [p, _] = make_parser<buffer_mode, ErrorMode>(f.name, ",");
-        std::vector<X> i;
-        size_t n = 0;
-        while (!p.eof()) {
-            try {
-                ++n;
-                const auto& a = p.template get_next<X>();
-                if (data.at(n - 1).s == X::empty) {
-                    CHECK_FALSE(p.valid());
-                    continue;
-                }
-                i.push_back(a);
-            } catch (...) {
-                CHECK_EQ(data.at(n - 1).s, X::empty);
-            }
-        }
-
-        CHECK_EQ(i, expected);
-    }
-}
-
-TEST_CASE_TEMPLATE("test various cases with empty lines", T,
-                   ParserOptionCombinations) {
-    test_ignore_empty<T>(
-        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
-
-    test_ignore_empty<T>(
-        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, "w"}});
-
-    test_ignore_empty<T>(
-        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::empty}});
-
-    test_ignore_empty<T>(
-        {{1, 2, "x"}, {5, 6, X::empty}, {9, 10, "v"}, {11, 12, "w"}});
-
-    test_ignore_empty<T>(
-        {{1, 2, X::empty}, {5, 6, X::empty}, {9, 10, "v"}, {11, 12, "w"}});
-
-    test_ignore_empty<T>(
-        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, "v"}, {11, 12, X::empty}});
-
-    test_ignore_empty<T>(
-        {{1, 2, "x"}, {3, 4, "y"}, {9, 10, X::empty}, {11, 12, X::empty}});
-
-    test_ignore_empty<T>(
-        {{1, 2, X::empty}, {3, 4, "y"}, {9, 10, X::empty}, {11, 12, X::empty}});
-
-    test_ignore_empty<T>({{1, 2, X::empty},
-                          {3, 4, X::empty},
-                          {9, 10, X::empty},
-                          {11, 12, X::empty}});
-
-    test_ignore_empty<T>(
-        {{1, 2, "x"}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, X::empty}});
-
-    test_ignore_empty<T>(
-        {{1, 2, X::empty}, {3, 4, X::empty}, {9, 10, X::empty}, {11, 12, "w"}});
-
-    test_ignore_empty<T>({{11, 12, X::empty}});
-
-    test_ignore_empty<T>({});
 }

@@ -57,7 +57,7 @@ struct Y {
             .append(s3);
     }
 
-    auto tied() const {
+    [[nodiscard]] auto tied() const {
         return std::tie(s1, s2, s3);
     }
 };
@@ -115,7 +115,8 @@ TEST_CASE_TEMPLATE("test line method", T, ParserOptionCombinations) {
     CHECK_EQ(p.line(), expected_line);
 
     while (!p.eof()) {
-        auto _ = p.template get_next<std::string, std::string, std::string>();
+        std::ignore =
+            p.template get_next<std::string, std::string, std::string>();
         ++expected_line;
         CHECK_EQ(p.line(), expected_line);
     }

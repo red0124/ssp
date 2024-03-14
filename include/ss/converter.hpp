@@ -110,19 +110,19 @@ public:
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(line_ptr_type line,
-                     const std::string& delim = default_delimiter) {
+    [[nodiscard]] T convert_object(
+        line_ptr_type line, const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
     // parses line with given delimiter, returns tuple of objects with
     // extracted values of type 'Ts'
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert(
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
         if (splitter_.valid()) {
-            return convert<Ts...>(splitter_.split_data_);
+            return convert<Ts...>(splitter_.get_split_data());
         } else {
             handle_error_bad_split();
             return {};
@@ -131,13 +131,13 @@ public:
 
     // parses already split line, returns 'T' object with extracted values
     template <typename T, typename... Ts>
-    T convert_object(const split_data& elems) {
+    [[nodiscard]] T convert_object(const split_data& elems) {
         return to_object<T>(convert<Ts...>(elems));
     }
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    T convert_object() {
+    [[nodiscard]] T convert_object() {
         return to_object<T>(convert<Ts...>());
     }
 
@@ -146,7 +146,8 @@ public:
     // one argument is given which is a class which has a tied
     // method which returns a tuple, returns that type
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert(
+        const split_data& elems) {
         if constexpr (sizeof...(Ts) == 0 && is_instance_of_v<std::tuple, T>) {
             return convert_impl(elems, static_cast<T*>(nullptr));
         } else if constexpr (tied_class_v<T, Ts...>) {
@@ -162,11 +163,11 @@ public:
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.split_data_);
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert() {
+        return convert<T, Ts...>(splitter_.get_split_data());
     }
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -176,12 +177,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return splitter_.unterminated_quote();
     }
 
@@ -189,9 +190,9 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_data& split(line_ptr_type line,
                             const std::string& delim = default_delimiter) {
-        splitter_.split_data_.clear();
+        splitter_.clear_split_data();
         if (line[0] == '\0') {
-            return splitter_.split_data_;
+            return splitter_.get_split_data();
         }
 
         return splitter_.split(line, delim);
@@ -207,7 +208,7 @@ private:
         return splitter_.resplit(new_line, new_size, delim);
     }
 
-    size_t size_shifted() {
+    [[nodiscard]] size_t size_shifted() {
         return splitter_.size_shifted();
     }
 
@@ -223,9 +224,11 @@ private:
         }
     }
 
-    std::string error_sufix(const string_range msg, size_t pos) const {
+    [[nodiscard]] std::string error_sufix(const string_range msg,
+                                          size_t pos) const {
+        constexpr static auto reserve_size = 32;
         std::string error;
-        error.reserve(32);
+        error.reserve(reserve_size);
         error.append("at column ")
             .append(std::to_string(pos + 1))
             .append(": \'")
@@ -350,7 +353,8 @@ private:
     ////////////////
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert_impl(
+        const split_data& elems) {
         clear_error();
 
         if (!splitter_.valid()) {
@@ -381,7 +385,7 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
+    [[nodiscard]] no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
         const split_data& elems, const std::tuple<Ts...>*) {
         return convert_impl<Ts...>(elems);
     }
@@ -390,11 +394,11 @@ private:
     // column mapping
     ////////////////
 
-    bool columns_mapped() const {
-        return column_mappings_.size() != 0;
+    [[nodiscard]] bool columns_mapped() const {
+        return !column_mappings_.empty();
     }
 
-    size_t column_position(size_t tuple_position) const {
+    [[nodiscard]] size_t column_position(size_t tuple_position) const {
         if (!columns_mapped()) {
             return tuple_position;
         }
@@ -404,7 +408,7 @@ private:
     // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        column_mappings_ = positions;
+        column_mappings_ = std::move(positions);
         number_of_columns_ = number_of_columns;
     }
 
@@ -425,7 +429,7 @@ private:
         }
 
         if constexpr (std::is_same_v<T, std::string>) {
-            extract(msg.first, msg.second, dst);
+            static_cast<void>(extract(msg.first, msg.second, dst));
             return;
         }
 
@@ -471,7 +475,8 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> extract_tuple(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> extract_tuple(
+        const split_data& elems) {
         static_assert(!all_of_v<std::is_void, Ts...>,
                       "at least one parameter must be non void");
         no_void_validator_tup_t<Ts...> ret{};
@@ -490,7 +495,7 @@ private:
     friend class parser;
 
     std::vector<size_t> column_mappings_;
-    size_t number_of_columns_;
+    size_t number_of_columns_{0};
 };
 
-} /* ss */
+} /* namespace ss */

@@ -10,4 +10,3 @@ TEST_CASE("parser test various cases version 2 segment 2") {
     test_option_combinations3<escape, quote>();
 #endif
 }
-

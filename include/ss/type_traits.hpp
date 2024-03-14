@@ -34,7 +34,11 @@ struct left_of_impl;
 
 template <size_t N, typename T, typename... Ts>
 struct left_of_impl {
-    static_assert(N < 128, "recursion limit reached");
+private:
+    constexpr static auto recursion_limit = 128;
+
+public:
+    static_assert(N < recursion_limit, "recursion limit reached");
     static_assert(N != 0, "cannot take the whole tuple");
     using type = tup_cat_t<T, typename left_of_impl<N - 1, Ts...>::type>;
 };
@@ -362,12 +366,12 @@ constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 ////////////////
 
 template <class T, std::size_t... Is, class U>
-T to_object_impl(std::index_sequence<Is...>, U&& data) {
+[[nodiscard]] T to_object_impl(std::index_sequence<Is...>, U&& data) {
     return {std::get<Is>(std::forward<U>(data))...};
 }
 
 template <class T, class U>
-T to_object(U&& data) {
+[[nodiscard]] T to_object(U&& data) {
     using NoRefU = std::decay_t<U>;
     if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
         return to_object_impl<
@@ -378,4 +382,4 @@ T to_object(U&& data) {
     }
 }
 
-} /* trait */
+} /* namespace ss */

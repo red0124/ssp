@@ -12,8 +12,9 @@
 #include <unordered_set>
 
 namespace {
-[[maybe_unused]] void replace_all(std::string& s, const std::string& from,
-                                  const std::string& to) {
+#ifdef _WIN32
+void replace_all(std::string& s, const std::string& from,
+                 const std::string& to) {
     if (from.empty()) return;
     size_t start_pos = 0;
     while ((start_pos = s.find(from, start_pos)) != std::string::npos) {
@@ -21,6 +22,7 @@ namespace {
         start_pos += to.length();
     }
 }
+#endif
 
 template <typename... Ts>
 void expect_error_on_command(ss::parser<Ts...>& p,
@@ -28,6 +30,7 @@ void expect_error_on_command(ss::parser<Ts...>& p,
     if (ss::setup<Ts...>::throw_on_error) {
         try {
             command();
+            FAIL("expected exception");
         } catch (const std::exception& e) {
             CHECK_FALSE(std::string{e.what()}.empty());
         }
@@ -55,7 +58,7 @@ struct X {
     double d;
     std::string s;
 
-    std::string to_string() const {
+    [[nodiscard]] std::string to_string() const {
         if (s == empty) {
             return "";
         }
@@ -66,14 +69,15 @@ struct X {
             .append(delim)
             .append(s);
     }
-    auto tied() const {
+
+    [[nodiscard]] auto tied() const {
         return std::tie(i, d, s);
     }
 };
 
 template <typename T>
-std::enable_if_t<ss::has_m_tied_t<T>, bool> operator==(const T& lhs,
-                                                       const T& rhs) {
+[[nodiscard]] std::enable_if_t<ss::has_m_tied_t<T>, bool> operator==(
+    const T& lhs, const T& rhs) {
     return lhs.tied() == rhs.tied();
 }
 
@@ -109,4 +113,4 @@ static void make_and_write(const std::string& file_name,
     }
 }
 
-} /* namespace */
+} /* anonymous namespace */

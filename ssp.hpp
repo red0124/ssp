@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -8,7 +9,6 @@
 #include <cstring>
 #include <exception>
 #include <functional>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -50,7 +50,11 @@ struct left_of_impl;
 
 template <size_t N, typename T, typename... Ts>
 struct left_of_impl {
-    static_assert(N < 128, "recursion limit reached");
+private:
+    constexpr static auto recursion_limit = 128;
+
+public:
+    static_assert(N < recursion_limit, "recursion limit reached");
     static_assert(N != 0, "cannot take the whole tuple");
     using type = tup_cat_t<T, typename left_of_impl<N - 1, Ts...>::type>;
 };
@@ -378,12 +382,12 @@ constexpr bool is_instance_of_v = is_instance_of<Template, Ts...>::value;
 ////////////////
 
 template <class T, std::size_t... Is, class U>
-T to_object_impl(std::index_sequence<Is...>, U&& data) {
+[[nodiscard]] T to_object_impl(std::index_sequence<Is...>, U&& data) {
     return {std::get<Is>(std::forward<U>(data))...};
 }
 
 template <class T, class U>
-T to_object(U&& data) {
+[[nodiscard]] T to_object(U&& data) {
     using NoRefU = std::decay_t<U>;
     if constexpr (is_instance_of_v<std::tuple, NoRefU>) {
         return to_object_impl<
@@ -394,7 +398,7 @@ T to_object(U&& data) {
     }
 }
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -406,15 +410,15 @@ class exception : public std::exception {
     std::string msg_;
 
 public:
-    exception(const std::string& msg): msg_{msg} {
+    exception(std::string msg) : msg_{std::move(msg)} {
     }
 
-    virtual char const* what() const noexcept {
+    [[nodiscard]] char const* what() const noexcept override {
         return msg_.c_str();
     }
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -490,7 +494,7 @@ struct member_wrapper<R T::*> {
     template <typename T>                                                      \
     constexpr bool has_m_##method##_t = has_m_##method<T>::value;
 
-} /* trait */
+} /* namespace ss */
 
 namespace ss {
 
@@ -502,7 +506,7 @@ template <typename T, auto... Values>
 struct ax {
 private:
     template <auto X, auto... Xs>
-    bool ss_valid_impl(const T& x) const {
+    [[nodiscard]] bool ss_valid_impl(const T& x) const {
         if constexpr (sizeof...(Xs) != 0) {
             return x != X && ss_valid_impl<Xs...>(x);
         }
@@ -510,11 +514,11 @@ private:
     }
 
 public:
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return ss_valid_impl<Values...>(value);
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "value excluded";
     }
 };
@@ -527,7 +531,7 @@ template <typename T, auto... Values>
 struct nx {
 private:
     template <auto X, auto... Xs>
-    bool ss_valid_impl(const T& x) const {
+    [[nodiscard]] bool ss_valid_impl(const T& x) const {
         if constexpr (sizeof...(Xs) != 0) {
             return x == X || ss_valid_impl<Xs...>(x);
         }
@@ -535,11 +539,11 @@ private:
     }
 
 public:
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return ss_valid_impl<Values...>(value);
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "value excluded";
     }
 };
@@ -553,28 +557,28 @@ public:
 
 template <typename T, auto N>
 struct gt {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value > N;
     }
 };
 
 template <typename T, auto N>
 struct gte {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value >= N;
     }
 };
 
 template <typename T, auto N>
 struct lt {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value < N;
     }
 };
 
 template <typename T, auto N>
 struct lte {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value <= N;
     }
 };
@@ -585,7 +589,7 @@ struct lte {
 
 template <typename T, auto Min, auto Max>
 struct ir {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value >= Min && value <= Max;
     }
 };
@@ -596,7 +600,7 @@ struct ir {
 
 template <typename T, auto Min, auto Max>
 struct oor {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return value < Min || value > Max;
     }
 };
@@ -607,16 +611,21 @@ struct oor {
 
 template <typename T>
 struct ne {
-    bool ss_valid(const T& value) const {
+    [[nodiscard]] bool ss_valid(const T& value) const {
         return !value.empty();
     }
 
-    const char* error() const {
+    [[nodiscard]] const char* error() const {
         return "empty field";
     }
 };
 
-} /* ss */
+} /* namespace ss */
+
+#if !__unix__
+#include <array>
+#include <cstdint>
+#endif
 
 namespace ss {
 
@@ -629,18 +638,18 @@ constexpr inline auto default_delimiter = ",";
 constexpr inline auto get_line_initial_buffer_size = 128;
 
 template <bool StringError>
-inline void assert_string_error_defined() {
+void assert_string_error_defined() {
     static_assert(StringError,
                   "'string_error' needs to be enabled to use 'error_msg'");
 }
 
 template <bool ThrowOnError>
-inline void assert_throw_on_error_not_defined() {
+void assert_throw_on_error_not_defined() {
     static_assert(!ThrowOnError, "cannot handle errors manually if "
                                  "'throw_on_error' is enabled");
 }
 
-inline void* strict_realloc(void* ptr, size_t size) {
+[[nodiscard]] inline void* strict_realloc(void* ptr, size_t size) {
     ptr = std::realloc(ptr, size);
     if (!ptr) {
         throw std::bad_alloc{};
@@ -650,18 +659,20 @@ inline void* strict_realloc(void* ptr, size_t size) {
 }
 
 #if __unix__
-inline ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
     return getline(&lineptr, &n, file);
 }
 #else
 
 using ssize_t = intptr_t;
 
-ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
-    char buff[get_line_initial_buffer_size];
+[[nodiscard]] inline ssize_t get_line_file(char*& lineptr, size_t& n,
+                                           FILE* file) {
+    std::array<char, get_line_initial_buffer_size> buff;
 
     if (lineptr == nullptr || n < sizeof(buff)) {
-        size_t new_n = sizeof(buff);
+        const size_t new_n = sizeof(buff);
         lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
         n = new_n;
     }
@@ -669,17 +680,17 @@ ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
     lineptr[0] = '\0';
 
     size_t line_used = 0;
-    while (std::fgets(buff, sizeof(buff), file) != nullptr) {
+    while (std::fgets(buff.data(), sizeof(buff), file) != nullptr) {
         line_used = std::strlen(lineptr);
-        size_t buff_used = std::strlen(buff);
+        size_t buff_used = std::strlen(buff.data());
 
         if (n <= buff_used + line_used) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
             lineptr = static_cast<char*>(strict_realloc(lineptr, new_n));
             n = new_n;
         }
 
-        std::memcpy(lineptr + line_used, buff, buff_used);
+        std::memcpy(lineptr + line_used, buff.data(), buff_used);
         line_used += buff_used;
         lineptr[line_used] = '\0';
 
@@ -693,15 +704,16 @@ ssize_t get_line_file(char*& lineptr, size_t& n, FILE* file) {
 
 #endif
 
-ssize_t get_line_buffer(char*& lineptr, size_t& n,
-                        const char* const csv_data_buffer, size_t csv_data_size,
-                        size_t& curr_char) {
+[[nodiscard]] inline ssize_t get_line_buffer(char*& lineptr, size_t& n,
+                                             const char* const csv_data_buffer,
+                                             size_t csv_data_size,
+                                             size_t& curr_char) {
     if (curr_char >= csv_data_size) {
         return -1;
     }
 
     if (lineptr == nullptr || n < get_line_initial_buffer_size) {
-        auto new_lineptr = static_cast<char*>(
+        auto* new_lineptr = static_cast<char*>(
             strict_realloc(lineptr, get_line_initial_buffer_size));
         lineptr = new_lineptr;
         n = get_line_initial_buffer_size;
@@ -710,7 +722,7 @@ ssize_t get_line_buffer(char*& lineptr, size_t& n,
     size_t line_used = 0;
     while (curr_char < csv_data_size) {
         if (line_used + 1 >= n) {
-            size_t new_n = n * 2;
+            const size_t new_n = n * 2;
 
             char* new_lineptr =
                 static_cast<char*>(strict_realloc(lineptr, new_n));
@@ -726,19 +738,15 @@ ssize_t get_line_buffer(char*& lineptr, size_t& n,
         }
     }
 
-    if (line_used != 0) {
-        lineptr[line_used] = '\0';
-        return line_used;
-    }
-
-    return -1;
+    lineptr[line_used] = '\0';
+    return line_used;
 }
 
-std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
-                                   FILE* file,
-                                   const char* const csv_data_buffer,
-                                   size_t csv_data_size, size_t& curr_char) {
-    ssize_t ssize;
+[[nodiscard]] inline std::tuple<ssize_t, bool> get_line(
+    char*& buffer, size_t& buffer_size, FILE* file,
+    const char* const csv_data_buffer, size_t csv_data_size,
+    size_t& curr_char) {
+    ssize_t ssize = 0;
     if (file) {
         ssize = get_line_file(buffer, buffer_size, file);
         curr_char += ssize;
@@ -757,7 +765,7 @@ std::tuple<ssize_t, bool> get_line(char*& buffer, size_t& buffer_size,
     return {ssize, false};
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 
@@ -1050,7 +1058,10 @@ private:
 template <typename... Options>
 struct setup<setup<Options...>> : setup<Options...> {};
 
-} /* ss */
+template <typename... Options>
+struct setup<std::tuple<Options...>> : setup<Options...> {};
+
+} /* namespace ss */
 
 namespace ss {
 
@@ -1072,7 +1083,7 @@ private:
 public:
     using line_ptr_type = std::conditional_t<is_const_line, const char*, char*>;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -1082,12 +1093,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return unterminated_quote_;
     }
 
@@ -1099,13 +1110,21 @@ public:
         return split_impl_select_delim(delimiter);
     }
 
+    [[nodiscard]] const split_data& get_split_data() const {
+        return split_data_;
+    }
+
+    void clear_split_data() {
+        split_data_.clear();
+    }
+
 private:
     ////////////////
     // resplit
     ////////////////
 
     // number of characters the end of line is shifted backwards
-    size_t size_shifted() const {
+    [[nodiscard]] size_t size_shifted() const {
         return escaped_;
     }
 
@@ -1128,7 +1147,7 @@ private:
         }
 
         const auto [old_line, old_begin] = *std::prev(split_data_.end());
-        size_t begin = old_begin - old_line - 1;
+        const size_t begin = old_begin - old_line - 1;
 
         // safety measure
         if (new_size != -1 && static_cast<size_t>(new_size) < begin) {
@@ -1236,19 +1255,19 @@ private:
     // matching
     ////////////////
 
-    bool match(const char* const curr, char delim) {
+    [[nodiscard]] bool match(const char* const curr, char delim) {
         return *curr == delim;
     };
 
-    bool match(const char* const curr, const std::string& delim) {
+    [[nodiscard]] bool match(const char* const curr, const std::string& delim) {
         return std::strncmp(curr, delim.c_str(), delim.size()) == 0;
     };
 
-    size_t delimiter_size(char) {
+    [[nodiscard]] size_t delimiter_size(char) {
         return 1;
     }
 
-    size_t delimiter_size(const std::string& delim) {
+    [[nodiscard]] size_t delimiter_size(const std::string& delim) {
         return delim.size();
     }
 
@@ -1269,8 +1288,8 @@ private:
     }
 
     template <typename Delim>
-    std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
-                                             const Delim& delim) {
+    [[nodiscard]] std::tuple<size_t, bool> match_delimiter(line_ptr_type begin,
+                                                           const Delim& delim) {
         line_ptr_type end = begin;
 
         trim_right_if_enabled(end);
@@ -1364,8 +1383,9 @@ private:
 
         trim_left_if_enabled(begin_);
 
-        for (done_ = false; !done_; read(delim))
-            ;
+        for (done_ = false; !done_;) {
+            read(delim);
+        }
 
         return split_data_;
     }
@@ -1504,7 +1524,6 @@ private:
     // members
     ////////////////
 
-public:
     error_type error_{};
     bool unterminated_quote_{false};
     bool done_{true};
@@ -1521,7 +1540,7 @@ public:
     friend class converter;
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 #ifndef SSP_DISABLE_FAST_FLOAT
@@ -1537,8 +1556,8 @@ namespace ss {
 #ifndef SSP_DISABLE_FAST_FLOAT
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = fast_float::from_chars(begin, end, ret);
 
@@ -1551,22 +1570,23 @@ std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
 #else
 
 template <typename T>
-std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<std::is_floating_point_v<T>, std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     static_assert(!std::is_same_v<T, long double>,
                   "Conversion to long double is disabled");
 
     constexpr static auto buff_max = 64;
-    char short_buff[buff_max];
-    size_t string_range = std::distance(begin, end);
+    std::array<char, buff_max> short_buff;
+
+    const size_t string_range = std::distance(begin, end);
     std::string long_buff;
 
-    char* buff;
+    char* buff = nullptr;
     if (string_range > buff_max) {
         long_buff = std::string{begin, end};
         buff = long_buff.data();
     } else {
-        buff = short_buff;
+        buff = short_buff.data();
         buff[string_range] = '\0';
         std::copy_n(begin, string_range, buff);
     }
@@ -1598,11 +1618,13 @@ struct numeric_wrapper {
     using type = T;
 
     numeric_wrapper() = default;
-    numeric_wrapper(numeric_wrapper&&) = default;
+    numeric_wrapper(numeric_wrapper&&) noexcept = default;
     numeric_wrapper(const numeric_wrapper&) = default;
 
-    numeric_wrapper& operator=(numeric_wrapper&&) = default;
+    numeric_wrapper& operator=(numeric_wrapper&&) noexcept = default;
     numeric_wrapper& operator=(const numeric_wrapper&) = default;
+
+    ~numeric_wrapper() = default;
 
     numeric_wrapper(T other) : value{other} {
     }
@@ -1622,7 +1644,7 @@ using int8 = numeric_wrapper<int8_t>;
 using uint8 = numeric_wrapper<uint8_t>;
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
     const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret);
@@ -1634,8 +1656,9 @@ std::enable_if_t<std::is_integral_v<T>, std::optional<T>> to_num(
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<numeric_wrapper, T>, std::optional<T>> to_num(
-    const char* const begin, const char* const end) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<numeric_wrapper, T>,
+                               std::optional<T>>
+to_num(const char* const begin, const char* const end) {
     T ret;
     auto [ptr, ec] = std::from_chars(begin, end, ret.value);
 
@@ -1654,14 +1677,15 @@ template <typename T>
 struct unsupported_type {
     constexpr static bool value = false;
 };
-} /* namespace */
+} /* namespace errors */
 
 template <typename T>
-std::enable_if_t<!std::is_integral_v<T> && !std::is_floating_point_v<T> &&
-                     !is_instance_of_v<std::optional, T> &&
-                     !is_instance_of_v<std::variant, T> &&
-                     !is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<!std::is_integral_v<T> &&
+                                   !std::is_floating_point_v<T> &&
+                                   !is_instance_of_v<std::optional, T> &&
+                                   !is_instance_of_v<std::variant, T> &&
+                                   !is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char*, const char*, T&) {
     static_assert(error::unsupported_type<T>::value,
                   "Conversion for given type is not defined, an "
@@ -1669,9 +1693,10 @@ extract(const char*, const char*, T&) {
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T> ||
-                     is_instance_of_v<numeric_wrapper, T>,
-                 bool>
+[[nodiscard]] std::enable_if_t<std::is_integral_v<T> ||
+                                   std::is_floating_point_v<T> ||
+                                   is_instance_of_v<numeric_wrapper, T>,
+                               bool>
 extract(const char* begin, const char* end, T& value) {
     auto optional_value = to_num<T>(begin, end);
     if (!optional_value) {
@@ -1682,8 +1707,8 @@ extract(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
-    const char* begin, const char* end, T& value) {
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::optional, T>, bool>
+extract(const char* begin, const char* end, T& value) {
     typename T::value_type raw_value;
     if (extract(begin, end, raw_value)) {
         value = raw_value;
@@ -1694,7 +1719,8 @@ std::enable_if_t<is_instance_of_v<std::optional, T>, bool> extract(
 }
 
 template <typename T, size_t I>
-bool extract_variant(const char* begin, const char* end, T& value) {
+[[nodiscard]] bool extract_variant(const char* begin, const char* end,
+                                   T& value) {
     using IthType = std::variant_alternative_t<I, std::decay_t<T>>;
     IthType ithValue;
     if (extract<IthType>(begin, end, ithValue)) {
@@ -1707,7 +1733,7 @@ bool extract_variant(const char* begin, const char* end, T& value) {
 }
 
 template <typename T>
-std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
+[[nodiscard]] std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
     const char* begin, const char* end, T& value) {
     return extract_variant<T, 0>(begin, end, value);
 }
@@ -1717,7 +1743,8 @@ std::enable_if_t<is_instance_of_v<std::variant, T>, bool> extract(
 ////////////////
 
 template <>
-inline bool extract(const char* begin, const char* end, bool& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  bool& value) {
     if (end == begin + 1) {
         if (*begin == '1') {
             value = true;
@@ -1727,10 +1754,13 @@ inline bool extract(const char* begin, const char* end, bool& value) {
             return false;
         }
     } else {
-        size_t size = end - begin;
-        if (size == 4 && std::strncmp(begin, "true", size) == 0) {
+        constexpr static auto true_size = 4;
+        constexpr static auto false_size = 5;
+        const size_t size = end - begin;
+        if (size == true_size && std::strncmp(begin, "true", size) == 0) {
             value = true;
-        } else if (size == 5 && std::strncmp(begin, "false", size) == 0) {
+        } else if (size == false_size &&
+                   std::strncmp(begin, "false", size) == 0) {
             value = false;
         } else {
             return false;
@@ -1741,25 +1771,27 @@ inline bool extract(const char* begin, const char* end, bool& value) {
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, char& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  char& value) {
     value = *begin;
     return (end == begin + 1);
 }
 
 template <>
-inline bool extract(const char* begin, const char* end, std::string& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string& value) {
     value = std::string{begin, end};
     return true;
 }
 
 template <>
-inline bool extract(const char* begin, const char* end,
-                    std::string_view& value) {
+[[nodiscard]] inline bool extract(const char* begin, const char* end,
+                                  std::string_view& value) {
     value = std::string_view{begin, static_cast<size_t>(end - begin)};
     return true;
 }
 
-} /* ss */
+} /* namespace ss */
 
 namespace ss {
 INIT_HAS_METHOD(tied)
@@ -1862,19 +1894,19 @@ public:
     // parses line with given delimiter, returns a 'T' object created with
     // extracted values of type 'Ts'
     template <typename T, typename... Ts>
-    T convert_object(line_ptr_type line,
-                     const std::string& delim = default_delimiter) {
+    [[nodiscard]] T convert_object(
+        line_ptr_type line, const std::string& delim = default_delimiter) {
         return to_object<T>(convert<Ts...>(line, delim));
     }
 
     // parses line with given delimiter, returns tuple of objects with
     // extracted values of type 'Ts'
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert(
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert(
         line_ptr_type line, const std::string& delim = default_delimiter) {
         split(line, delim);
         if (splitter_.valid()) {
-            return convert<Ts...>(splitter_.split_data_);
+            return convert<Ts...>(splitter_.get_split_data());
         } else {
             handle_error_bad_split();
             return {};
@@ -1883,13 +1915,13 @@ public:
 
     // parses already split line, returns 'T' object with extracted values
     template <typename T, typename... Ts>
-    T convert_object(const split_data& elems) {
+    [[nodiscard]] T convert_object(const split_data& elems) {
         return to_object<T>(convert<Ts...>(elems));
     }
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    T convert_object() {
+    [[nodiscard]] T convert_object() {
         return to_object<T>(convert<Ts...>());
     }
 
@@ -1898,7 +1930,8 @@ public:
     // one argument is given which is a class which has a tied
     // method which returns a tuple, returns that type
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert(
+        const split_data& elems) {
         if constexpr (sizeof...(Ts) == 0 && is_instance_of_v<std::tuple, T>) {
             return convert_impl(elems, static_cast<T*>(nullptr));
         } else if constexpr (tied_class_v<T, Ts...>) {
@@ -1914,11 +1947,11 @@ public:
 
     // same as above, but uses cached split line
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> convert() {
-        return convert<T, Ts...>(splitter_.split_data_);
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> convert() {
+        return convert<T, Ts...>(splitter_.get_split_data());
     }
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -1928,12 +1961,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool unterminated_quote() const {
+    [[nodiscard]] bool unterminated_quote() const {
         return splitter_.unterminated_quote();
     }
 
@@ -1941,9 +1974,9 @@ public:
     // contain the beginnings and the ends of each column of the string
     const split_data& split(line_ptr_type line,
                             const std::string& delim = default_delimiter) {
-        splitter_.split_data_.clear();
+        splitter_.clear_split_data();
         if (line[0] == '\0') {
-            return splitter_.split_data_;
+            return splitter_.get_split_data();
         }
 
         return splitter_.split(line, delim);
@@ -1959,7 +1992,7 @@ private:
         return splitter_.resplit(new_line, new_size, delim);
     }
 
-    size_t size_shifted() {
+    [[nodiscard]] size_t size_shifted() {
         return splitter_.size_shifted();
     }
 
@@ -1975,9 +2008,11 @@ private:
         }
     }
 
-    std::string error_sufix(const string_range msg, size_t pos) const {
+    [[nodiscard]] std::string error_sufix(const string_range msg,
+                                          size_t pos) const {
+        constexpr static auto reserve_size = 32;
         std::string error;
-        error.reserve(32);
+        error.reserve(reserve_size);
         error.append("at column ")
             .append(std::to_string(pos + 1))
             .append(": \'")
@@ -2102,7 +2137,8 @@ private:
     ////////////////
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> convert_impl(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> convert_impl(
+        const split_data& elems) {
         clear_error();
 
         if (!splitter_.valid()) {
@@ -2133,7 +2169,7 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
+    [[nodiscard]] no_void_validator_tup_t<std::tuple<Ts...>> convert_impl(
         const split_data& elems, const std::tuple<Ts...>*) {
         return convert_impl<Ts...>(elems);
     }
@@ -2142,11 +2178,11 @@ private:
     // column mapping
     ////////////////
 
-    bool columns_mapped() const {
-        return column_mappings_.size() != 0;
+    [[nodiscard]] bool columns_mapped() const {
+        return !column_mappings_.empty();
     }
 
-    size_t column_position(size_t tuple_position) const {
+    [[nodiscard]] size_t column_position(size_t tuple_position) const {
         if (!columns_mapped()) {
             return tuple_position;
         }
@@ -2156,7 +2192,7 @@ private:
     // assumes positions are valid and the vector is not empty
     void set_column_mapping(std::vector<size_t> positions,
                             size_t number_of_columns) {
-        column_mappings_ = positions;
+        column_mappings_ = std::move(positions);
         number_of_columns_ = number_of_columns;
     }
 
@@ -2177,7 +2213,7 @@ private:
         }
 
         if constexpr (std::is_same_v<T, std::string>) {
-            extract(msg.first, msg.second, dst);
+            static_cast<void>(extract(msg.first, msg.second, dst));
             return;
         }
 
@@ -2223,7 +2259,8 @@ private:
     }
 
     template <typename... Ts>
-    no_void_validator_tup_t<Ts...> extract_tuple(const split_data& elems) {
+    [[nodiscard]] no_void_validator_tup_t<Ts...> extract_tuple(
+        const split_data& elems) {
         static_assert(!all_of_v<std::is_void, Ts...>,
                       "at least one parameter must be non void");
         no_void_validator_tup_t<Ts...> ret{};
@@ -2242,10 +2279,10 @@ private:
     friend class parser;
 
     std::vector<size_t> column_mappings_;
-    size_t number_of_columns_;
+    size_t number_of_columns_{0};
 };
 
-} /* ss */
+} /* namespace ss */
 
 
 namespace ss {
@@ -2268,10 +2305,12 @@ class parser {
 
     constexpr static bool ignore_empty = setup<Options...>::ignore_empty;
 
+    using header_splitter = ss::splitter<
+        ss::filter_not_t<ss::is_instance_of_multiline, Options...>>;
+
 public:
-    parser(const std::string& file_name,
-           const std::string& delim = ss::default_delimiter)
-        : file_name_{file_name}, reader_{file_name_, delim} {
+    parser(std::string file_name, std::string delim = ss::default_delimiter)
+        : file_name_{std::move(file_name)}, reader_{file_name_, delim} {
         if (reader_.file_) {
             read_line();
             if constexpr (ignore_header) {
@@ -2287,7 +2326,7 @@ public:
 
     parser(const char* const csv_data_buffer, size_t csv_data_size,
            const std::string& delim = ss::default_delimiter)
-        : file_name_{"buffer line"},
+        : file_name_{"CSV data buffer"},
           reader_{csv_data_buffer, csv_data_size, delim} {
         if (csv_data_buffer) {
             read_line();
@@ -2302,14 +2341,15 @@ public:
         }
     }
 
-    parser(parser&& other) = default;
-    parser& operator=(parser&& other) = default;
+    parser(parser&& other) noexcept = default;
+    parser& operator=(parser&& other) noexcept = default;
+    ~parser() = default;
 
     parser() = delete;
     parser(const parser& other) = delete;
     parser& operator=(const parser& other) = delete;
 
-    bool valid() const {
+    [[nodiscard]] bool valid() const {
         if constexpr (string_error) {
             return error_.empty();
         } else if constexpr (throw_on_error) {
@@ -2319,12 +2359,12 @@ public:
         }
     }
 
-    const std::string& error_msg() const {
+    [[nodiscard]] const std::string& error_msg() const {
         assert_string_error_defined<string_error>();
         return error_;
     }
 
-    bool eof() const {
+    [[nodiscard]] bool eof() const {
         return eof_;
     }
 
@@ -2333,23 +2373,21 @@ public:
     }
 
     template <typename T, typename... Ts>
-    T get_object() {
+    [[nodiscard]] T get_object() {
         return to_object<T>(get_next<Ts...>());
     }
 
-    size_t line() const {
+    [[nodiscard]] size_t line() const {
         return reader_.line_number_ > 0 ? reader_.line_number_ - 1
                                         : reader_.line_number_;
     }
 
-    size_t position() const {
+    [[nodiscard]] size_t position() const {
         return reader_.chars_read_;
     }
 
     template <typename T, typename... Ts>
-    no_void_validator_tup_t<T, Ts...> get_next() {
-        std::optional<std::string> error;
-
+    [[nodiscard]] no_void_validator_tup_t<T, Ts...> get_next() {
         if (!eof_) {
             if constexpr (throw_on_error) {
                 try {
@@ -2398,9 +2436,40 @@ public:
         return value;
     }
 
-    bool field_exists(const std::string& field) {
+    [[nodiscard]] std::string raw_header() const {
+        assert_ignore_header_not_defined();
+        return raw_header_;
+    }
+
+    [[nodiscard]] std::vector<std::string> header() {
+        assert_ignore_header_not_defined();
+        clear_error();
+
+        header_splitter splitter;
+        std::string raw_header_copy = raw_header_;
+
+        if (!strict_split(splitter, raw_header_copy)) {
+            return {};
+        }
+
+        std::vector<std::string> split_header;
+        for (const auto& [begin, end] : splitter.get_split_data()) {
+            split_header.emplace_back(begin, end);
+        }
+
+        return split_header;
+    }
+
+    [[nodiscard]] bool field_exists(const std::string& field) {
+        assert_ignore_header_not_defined();
+        clear_error();
+
         if (header_.empty()) {
             split_header_data();
+        }
+
+        if (!valid()) {
+            return false;
         }
 
         return header_index(field).has_value();
@@ -2408,10 +2477,8 @@ public:
 
     template <typename... Ts>
     void use_fields(const Ts&... fields_args) {
-        if constexpr (ignore_header) {
-            handle_error_header_ignored();
-            return;
-        }
+        assert_ignore_header_not_defined();
+        clear_error();
 
         if (header_.empty() && !eof()) {
             split_header_data();
@@ -2424,7 +2491,7 @@ public:
         auto fields = std::vector<std::string>{fields_args...};
 
         if (fields.empty()) {
-            handle_error_empty_mapping();
+            handle_error_invalid_use_fields_argument();
             return;
         }
 
@@ -2472,13 +2539,17 @@ public:
             }
 
             iterator(const iterator& other) = default;
-            iterator(iterator&& other) = default;
+            iterator(iterator&& other) noexcept = default;
+            ~iterator() = default;
 
-            value& operator*() {
+            iterator& operator=(const iterator& other) = delete;
+            iterator& operator=(iterator&& other) noexcept = delete;
+
+            [[nodiscard]] value& operator*() {
                 return value_;
             }
 
-            value* operator->() {
+            [[nodiscard]] value* operator->() {
                 return &value_;
             }
 
@@ -2497,17 +2568,21 @@ public:
                 return *this;
             }
 
-            iterator& operator++(int) {
-                return ++*this;
+            iterator operator++(int) {
+                auto result = *this;
+                ++*this;
+                return result;
             }
 
-            friend bool operator==(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator==(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return (lhs.parser_ == nullptr && rhs.parser_ == nullptr) ||
                        (lhs.parser_ == rhs.parser_ &&
                         &lhs.value_ == &rhs.value_);
             }
 
-            friend bool operator!=(const iterator& lhs, const iterator& rhs) {
+            [[nodiscard]] friend bool operator!=(const iterator& lhs,
+                                                 const iterator& rhs) {
                 return !(lhs == rhs);
             }
 
@@ -2519,11 +2594,11 @@ public:
         iterable(parser<Options...>* parser) : parser_{parser} {
         }
 
-        iterator begin() {
+        [[nodiscard]] iterator begin() {
             return ++iterator{parser_};
         }
 
-        iterator end() {
+        [[nodiscard]] iterator end() {
             return iterator{};
         }
 
@@ -2532,12 +2607,12 @@ public:
     };
 
     template <typename... Ts>
-    auto iterate() {
+    [[nodiscard]] auto iterate() {
         return iterable<false, Ts...>{this};
     }
 
     template <typename... Ts>
-    auto iterate_object() {
+    [[nodiscard]] auto iterate_object() {
         return iterable<true, Ts...>{this};
     }
 
@@ -2562,7 +2637,7 @@ public:
             Fun&& fun = none{}) {
             using Value = no_void_validator_tup_t<Us...>;
             std::optional<Value> value;
-            try_convert_and_invoke<Value, Us...>(value, fun);
+            try_convert_and_invoke<Value, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
@@ -2571,11 +2646,11 @@ public:
         template <typename U, typename... Us, typename Fun = none>
         composite<Ts..., std::optional<U>> or_object(Fun&& fun = none{}) {
             std::optional<U> value;
-            try_convert_and_invoke<U, Us...>(value, fun);
+            try_convert_and_invoke<U, Us...>(value, std::forward<Fun>(fun));
             return composite_with(std::move(value));
         }
 
-        std::tuple<Ts...> values() {
+        [[nodiscard]] std::tuple<Ts...> values() {
             return values_;
         }
 
@@ -2598,7 +2673,7 @@ public:
 
     private:
         template <typename T>
-        composite<Ts..., T> composite_with(T&& new_value) {
+        [[nodiscard]] composite<Ts..., T> composite_with(T&& new_value) {
             auto merged_values =
                 std::tuple_cat(std::move(values_),
                                std::tuple<T>{parser_.valid()
@@ -2628,7 +2703,7 @@ public:
         }
 
         template <typename U, typename... Us>
-        no_void_validator_tup_t<U, Us...> try_same() {
+        [[nodiscard]] no_void_validator_tup_t<U, Us...> try_same() {
             parser_.clear_error();
             auto value =
                 parser_.reader_.converter_.template convert<U, Us...>();
@@ -2649,8 +2724,8 @@ public:
     // tries to convert a line and returns a composite which is
     // able to try additional conversions in case of failure
     template <typename... Ts, typename Fun = none>
-    composite<std::optional<no_void_validator_tup_t<Ts...>>> try_next(
-        Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<no_void_validator_tup_t<Ts...>>>
+    try_next(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         using Ret = no_void_validator_tup_t<Ts...>;
         return try_invoke_and_make_composite<
@@ -2660,7 +2735,7 @@ public:
     // identical to try_next but returns composite with object instead of a
     // tuple
     template <typename T, typename... Ts, typename Fun = none>
-    composite<std::optional<T>> try_object(Fun&& fun = none{}) {
+    [[nodiscard]] composite<std::optional<T>> try_object(Fun&& fun = none{}) {
         assert_throw_on_error_not_defined<throw_on_error>();
         return try_invoke_and_make_composite<
             std::optional<T>>(get_object<T, Ts...>(), std::forward<Fun>(fun));
@@ -2679,7 +2754,8 @@ private:
             using Ret = decltype(try_invoke_impl(arg, std::forward<Fun>(fun)));
             constexpr bool returns_void = std::is_same_v<Ret, void>;
             if constexpr (!returns_void) {
-                if (!try_invoke_impl(arg, std::forward<Fun>(fun))) {
+                if (!try_invoke_impl(std::forward<Arg>(arg),
+                                     std::forward<Fun>(fun))) {
                     handle_error_failed_check();
                 }
             } else {
@@ -2710,26 +2786,55 @@ private:
     }
 
     template <typename T, typename Fun = none>
-    composite<T> try_invoke_and_make_composite(T&& value, Fun&& fun) {
+    [[nodiscard]] composite<T> try_invoke_and_make_composite(T&& value,
+                                                             Fun&& fun) {
         if (valid()) {
             try_invoke(*value, std::forward<Fun>(fun));
         }
-        return {valid() ? std::move(value) : std::nullopt, *this};
+        return {valid() ? std::forward<T>(value) : std::nullopt, *this};
     }
 
     ////////////////
     // header
     ////////////////
 
+    void assert_ignore_header_not_defined() const {
+        static_assert(!ignore_header,
+                      "cannot use this method when 'ignore_header' is defined");
+    }
+
+    [[nodiscard]] bool strict_split(header_splitter& splitter,
+                                    std::string& header) {
+        if constexpr (throw_on_error) {
+            try {
+                splitter.split(header.data(), reader_.delim_);
+            } catch (const ss::exception& e) {
+                decorate_rethrow_invalid_header_split(e);
+            }
+        } else {
+            splitter.split(header.data(), reader_.delim_);
+            if (!splitter.valid()) {
+                handle_error_invalid_header_split(splitter);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void split_header_data() {
-        ss::splitter<Options...> splitter;
+        header_splitter splitter;
         std::string raw_header_copy = raw_header_;
-        splitter.split(raw_header_copy.data(), reader_.delim_);
-        for (const auto& [begin, end] : splitter.split_data_) {
+
+        if (!strict_split(splitter, raw_header_copy)) {
+            return;
+        }
+
+        for (const auto& [begin, end] : splitter.get_split_data()) {
             std::string field{begin, end};
             if (std::find(header_.begin(), header_.end(), field) !=
                 header_.end()) {
-                handle_error_invalid_header(field);
+                handle_error_duplicate_header_field(field);
                 header_.clear();
                 return;
             }
@@ -2737,7 +2842,7 @@ private:
         }
     }
 
-    std::optional<size_t> header_index(const std::string& field) {
+    [[nodiscard]] std::optional<size_t> header_index(const std::string& field) {
         auto it = std::find(header_.begin(), header_.end(), field);
 
         if (it == header_.end()) {
@@ -2760,7 +2865,7 @@ private:
     }
 
     void handle_error_failed_check() {
-        constexpr static auto error_msg = " failed check";
+        constexpr static auto error_msg = ": failed check";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2773,7 +2878,7 @@ private:
     }
 
     void handle_error_null_buffer() {
-        constexpr static auto error_msg = " received null data buffer";
+        constexpr static auto error_msg = ": received null data buffer";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2786,7 +2891,7 @@ private:
     }
 
     void handle_error_file_not_open() {
-        constexpr static auto error_msg = " could not be opened";
+        constexpr static auto error_msg = ": could not be opened";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2799,7 +2904,7 @@ private:
     }
 
     void handle_error_eof_reached() {
-        constexpr static auto error_msg = " read on end of file";
+        constexpr static auto error_msg = ": read on end of file";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2820,20 +2925,6 @@ private:
                 .append(": ")
                 .append(reader_.converter_.error_msg());
         } else if constexpr (!throw_on_error) {
-            error_ = true;
-        }
-    }
-
-    void handle_error_header_ignored() {
-        constexpr static auto error_msg =
-            ": the header row is ignored within the setup it cannot be used";
-
-        if constexpr (string_error) {
-            error_.clear();
-            error_.append(file_name_).append(error_msg);
-        } else if constexpr (throw_on_error) {
-            throw ss::exception{file_name_ + error_msg};
-        } else {
             error_ = true;
         }
     }
@@ -2865,8 +2956,9 @@ private:
         }
     }
 
-    void handle_error_empty_mapping() {
-        constexpr static auto error_msg = "received empty mapping";
+    void handle_error_invalid_use_fields_argument() {
+        constexpr static auto error_msg =
+            "received invalid argument for 'use_fields'";
 
         if constexpr (string_error) {
             error_.clear();
@@ -2878,17 +2970,51 @@ private:
         }
     }
 
-    void handle_error_invalid_header(const std::string& field) {
-        constexpr static auto error_msg = "header contains duplicates: ";
+    void handle_error_invalid_header_field() {
+        constexpr static auto error_msg = ": header contains empty field";
 
         if constexpr (string_error) {
             error_.clear();
-            error_.append(error_msg).append(error_msg);
+            error_.append(file_name_).append(error_msg);
         } else if constexpr (throw_on_error) {
-            throw ss::exception{error_msg + field};
+            throw ss::exception{file_name_ + error_msg};
         } else {
             error_ = true;
         }
+    }
+
+    void handle_error_duplicate_header_field(const std::string& field) {
+        constexpr static auto error_msg = ": header contains duplicate: ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_).append(error_msg).append(field);
+        } else if constexpr (throw_on_error) {
+            throw ss::exception{file_name_ + error_msg + field};
+        } else {
+            error_ = true;
+        }
+    }
+
+    void handle_error_invalid_header_split(const header_splitter& splitter) {
+        constexpr static auto error_msg = ": failed header parsing: ";
+
+        if constexpr (string_error) {
+            error_.clear();
+            error_.append(file_name_)
+                .append(error_msg)
+                .append(splitter.error_msg());
+        } else {
+            error_ = true;
+        }
+    }
+
+    void decorate_rethrow_invalid_header_split(const ss::exception& e) const {
+        static_assert(throw_on_error,
+                      "throw_on_error needs to be enabled to use this method");
+        throw ss::exception{std::string{file_name_}
+                                .append(": failed header parsing: ")
+                                .append(e.what())};
     }
 
     void decorate_rethrow(const ss::exception& e) const {
@@ -2910,17 +3036,18 @@ private:
     }
 
     struct reader {
-        reader(const std::string& file_name_, const std::string& delim)
-            : delim_{delim}, file_{std::fopen(file_name_.c_str(), "rb")} {
+        reader(const std::string& file_name_, std::string delim)
+            : delim_{std::move(delim)},
+              file_{std::fopen(file_name_.c_str(), "rb")} {
         }
 
         reader(const char* const buffer, size_t csv_data_size,
-               const std::string& delim)
-            : delim_{delim}, csv_data_buffer_{buffer},
+               std::string delim)
+            : delim_{std::move(delim)}, csv_data_buffer_{buffer},
               csv_data_size_{csv_data_size} {
         }
 
-        reader(reader&& other)
+        reader(reader&& other) noexcept
             : buffer_{other.buffer_},
               next_line_buffer_{other.next_line_buffer_},
               helper_buffer_{other.helper_buffer_},
@@ -2941,7 +3068,7 @@ private:
             other.file_ = nullptr;
         }
 
-        reader& operator=(reader&& other) {
+        reader& operator=(reader&& other) noexcept {
             if (this != &other) {
                 buffer_ = other.buffer_;
                 next_line_buffer_ = other.next_line_buffer_;
@@ -2977,7 +3104,7 @@ private:
             std::free(helper_buffer_);
 
             if (file_) {
-                std::fclose(file_);
+                std::ignore = std::fclose(file_);
             }
         }
 
@@ -2986,7 +3113,7 @@ private:
         reader& operator=(const reader& other) = delete;
 
         // read next line each time in order to set eof_
-        bool read_next() {
+        [[nodiscard]] bool read_next() {
             next_line_converter_.clear_error();
             size_t size = 0;
             while (size == 0) {
@@ -3078,7 +3205,7 @@ private:
             std::swap(converter_, next_line_converter_);
         }
 
-        bool multiline_limit_reached(size_t& limit) {
+        [[nodiscard]] bool multiline_limit_reached(size_t& limit) {
             if constexpr (multiline::size > 0) {
                 if (limit++ >= multiline::size) {
                     next_line_converter_.handle_error_multiline_limit_reached();
@@ -3088,8 +3215,8 @@ private:
             return false;
         }
 
-        bool escaped_eol(size_t size) {
-            const char* curr;
+        [[nodiscard]] bool escaped_eol(size_t size) {
+            const char* curr = nullptr;
             for (curr = next_line_buffer_ + size - 1;
                  curr >= next_line_buffer_ &&
                  setup<Options...>::escape::match(*curr);
@@ -3098,7 +3225,7 @@ private:
             return (next_line_buffer_ - curr + size) % 2 == 0;
         }
 
-        bool unterminated_quote() {
+        [[nodiscard]] bool unterminated_quote() {
             return next_line_converter_.unterminated_quote();
         }
 
@@ -3113,7 +3240,7 @@ private:
             }
         }
 
-        size_t remove_eol(char*& buffer, size_t ssize) {
+        [[nodiscard]] size_t remove_eol(char*& buffer, size_t ssize) {
             if (buffer[ssize - 1] != '\n') {
                 crlf_ = false;
                 return ssize;
@@ -3135,7 +3262,7 @@ private:
                             size_t& buffer_size, const char* const second,
                             size_t second_size) {
             buffer_size = first_size + second_size + 3;
-            auto new_first = static_cast<char*>(
+            auto* new_first = static_cast<char*>(
                 strict_realloc(static_cast<void*>(first), buffer_size));
 
             first = new_first;
@@ -3143,8 +3270,9 @@ private:
             first_size += second_size;
         }
 
-        bool append_next_line_to_buffer(char*& buffer, size_t& line_size,
-                                        size_t buffer_size) {
+        [[nodiscard]] bool append_next_line_to_buffer(char*& buffer,
+                                                      size_t& line_size,
+                                                      size_t buffer_size) {
             undo_remove_eol(buffer, line_size, buffer_size);
 
             chars_read_ = curr_char_;
@@ -3163,8 +3291,8 @@ private:
             return true;
         }
 
-        std::string get_buffer() {
-            return std::string{next_line_buffer_, next_line_buffer_size_};
+        [[nodiscard]] std::string get_buffer() {
+            return std::string{next_line_buffer_, next_line_size_};
         }
 
         ////////////////
@@ -3207,4 +3335,4 @@ private:
     bool eof_{false};
 };
 
-} /* ss */
+} /* namespace ss */

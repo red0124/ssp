@@ -293,4 +293,7 @@ private:
 template <typename... Options>
 struct setup<setup<Options...>> : setup<Options...> {};
 
-} /* ss */
+template <typename... Options>
+struct setup<std::tuple<Options...>> : setup<Options...> {};
+
+} /* namespace ss */

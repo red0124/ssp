@@ -145,7 +145,7 @@ make_combinations(const std::vector<std::string>& input,
 
     return {std::move(lines), std::move(expectations)};
 }
-} /* namespace */
+} /* anonymous namespace */
 
 /* ********************************** */
 /* ********************************** */
@@ -548,7 +548,7 @@ public:
         return splitter.size_shifted();
     }
 };
-} /* ss */
+} /* namespace ss */
 
 TEST_CASE("splitter test resplit unterminated quote") {
 
