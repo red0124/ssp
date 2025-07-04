@@ -39,11 +39,6 @@ jobs:
               git mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
               mingw-w64-x86_64-gcc
 
-          - msystem: "MINGW32"
-            install: >-
-              git mingw-w64-i686-cmake mingw-w64-i686-ninja
-              mingw-w64-i686-gcc
-
     runs-on: ${{matrix.os}}
 
     name: "${{matrix.config.msystem}}: ${{matrix.os}}: ${{matrix.type}}"
