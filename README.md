@@ -13,7 +13,6 @@
 [![single-header](https://github.com/red0124/ssp/workflows/single-header-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
 [![ubuntu-latest-gcc](https://github.com/red0124/ssp/workflows/ubuntu-latest-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
 [![ubuntu-latest-clang](https://github.com/red0124/ssp/workflows/ubuntu-latest-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
-[![ubuntu-latest-icc](https://github.com/red0124/ssp/workflows/ubuntu-latest-icc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-icc.yml)
 [![windows-msys2-gcc](https://github.com/red0124/ssp/workflows/win-msys2-gcc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
 [![windows-msys2-clang](https://github.com/red0124/ssp/workflows/win-msys2-clang-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
 [![windows-msvc](https://github.com/red0124/ssp/workflows/win-msvc-ci/badge.svg)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
