@@ -9,14 +9,14 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![coverage](https://coveralls.io/repos/github/red0124/ssp/badge.svg?branch=master)](https://coveralls.io/github/red0124/ssp?branch=master)
-[![fuzz](https://github.com/red0124/ssp/actions/workflows/fuzz/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/fuzz.yml)
-[![single-header](https://github.com/red0124/ssp/actions/workflows/single-header/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
-[![ubuntu-latest-gcc](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
-[![ubuntu-latest-clang](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
-[![windows-msys2-gcc](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
-[![windows-msys2-clang](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
-[![windows-msvc](https://github.com/red0124/ssp/actions/workflows/win-msvc/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
-[![macos-apple-clang](https://github.com/red0124/ssp/actions/workflows/macos-apple-clang/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/macos-apple-clang.yml)
+[![fuzz](https://github.com/red0124/ssp/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/fuzz.yml)
+[![single-header](https://github.com/red0124/ssp/actions/workflows/single-header.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/single-header.yml)
+[![ubuntu-latest-gcc](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-gcc.yml)
+[![ubuntu-latest-clang](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/ubuntu-latest-clang.yml)
+[![windows-msys2-gcc](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msys2-gcc.yml)
+[![windows-msys2-clang](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msys2-clang.yml)
+[![windows-msvc](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/win-msvc.yml)
+[![macos-apple-clang](https://github.com/red0124/ssp/actions/workflows/macos-apple-clang.yml/badge.svg?branch=master)](https://github.com/red0124/ssp/actions/workflows/macos-apple-clang.yml)
 
 A header only CSV parser which is fast and versatile with modern C++ API. Requires compiler with C++17 support. [Can also be used to efficiently convert strings to specific types.](#the-converter)
 
