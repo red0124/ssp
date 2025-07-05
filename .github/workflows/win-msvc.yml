@@ -31,14 +31,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - os: windows-2019
-            vs: "Visual Studio 16 2019"
-
           - os: windows-latest
             vs: "Visual Studio 17 2022"
 
         build: [Debug, Release]
-        platform: [Win32, x64]
+        platform: [x64]
 
     runs-on: ${{matrix.config.os}}
 

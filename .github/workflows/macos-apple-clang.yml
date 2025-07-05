@@ -25,10 +25,10 @@ jobs:
 
     strategy:
       matrix:
-        xcode: ['13.4.1', '14.1']
+        xcode: ['15.2']
         type: [Release, Debug]
 
-    runs-on: macos-12
+    runs-on: macos-latest
 
     env:
       DEVELOPER_DIR: /Applications/Xcode_${{matrix.xcode}}.app/Contents/Developer
@@ -42,7 +42,7 @@ jobs:
         id: cores
 
       - name: Install dependencies
-        run: script/ci_install_deps.sh
+        run: script/ci_install_deps.sh sudo
 
       - name: Configure
         run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{matrix.type}}
